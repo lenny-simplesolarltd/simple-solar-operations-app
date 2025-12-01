@@ -1,14 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error(
-    'Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
-  );
-}
-
 /**
  * Creates a server-side Supabase client using the service role key.
  *
@@ -18,6 +9,15 @@ if (!supabaseUrl || !serviceRoleKey) {
  * Auth is handled by Clerk, not Supabase. Session persistence is disabled.
  */
 export function createSupabaseServerClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      'Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+    );
+  }
+
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false
