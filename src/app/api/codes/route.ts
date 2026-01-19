@@ -1,0 +1,89 @@
+import { CODE_STATUSES, type CodeStatus } from '@/constants/statuses';
+import { createSupabaseServerClient } from '@/lib/supabaseServer';
+import { getClientContextForUser, getUserRole } from '@/lib/userRoles';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { userId } = await auth();
+    const user = await currentUser();
+
+    if (!userId || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleResult = await getUserRole(user);
+
+    const supabase = createSupabaseServerClient();
+    const { searchParams } = new URL(request.url);
+    const clientIdParam = searchParams.get('clientId');
+    const statusParam = searchParams.get('status') as CodeStatus | null;
+    const limit = Math.min(parseInt(searchParams.get('limit') || '25', 10), 100);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+    let query = supabase
+      .from('codes')
+      .select(
+        `
+          id,
+          system_acronym,
+          size,
+          year,
+          status,
+          status_primary,
+          status_secondary,
+          quantity,
+          owner_user_id,
+          created_at
+        `,
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false });
+
+    if (roleResult.role === 'company') {
+      if (clientIdParam) {
+        query = query.eq('owner_user_id', clientIdParam);
+      }
+      if (statusParam && CODE_STATUSES.includes(statusParam)) {
+        query = query.eq('status', statusParam);
+      }
+    } else if (roleResult.role === 'client') {
+      const clientContext =
+        roleResult.client || (await getClientContextForUser(userId));
+
+      if (!clientContext) {
+        return NextResponse.json({ error: 'Client mapping not found' }, { status: 404 });
+      }
+
+      query = query.eq('owner_user_id', clientContext.clientId);
+      if (statusParam && CODE_STATUSES.includes(statusParam)) {
+        query = query.eq('status', statusParam);
+      }
+    }
+
+    const { data, error, count } = await query.range(
+      offset,
+      offset + limit - 1
+    );
+
+    if (error) {
+      console.error('Failed to fetch codes', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch codes' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      codes: data || [],
+      total: count ?? 0
+    });
+  } catch (error) {
+    console.error('Unexpected error in GET /api/codes', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

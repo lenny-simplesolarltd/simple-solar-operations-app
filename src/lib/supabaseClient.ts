@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { CodeStatus } from '@/constants/statuses';
 
 /**
  * Server-side Supabase client with service role key.
@@ -38,8 +39,14 @@ export interface CodeRecord {
   system_acronym: string; // System name (default: "TMGS")
   size: string; // Size label (e.g., "S", "M", "L", "unspecified")
   year: number; // Year code was created
-  owner_user_id: string; // Clerk user ID of the owner
+  owner_user_id: string; // Clerk user ID of the owning client
   created_at: string; // ISO timestamp
+  status?: CodeStatus; // pending | in_progress | completed | archived
+  status_primary?: string | null; // Inventory status (primary)
+  status_secondary?: string | null; // Inventory status (secondary)
+  quantity: number; // Inventory quantity
+  notes?: string | null; // Client notes/description
+  client_id?: string | null; // Legacy client assignment (deprecated)
 }
 
 export interface ScanEventRecord {
@@ -48,6 +55,7 @@ export interface ScanEventRecord {
   scanned_by_user_id: string; // Clerk user ID
   scanned_at: string; // ISO timestamp
   raw_payload: string; // Full QR code text
+  status?: CodeStatus | null; // Status snapshot at scan time
 }
 
 export interface ScanEventWithCode extends ScanEventRecord {

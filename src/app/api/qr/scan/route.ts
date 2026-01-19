@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import { auth } from '@clerk/nextjs/server';
+import { getUserRole } from '@/lib/userRoles';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -9,6 +10,10 @@ type ScanRequest = {
   rawPayload: string; // full text from QR scanner
   size?: string; // optional, e.g. 'S', 'M', 'L'
   systemAcronym?: string; // optional, default "TMGS"
+  clientId?: string; // required, attach scan to client (Clerk user id)
+  statusPrimary?: string | null; // inventory status primary
+  statusSecondary?: string | null; // inventory status secondary
+  quantity?: number; // optional quantity override
 };
 
 /**
@@ -97,11 +102,21 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate with Clerk
     const { userId } = await auth();
+    const user = await currentUser();
 
-    if (!userId) {
+    if (!userId || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized - please sign in' },
         { status: 401 }
+      );
+    }
+
+    const { role } = await getUserRole(user);
+
+    if (role !== 'company') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden - company access required' },
+        { status: 403 }
       );
     }
 
@@ -134,6 +149,29 @@ export async function POST(request: NextRequest) {
     const systemAcronym = body.systemAcronym || 'TMGS';
     const size = body.size || 'unspecified';
     const year = new Date().getFullYear();
+    const requestedClientId = body.clientId;
+    const statusPrimary =
+      typeof body.statusPrimary === 'string' && body.statusPrimary.trim()
+        ? body.statusPrimary.trim()
+        : null;
+    const statusSecondary =
+      typeof body.statusSecondary === 'string' && body.statusSecondary.trim()
+        ? body.statusSecondary.trim()
+        : null;
+    const quantity =
+      typeof body.quantity === 'number' && Number.isFinite(body.quantity)
+        ? Math.max(1, Math.floor(body.quantity))
+        : 1;
+
+    if (!requestedClientId || typeof requestedClientId !== 'string') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing required field: clientId (string)'
+        },
+        { status: 400 }
+      );
+    }
 
     // 6. Connect to Supabase with service role
     const supabase = createSupabaseServerClient();
@@ -144,7 +182,6 @@ export async function POST(request: NextRequest) {
       .from('codes')
       .select('*')
       .eq('id', codeId)
-      .eq('owner_user_id', userId)
       .single();
 
     let codeRecord;
@@ -162,8 +199,44 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingCode) {
-      // Code already exists for this user - reuse it
-      codeRecord = existingCode;
+      // Code already exists - keep it and attach client if needed
+      if (
+        existingCode.owner_user_id &&
+        existingCode.owner_user_id !== requestedClientId &&
+        existingCode.owner_user_id !== userId
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Code is already assigned to a different client'
+          },
+          { status: 409 }
+        );
+      }
+
+      const { data: updatedCode, error: updateError } = await supabase
+        .from('codes')
+        .update({
+          owner_user_id: requestedClientId,
+          system_acronym: systemAcronym,
+          size,
+          status_primary: statusPrimary,
+          status_secondary: statusSecondary,
+          quantity
+        })
+        .eq('id', codeId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating code record:', updateError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to update code record' },
+          { status: 500 }
+        );
+      }
+
+      codeRecord = updatedCode;
     } else {
       // Code doesn't exist - insert new one
       const { data: newCode, error: insertError } = await supabase
@@ -173,7 +246,11 @@ export async function POST(request: NextRequest) {
           system_acronym: systemAcronym,
           size: size,
           year: year,
-          owner_user_id: userId
+          owner_user_id: requestedClientId,
+          status: 'pending',
+          status_primary: statusPrimary,
+          status_secondary: statusSecondary,
+          quantity
         })
         .select()
         .single();
@@ -198,9 +275,10 @@ export async function POST(request: NextRequest) {
       .insert({
         code_id: codeId,
         scanned_by_user_id: userId,
-        raw_payload: body.rawPayload
+        raw_payload: body.rawPayload,
+        status: codeRecord.status || 'pending'
       })
-      .select('id, scanned_at')
+      .select('id, scanned_at, status')
       .single();
 
     if (scanError) {
@@ -214,18 +292,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // TODO: record a ledger entry for activation once ledger logic is wired.
+
     // 9. Return success response
     return NextResponse.json({
       success: true,
       code: {
-        id: codeRecord.id,
-        system_acronym: codeRecord.system_acronym,
-        size: codeRecord.size,
-        year: codeRecord.year
-      },
+      id: codeRecord.id,
+      system_acronym: codeRecord.system_acronym,
+      size: codeRecord.size,
+      year: codeRecord.year,
+      status: codeRecord.status || 'pending',
+      status_primary: codeRecord.status_primary ?? null,
+      status_secondary: codeRecord.status_secondary ?? null,
+      quantity: codeRecord.quantity ?? 1,
+      owner_user_id: codeRecord.owner_user_id
+    },
       scanEvent: {
         id: scanEvent.id,
-        scanned_at: scanEvent.scanned_at
+        scanned_at: scanEvent.scanned_at,
+        status: scanEvent.status || codeRecord.status || 'pending'
       }
     });
   } catch (error) {

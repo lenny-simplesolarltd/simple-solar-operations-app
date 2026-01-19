@@ -1,5 +1,6 @@
 'use client';
-import { navItems } from '@/constants/data';
+import { navItems as defaultNavItems } from '@/constants/data';
+import type { NavItem } from '@/types';
 import {
   KBarAnimator,
   KBarPortal,
@@ -12,7 +13,12 @@ import { useMemo } from 'react';
 import RenderResults from './render-result';
 import useThemeSwitching from './use-theme-switching';
 
-export default function KBar({ children }: { children: React.ReactNode }) {
+interface KBarProps {
+  children: React.ReactNode;
+  navItemsOverride?: NavItem[];
+}
+
+export default function KBar({ children, navItemsOverride }: KBarProps) {
   const router = useRouter();
 
   // These action are for the navigation
@@ -22,7 +28,9 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       router.push(url);
     };
 
-    return navItems.flatMap((navItem) => {
+    const items = navItemsOverride ?? defaultNavItems;
+
+    return items.flatMap((navItem) => {
       // Only include base action if the navItem has a real URL and is not just a container
       const baseAction =
         navItem.url !== '#'
@@ -52,7 +60,7 @@ export default function KBar({ children }: { children: React.ReactNode }) {
       // Return only valid actions (ignoring null base actions for containers)
       return baseAction ? [baseAction, ...childActions] : childActions;
     });
-  }, [router]);
+  }, [navItemsOverride, router]);
 
   return (
     <KBarProvider actions={actions}>

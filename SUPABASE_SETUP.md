@@ -200,6 +200,11 @@ All three formats will be correctly parsed by the app!
 | `year` | INTEGER | Year code was created |
 | `owner_user_id` | TEXT | Clerk user ID of owner |
 | `created_at` | TIMESTAMPTZ | When code was first seen |
+| `status` | TEXT | Workflow status (`pending`, `in_progress`, `completed`, `archived`) |
+| `status_primary` | TEXT | Inventory status (primary) |
+| `status_secondary` | TEXT | Inventory status (secondary) |
+| `quantity` | INTEGER | Inventory quantity (default: 1) |
+| `notes` | TEXT | Client notes/description |
 
 ### `scan_events` table
 
@@ -210,6 +215,49 @@ All three formats will be correctly parsed by the app!
 | `scanned_by_user_id` | TEXT | Clerk user ID who scanned |
 | `scanned_at` | TIMESTAMPTZ | When scan occurred |
 | `raw_payload` | TEXT | Original QR text |
+| `status` | TEXT | Snapshot of workflow status at scan time |
+
+### `clients` table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT | Clerk user ID |
+| `name` | TEXT | Client display name |
+| `email` | TEXT | Client email |
+| `subscription_plan` | TEXT | Plan (`basic` or `pro`) |
+| `created_at` | TIMESTAMPTZ | When client row was created |
+
+### `ledgers` table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `name` | TEXT | Ledger name |
+| `created_at` | TIMESTAMPTZ | When ledger was created |
+
+### `ledger_entries` table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `ledger_id` | UUID | References `ledgers.id` |
+| `code_id` | TEXT | References `codes.id` |
+| `client_id` | TEXT | Clerk user ID |
+| `amount` | NUMERIC | Amount for future metrics |
+| `metadata` | JSONB | Arbitrary metadata |
+| `created_at` | TIMESTAMPTZ | When entry was created |
+
+### `pickups` table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `client_id` | TEXT | References `clients.id` |
+| `scheduled_at` | TIMESTAMPTZ | Scheduled pickup time |
+| `completed_at` | TIMESTAMPTZ | When pickup was completed |
+| `status` | TEXT | Pickup status (scheduled/completed/missed/delayed) |
+| `quantity_collected` | INTEGER | Quantity collected |
+| `created_at` | TIMESTAMPTZ | When pickup was created |
 
 ## Future Enhancements
 
@@ -227,6 +275,82 @@ Consider adding these features later:
 - **Supabase Docs**: https://supabase.com/docs
 - **Clerk + Supabase Guide**: https://clerk.com/docs/integrations/databases/supabase
 - **GitHub Issues**: https://github.com/lennybeadle/qr-inventory/issues
+
+---
+
+## v0.2 Schema Changes (inventory status, clients, subscriptions, ledgers)
+
+Run the following SQL in the Supabase SQL editor to add the v0.2 features. The order matters to avoid missing-column errors.
+
+```sql
+-- Track code + scan status
+ALTER TABLE codes
+ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
+
+ALTER TABLE scan_events
+ADD COLUMN IF NOT EXISTS status TEXT;
+
+-- Inventory status + notes
+ALTER TABLE codes
+ADD COLUMN IF NOT EXISTS status_primary TEXT,
+ADD COLUMN IF NOT EXISTS status_secondary TEXT,
+ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Clients (id = Clerk user id)
+CREATE TABLE IF NOT EXISTS clients (
+  id TEXT PRIMARY KEY, -- Clerk user ID
+  name TEXT NOT NULL,
+  email TEXT,
+  subscription_plan TEXT NOT NULL DEFAULT 'basic', -- 'basic' | 'pro'
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_clients_plan ON clients(subscription_plan);
+
+-- Pickups
+CREATE TABLE IF NOT EXISTS pickups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  scheduled_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'scheduled', -- scheduled | completed | missed | delayed | etc.
+  quantity_collected INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pickups_client ON pickups(client_id);
+CREATE INDEX IF NOT EXISTS idx_pickups_status ON pickups(status);
+CREATE INDEX IF NOT EXISTS idx_pickups_completed_at ON pickups(completed_at);
+
+-- Ledgers
+CREATE TABLE IF NOT EXISTS ledgers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL, -- 'Master', 'Asset/Inventory', 'Green', 'Labor', 'Operational', 'Economical'
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ledgers_name ON ledgers(name);
+
+CREATE TABLE IF NOT EXISTS ledger_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ledger_id UUID REFERENCES ledgers(id) ON DELETE CASCADE,
+  code_id TEXT REFERENCES codes(id) ON DELETE SET NULL,
+  client_id TEXT, -- Clerk user ID (clients.id)
+  amount NUMERIC,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_ledger ON ledger_entries(ledger_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_code ON ledger_entries(code_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_client ON ledger_entries(client_id);
+```
+
+Status values are simple text enums for now: `pending` | `in_progress` | `completed` | `archived`.
+
+Inventory status fields (`status_primary`, `status_secondary`) are free-form strings today, but the UI uses a fixed list.
+`codes.owner_user_id` is treated as the owning client (Clerk user id).
 
 ---
 

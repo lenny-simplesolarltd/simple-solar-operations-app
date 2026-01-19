@@ -12,6 +12,9 @@ const baseConfig: NextConfig = {
       }
     ]
   },
+  turbopack: {
+    root: __dirname
+  },
   transpilePackages: ['geist']
 };
 

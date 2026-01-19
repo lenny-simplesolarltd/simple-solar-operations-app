@@ -1,8 +1,9 @@
 import { extractCodeId } from '@/lib/qr';
 import { getSupabaseClient } from '@/lib/supabaseClient';
 import type { CodeRecord, ScanEventWithCode } from '@/lib/supabaseClient';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { getUserRole } from '@/lib/userRoles';
 
 /**
  * POST /api/scan-events
@@ -24,9 +25,16 @@ export async function POST(request: NextRequest) {
   try {
     // Authenticate user
     const { userId } = await auth();
+    const user = await currentUser();
 
-    if (!userId) {
+    if (!userId || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { role } = await getUserRole(user);
+
+    if (role !== 'company') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Parse request body
@@ -91,7 +99,8 @@ export async function POST(request: NextRequest) {
           system_acronym: 'TMGS',
           size: 'unspecified',
           year: currentYear,
-          owner_user_id: userId
+          owner_user_id: userId,
+          status: 'pending'
         })
         .select()
         .single();
@@ -113,9 +122,10 @@ export async function POST(request: NextRequest) {
       .insert({
         code_id: codeId,
         scanned_by_user_id: userId,
-        raw_payload: rawPayload
+        raw_payload: rawPayload,
+        status: codeRecord.status || 'pending'
       })
-      .select('id, code_id, scanned_at')
+      .select('id, code_id, scanned_at, status')
       .single();
 
     if (scanError) {
@@ -132,12 +142,14 @@ export async function POST(request: NextRequest) {
         id: codeRecord.id,
         system_acronym: codeRecord.system_acronym,
         size: codeRecord.size,
-        year: codeRecord.year
+        year: codeRecord.year,
+        status: codeRecord.status || 'pending'
       },
       scanEvent: {
         id: scanEvent.id,
         code_id: scanEvent.code_id,
-        scanned_at: scanEvent.scanned_at
+        scanned_at: scanEvent.scanned_at,
+        status: scanEvent.status || codeRecord.status || 'pending'
       }
     });
   } catch (error) {
@@ -175,9 +187,16 @@ export async function GET() {
   try {
     // Authenticate user
     const { userId } = await auth();
+    const user = await currentUser();
 
-    if (!userId) {
+    if (!userId || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { role } = await getUserRole(user);
+
+    if (role !== 'company') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get server-side Supabase client
@@ -192,12 +211,19 @@ export async function GET() {
         id,
         code_id,
         scanned_at,
+        status,
         raw_payload,
         codes (
           id,
           system_acronym,
           size,
-          year
+          year,
+          status,
+          status_primary,
+          status_secondary,
+          quantity,
+          owner_user_id,
+          created_at
         )
       `
       )
@@ -221,13 +247,18 @@ export async function GET() {
         scanned_at: event.scanned_at,
         raw_payload: event.raw_payload,
         scanned_by_user_id: userId,
+        status: event.status,
         code: event.codes
           ? {
               id: event.codes.id,
               system_acronym: event.codes.system_acronym,
               size: event.codes.size,
               year: event.codes.year,
-              owner_user_id: userId,
+              status: event.codes.status,
+              status_primary: event.codes.status_primary,
+              status_secondary: event.codes.status_secondary,
+              quantity: event.codes.quantity,
+              owner_user_id: event.codes.owner_user_id,
               created_at: event.codes.created_at || event.scanned_at
             }
           : undefined

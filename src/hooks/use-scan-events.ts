@@ -1,5 +1,6 @@
 'use client';
 
+import type { CodeStatus } from '@/constants/statuses';
 import type { ScanEventWithCode } from '@/lib/supabaseClient';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -9,7 +10,15 @@ interface UseScanEventsReturn {
   error: Error | null;
   recordScan: (
     rawPayload: string,
-    options?: { size?: string; systemAcronym?: string }
+    options?: {
+      size?: string;
+      systemAcronym?: string;
+      clientId?: string;
+      status?: CodeStatus;
+      statusPrimary?: string | null;
+      statusSecondary?: string | null;
+      quantity?: number;
+    }
   ) => Promise<ScanEventWithCode>;
   refreshScans: () => Promise<void>;
 }
@@ -69,7 +78,15 @@ export function useScanEvents(): UseScanEventsReturn {
   const recordScan = useCallback(
     async (
       rawPayload: string,
-      options?: { size?: string; systemAcronym?: string }
+      options?: {
+        size?: string;
+        systemAcronym?: string;
+        clientId?: string;
+        status?: CodeStatus;
+        statusPrimary?: string | null;
+        statusSecondary?: string | null;
+        quantity?: number;
+      }
     ): Promise<ScanEventWithCode> => {
       try {
         const response = await fetch('/api/qr/scan', {
@@ -80,7 +97,12 @@ export function useScanEvents(): UseScanEventsReturn {
           body: JSON.stringify({
             rawPayload,
             size: options?.size,
-            systemAcronym: options?.systemAcronym
+            systemAcronym: options?.systemAcronym,
+            clientId: options?.clientId,
+            status: options?.status,
+            statusPrimary: options?.statusPrimary,
+            statusSecondary: options?.statusSecondary,
+            quantity: options?.quantity
           })
         });
 
@@ -103,12 +125,18 @@ export function useScanEvents(): UseScanEventsReturn {
           scanned_at: data.scanEvent.scanned_at,
           raw_payload: rawPayload,
           scanned_by_user_id: '', // Will be set by the server
+          status: data.scanEvent.status,
           code: {
             id: data.code.id,
             system_acronym: data.code.system_acronym,
             size: data.code.size,
             year: data.code.year,
-            owner_user_id: '', // Will be set by the server
+            status: data.code.status,
+            status_primary: data.code.status_primary ?? null,
+            status_secondary: data.code.status_secondary ?? null,
+            quantity: data.code.quantity ?? 1,
+            client_id: data.code.client_id ?? null,
+            owner_user_id: data.code.owner_user_id ?? '',
             created_at: data.scanEvent.scanned_at
           }
         };
