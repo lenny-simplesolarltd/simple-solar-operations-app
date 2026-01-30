@@ -40,7 +40,15 @@ export default function PublicCodePage() {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/codes/${codeId}`);
+        const response = await fetch(`/api/public/codes/${codeId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rawPayload: window.location.href
+          })
+        });
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -52,7 +60,18 @@ export default function PublicCodePage() {
         }
 
         const data = await response.json();
-        setCodeInfo(data);
+        const code = data?.code;
+        if (!code) {
+          setError('Failed to load code information');
+          return;
+        }
+        setCodeInfo({
+          id: code.id,
+          system: code.system_acronym,
+          size: code.size,
+          year: code.year,
+          created: code.created_at
+        });
       } catch (err) {
         console.error('Error fetching code info:', err);
         setError('Failed to load code information');

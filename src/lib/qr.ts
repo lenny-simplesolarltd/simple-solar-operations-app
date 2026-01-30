@@ -3,7 +3,7 @@
  *
  * The QR payload can be either:
  * 1. Just the code ID: "A6F3HW7L"
- * 2. A URL containing the ID: "https://app.example.com/s/A6F3HW7L"
+ * 2. A URL containing the ID: "https://app.example.com/code/A6F3HW7L"
  * 3. A URL with query param: "https://app.example.com?code=A6F3HW7L"
  *
  * This keeps the QR codes "safe" - no sensitive data is encoded,
@@ -23,7 +23,7 @@ const CODE_ID_REGEX = /^[A-Z0-9]+$/;
  *
  * @example
  * extractCodeId("A6F3HW7L") // Returns "A6F3HW7L"
- * extractCodeId("https://app.example.com/s/A6F3HW7L") // Returns "A6F3HW7L"
+ * extractCodeId("https://app.example.com/code/A6F3HW7L") // Returns "A6F3HW7L"
  * extractCodeId("https://app.example.com?code=a6f3hw7l") // Returns "A6F3HW7L"
  */
 export function extractCodeId(raw: string): string {
@@ -125,5 +125,5 @@ export function generateQRUrl(
   baseUrl: string = 'https://app.example.com'
 ): string {
   const validatedId = extractCodeId(codeId); // Validates first
-  return `${baseUrl}/s/${validatedId}`;
+  return `${baseUrl}/code/${validatedId}`;
 }

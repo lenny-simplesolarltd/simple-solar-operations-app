@@ -148,7 +148,7 @@ Try creating QR codes with these test values:
 
 2. **URL with code in path**:
    ```
-   https://app.example.com/s/B7G4JX9M
+   https://app.example.com/code/B7G4JX9M
    ```
 
 3. **URL with query parameter**:
