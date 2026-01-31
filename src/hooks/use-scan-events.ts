@@ -20,7 +20,7 @@ interface UseScanEventsReturn {
       quantity?: number;
     }
   ) => Promise<ScanEventWithCode>;
-  refreshScans: () => Promise<void>;
+  refreshScans: (options?: { silent?: boolean }) => Promise<void>;
 }
 
 /**
@@ -48,9 +48,11 @@ export function useScanEvents(): UseScanEventsReturn {
   /**
    * Fetches scan events from the API
    */
-  const refreshScans = useCallback(async () => {
+  const refreshScans = useCallback(async (options?: { silent?: boolean }) => {
     try {
-      setIsLoading(true);
+      if (!options?.silent) {
+        setIsLoading(true);
+      }
       setError(null);
 
       const response = await fetch('/api/scan-events');
@@ -63,12 +65,13 @@ export function useScanEvents(): UseScanEventsReturn {
       const data: ScanEventWithCode[] = await response.json();
       setScans(data);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(new Error(errorMessage));
       console.error('Error fetching scan events:', err);
     } finally {
-      setIsLoading(false);
+      if (!options?.silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -150,7 +153,8 @@ export function useScanEvents(): UseScanEventsReturn {
 
         return newScan;
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        const errorMessage =
+          err instanceof Error ? err.message : 'Unknown error';
         setError(new Error(errorMessage));
         throw err;
       }

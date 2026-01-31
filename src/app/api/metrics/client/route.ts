@@ -44,7 +44,10 @@ export async function GET() {
       roleResult.client || (await getClientContextForUser(userId));
 
     if (!clientContext) {
-      return NextResponse.json({ error: 'Client mapping not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Client mapping not found' },
+        { status: 404 }
+      );
     }
 
     const supabase = createSupabaseServerClient();
@@ -69,10 +72,11 @@ export async function GET() {
       }
     });
 
-    const codesByInventoryStatus: InventoryStatusCounts = INVENTORY_STATUSES.reduce(
-      (acc, status) => ({ ...acc, [status]: 0 }),
-      {} as InventoryStatusCounts
-    );
+    const codesByInventoryStatus: InventoryStatusCounts =
+      INVENTORY_STATUSES.reduce(
+        (acc, status) => ({ ...acc, [status]: 0 }),
+        {} as InventoryStatusCounts
+      );
 
     (codeRows || []).forEach(
       (row: { status_primary?: InventoryStatus | null }) => {
@@ -87,21 +91,23 @@ export async function GET() {
     const sizeMap = new Map<string, SizeBucket>();
     let totalCollected = 0;
 
-    (codeRows || []).forEach((row: { size?: string | null; quantity?: number }) => {
-      const size = row.size || 'unspecified';
-      const quantity = Number.isFinite(row.quantity)
-        ? Math.max(0, Math.floor(row.quantity ?? 0))
-        : 0;
-      totalCollected += quantity;
-      const existing = sizeMap.get(size) || {
-        size,
-        count: 0,
-        total_quantity: 0
-      };
-      existing.count += 1;
-      existing.total_quantity += quantity;
-      sizeMap.set(size, existing);
-    });
+    (codeRows || []).forEach(
+      (row: { size?: string | null; quantity?: number }) => {
+        const size = row.size || 'unspecified';
+        const quantity = Number.isFinite(row.quantity)
+          ? Math.max(0, Math.floor(row.quantity ?? 0))
+          : 0;
+        totalCollected += quantity;
+        const existing = sizeMap.get(size) || {
+          size,
+          count: 0,
+          total_quantity: 0
+        };
+        existing.count += 1;
+        existing.total_quantity += quantity;
+        sizeMap.set(size, existing);
+      }
+    );
 
     const codesBySize = Array.from(sizeMap.values()).sort(
       (a, b) => b.total_quantity - a.total_quantity
@@ -134,6 +140,7 @@ export async function GET() {
       const startWindow = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1)
       );
+      const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
       const monthlyBuckets: Record<string, number> = {};
       (codeRows || [])
@@ -180,6 +187,42 @@ export async function GET() {
       response.pickups_completed_week = pickupsWeekCount ?? 0;
       response.pickups_completed_month = pickupsMonthCount ?? 0;
 
+      const { data: scanCountRows, error: scanCountError } = await supabase
+        .from('scan_events')
+        .select('scanned_at, codes!inner(owner_user_id)')
+        .eq('codes.owner_user_id', clientContext.clientId)
+        .gte('scanned_at', startOfYear.toISOString());
+
+      if (scanCountError) {
+        console.error('Failed to fetch scan counts', scanCountError);
+      }
+
+      let scansThisWeek = 0;
+      let scansThisMonth = 0;
+      const scanVolumeMap = new Map<string, number>();
+
+      (scanCountRows || []).forEach((row: any) => {
+        if (!row.scanned_at) return;
+        const scannedAt = new Date(row.scanned_at);
+        const dateKey = scannedAt.toISOString().split('T')[0];
+        scanVolumeMap.set(dateKey, (scanVolumeMap.get(dateKey) || 0) + 1);
+        if (scannedAt >= startOfWeek) {
+          scansThisWeek += 1;
+        }
+        if (scannedAt >= startOfMonth) {
+          scansThisMonth += 1;
+        }
+      });
+
+      response.scans_this_week = scansThisWeek;
+      response.scans_this_month = scansThisMonth;
+      response.scan_volume_by_day = Array.from(scanVolumeMap.entries()).map(
+        ([date, count]) => ({
+          date,
+          count
+        })
+      );
+
       const { data: scanRows } = await supabase
         .from('scan_events')
         .select(
@@ -195,7 +238,7 @@ export async function GET() {
         )
         .eq('codes.owner_user_id', clientContext.clientId)
         .order('scanned_at', { ascending: false })
-        .limit(3);
+        .limit(6);
 
       const { data: pickupRows } = await supabase
         .from('pickups')
@@ -203,7 +246,7 @@ export async function GET() {
         .eq('client_id', clientContext.clientId)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
-        .limit(3);
+        .limit(6);
 
       const timeline: ActivityEvent[] = [
         ...(scanRows || []).map((row: any) => ({
@@ -225,7 +268,7 @@ export async function GET() {
             new Date(b.occurred_at).getTime() -
             new Date(a.occurred_at).getTime()
         )
-        .slice(0, 3);
+        .slice(0, 6);
 
       response.activity_timeline = timeline;
     }

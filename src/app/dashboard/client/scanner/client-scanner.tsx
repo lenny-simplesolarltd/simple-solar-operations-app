@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { QrReader } from 'react-qr-reader';
 import { toast } from 'sonner';
 import { extractCodeId } from '@/lib/qr';
@@ -15,7 +15,12 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { IconAlertCircle, IconCamera, IconLoader2, IconRefresh } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconCamera,
+  IconLoader2,
+  IconRefresh
+} from '@tabler/icons-react';
 
 type CodeDetails = {
   id: string;
@@ -37,6 +42,10 @@ export default function ClientScanner() {
   const [isSaving, setIsSaving] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [hasSingleCamera, setHasSingleCamera] = useState<boolean | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>(
+    'environment'
+  );
   const lastScanRef = useRef<string | null>(null);
 
   const loadCode = useCallback(async (codeId: string) => {
@@ -59,7 +68,8 @@ export default function ClientScanner() {
       toast.success('Code loaded');
       return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load code';
+      const message =
+        error instanceof Error ? error.message : 'Failed to load code';
       setLookupError(message);
       toast.error(message);
       return false;
@@ -92,6 +102,9 @@ export default function ClientScanner() {
             'Unable to access camera. Please ensure camera permissions are granted.'
           );
           setIsScanning(false);
+          if (hasSingleCamera) {
+            setFacingMode('user');
+          }
         }
         return;
       }
@@ -121,8 +134,38 @@ export default function ClientScanner() {
         lastScanRef.current = null;
       }
     },
-    [isLoading, isScanning, loadCode]
+    [hasSingleCamera, isLoading, isScanning, loadCode]
   );
+
+  useEffect(() => {
+    let isActive = true;
+
+    const selectCamera = async () => {
+      if (!navigator?.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (!isActive) return;
+        const videoDevices = devices.filter(
+          (device) => device.kind === 'videoinput'
+        );
+        if (videoDevices.length <= 1) {
+          setHasSingleCamera(true);
+          setFacingMode('user');
+          return;
+        }
+        setHasSingleCamera(false);
+        setFacingMode('environment');
+      } catch (error) {
+        console.warn('Failed to detect cameras', error);
+      }
+    };
+
+    selectCamera();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const handleSave = async () => {
     if (!code) return;
@@ -147,7 +190,9 @@ export default function ClientScanner() {
       setCode(payload.code);
       toast.success('Updates saved');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update code');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update code'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -183,10 +228,10 @@ export default function ClientScanner() {
         <div className='grid gap-4 lg:grid-cols-[2fr,1fr]'>
           <div className='overflow-hidden rounded-lg border'>
             {cameraError ? (
-              <div className='flex flex-col items-center justify-center rounded-lg border border-destructive/50 bg-destructive/10 p-8'>
-                <IconAlertCircle className='mb-4 h-12 w-12 text-destructive' />
+              <div className='border-destructive/50 bg-destructive/10 flex flex-col items-center justify-center rounded-lg border p-8'>
+                <IconAlertCircle className='text-destructive mb-4 h-12 w-12' />
                 <h3 className='mb-2 text-lg font-semibold'>Camera Error</h3>
-                <p className='mb-4 text-center text-sm text-muted-foreground'>
+                <p className='text-muted-foreground mb-4 text-center text-sm'>
                   {cameraError}
                 </p>
                 <Button
@@ -204,8 +249,9 @@ export default function ClientScanner() {
                 {isScanning && (
                   <>
                     <QrReader
+                      key={`client-scanner-${facingMode}`}
                       onResult={handleScan}
-                      constraints={{ facingMode: { ideal: 'environment' } }}
+                      constraints={{ facingMode: { ideal: facingMode } }}
                       scanDelay={500}
                       containerStyle={{
                         position: 'absolute',
@@ -226,11 +272,11 @@ export default function ClientScanner() {
                     <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
                       <div className='absolute inset-0 bg-black/30' />
                       <div className='relative z-10 h-56 w-56'>
-                        <div className='absolute left-0 top-0 h-10 w-10 border-l-4 border-t-4 border-primary' />
-                        <div className='absolute right-0 top-0 h-10 w-10 border-r-4 border-t-4 border-primary' />
-                        <div className='absolute bottom-0 left-0 h-10 w-10 border-b-4 border-l-4 border-primary' />
-                        <div className='absolute bottom-0 right-0 h-10 w-10 border-b-4 border-r-4 border-primary' />
-                        <div className='absolute left-0 right-0 top-0 h-1 animate-scan bg-gradient-to-r from-transparent via-primary to-transparent' />
+                        <div className='border-primary absolute top-0 left-0 h-10 w-10 border-t-4 border-l-4' />
+                        <div className='border-primary absolute top-0 right-0 h-10 w-10 border-t-4 border-r-4' />
+                        <div className='border-primary absolute bottom-0 left-0 h-10 w-10 border-b-4 border-l-4' />
+                        <div className='border-primary absolute right-0 bottom-0 h-10 w-10 border-r-4 border-b-4' />
+                        <div className='animate-scan via-primary absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent to-transparent' />
                       </div>
                     </div>
                     <div className='absolute bottom-4 left-1/2 z-20 -translate-x-1/2'>
@@ -256,13 +302,13 @@ export default function ClientScanner() {
 
           <div className='space-y-4'>
             {lookupError && (
-              <div className='rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive'>
+              <div className='border-destructive/50 bg-destructive/10 text-destructive rounded-md border p-3 text-sm'>
                 {lookupError}
               </div>
             )}
 
             <div className='rounded-lg border p-4'>
-              <p className='text-sm text-muted-foreground'>Code details</p>
+              <p className='text-muted-foreground text-sm'>Code details</p>
               {code ? (
                 <div className='mt-2 space-y-2 text-sm'>
                   <div className='flex items-center justify-between'>
@@ -289,18 +335,20 @@ export default function ClientScanner() {
                     <span className='text-muted-foreground'>Status</span>
                     <span>
                       {code.status_primary || 'None'}
-                      {code.status_secondary ? ` / ${code.status_secondary}` : ''}
+                      {code.status_secondary
+                        ? ` / ${code.status_secondary}`
+                        : ''}
                     </span>
                   </div>
                 </div>
               ) : (
-                <p className='mt-2 text-sm text-muted-foreground'>
+                <p className='text-muted-foreground mt-2 text-sm'>
                   Scan a code to view details.
                 </p>
               )}
             </div>
 
-            <div className='rounded-lg border p-4 space-y-3'>
+            <div className='space-y-3 rounded-lg border p-4'>
               <p className='text-sm font-medium'>Update notes</p>
               <Textarea
                 value={notes}
@@ -310,7 +358,10 @@ export default function ClientScanner() {
                 disabled={!code}
               />
               <div className='grid gap-2'>
-                <label className='text-sm text-muted-foreground' htmlFor='client-quantity'>
+                <label
+                  className='text-muted-foreground text-sm'
+                  htmlFor='client-quantity'
+                >
                   Quantity
                 </label>
                 <Input
@@ -330,7 +381,9 @@ export default function ClientScanner() {
                 />
               </div>
               <Button onClick={handleSave} disabled={!code || isSaving}>
-                {isSaving && <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />}
+                {isSaving && (
+                  <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
+                )}
                 Save updates
               </Button>
             </div>

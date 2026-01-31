@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import { ContributionGraph } from '@/components/metrics/contribution-graph';
 import {
   Table,
   TableBody,
@@ -52,6 +53,9 @@ type ClientMetrics = {
   top_sizes?: { size: string; count: number; total_quantity: number }[];
   pickups_completed_week?: number;
   pickups_completed_month?: number;
+  scans_this_week?: number;
+  scans_this_month?: number;
+  scan_volume_by_day?: { date: string; count: number }[];
   activity_timeline?: {
     type: 'scan' | 'pickup';
     occurred_at: string;
@@ -72,6 +76,7 @@ type ClientCode = {
 type ClientDashboardView = 'metrics' | 'codes';
 
 const PAGE_SIZE = 10;
+const POLL_INTERVAL_MS = 30000;
 
 const VIEW_COPY: Record<
   ClientDashboardView,
@@ -119,8 +124,10 @@ export default function ClientDashboard({
     }
   }, []);
 
-  const loadMetrics = useCallback(async () => {
-    setLoadingMeta(true);
+  const loadMetrics = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoadingMeta(true);
+    }
     try {
       const res = await fetch('/api/metrics/client');
       if (!res.ok) {
@@ -135,35 +142,44 @@ export default function ClientDashboard({
         error instanceof Error ? error.message : 'Failed to load metrics'
       );
     } finally {
-      setLoadingMeta(false);
-    }
-  }, []);
-
-  const loadCodes = useCallback(async (pageNumber = 0) => {
-    setLoadingCodes(true);
-    try {
-      const params = new URLSearchParams();
-      params.set('limit', PAGE_SIZE.toString());
-      params.set('offset', (pageNumber * PAGE_SIZE).toString());
-
-      const res = await fetch(`/api/codes?${params.toString()}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to load codes');
+      if (!options?.silent) {
+        setLoadingMeta(false);
       }
-
-      const payload = await res.json();
-      setCodes(payload.codes || []);
-      setCodesTotal(payload.total || 0);
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to load codes'
-      );
-    } finally {
-      setLoadingCodes(false);
     }
   }, []);
+
+  const loadCodes = useCallback(
+    async (pageNumber = 0, options?: { silent?: boolean }) => {
+      if (!options?.silent) {
+        setLoadingCodes(true);
+      }
+      try {
+        const params = new URLSearchParams();
+        params.set('limit', PAGE_SIZE.toString());
+        params.set('offset', (pageNumber * PAGE_SIZE).toString());
+
+        const res = await fetch(`/api/codes?${params.toString()}`);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to load codes');
+        }
+
+        const payload = await res.json();
+        setCodes(payload.codes || []);
+        setCodesTotal(payload.total || 0);
+      } catch (error) {
+        console.error(error);
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to load codes'
+        );
+      } finally {
+        if (!options?.silent) {
+          setLoadingCodes(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     loadClient();
@@ -178,6 +194,24 @@ export default function ClientDashboard({
   const viewCopy = VIEW_COPY[view];
   const showMetrics = view === 'metrics';
   const showCodes = view === 'codes';
+
+  useEffect(() => {
+    if (!showMetrics) return;
+    const intervalId = setInterval(() => {
+      loadMetrics({ silent: true });
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [loadMetrics, showMetrics]);
+
+  useEffect(() => {
+    if (!showCodes) return;
+    const intervalId = setInterval(() => {
+      loadCodes(page, { silent: true });
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [loadCodes, page, showCodes]);
 
   return (
     <PageContainer>
@@ -379,40 +413,88 @@ export default function ClientDashboard({
                   </Card>
                 </div>
               )}
-              {isPro && metrics?.activity_timeline && (
-                <div className='mt-6'>
-                  <h4 className='text-sm font-semibold'>Recent activity</h4>
-                  <div className='mt-3 space-y-2'>
-                    {metrics.activity_timeline.length === 0 ? (
-                      <p className='text-muted-foreground text-sm'>
-                        No recent activity yet.
-                      </p>
-                    ) : (
-                      metrics.activity_timeline.map((event, index) => (
-                        <Card
-                          key={`${event.type}-${index}`}
-                          className='border-muted'
-                        >
-                          <CardHeader className='py-3'>
-                            <CardDescription className='capitalize'>
-                              {event.type}
-                            </CardDescription>
-                            <CardTitle className='text-sm'>
-                              {event.type === 'scan'
-                                ? `Scanned ${event.code_id}`
-                                : `Pickup collected (${event.quantity_collected ?? 0})`}
-                            </CardTitle>
-                            <p className='text-muted-foreground text-xs'>
-                              {event.occurred_at
-                                ? format(new Date(event.occurred_at), 'PP p')
-                                : '—'}
-                            </p>
-                          </CardHeader>
-                        </Card>
-                      ))
-                    )}
-                  </div>
+              {isPro && (
+                <div className='mt-6 grid grid-cols-1 gap-4 md:grid-cols-2'>
+                  <Card className='border-muted'>
+                    <CardHeader>
+                      <CardDescription>Scans this week</CardDescription>
+                      <CardTitle>
+                        {loadingMeta ? '—' : (metrics?.scans_this_week ?? 0)}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card className='border-muted'>
+                    <CardHeader>
+                      <CardDescription>Scans this month</CardDescription>
+                      <CardTitle>
+                        {loadingMeta ? '—' : (metrics?.scans_this_month ?? 0)}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
                 </div>
+              )}
+              {isPro && (
+                <Card className='border-muted mt-6'>
+                  <CardHeader>
+                    <CardTitle>Scan activity</CardTitle>
+                    <CardDescription>
+                      Daily scan volume with recent events.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingMeta ? (
+                      <div className='text-muted-foreground flex items-center gap-2'>
+                        <IconLoader2 className='h-4 w-4 animate-spin' />
+                        Loading scan activity...
+                      </div>
+                    ) : (
+                      <div className='grid gap-6 lg:grid-cols-[2fr,1fr]'>
+                        <ContributionGraph
+                          data={metrics?.scan_volume_by_day || []}
+                          year={new Date().getFullYear()}
+                        />
+                        <div>
+                          <h4 className='text-sm font-semibold'>
+                            Recent activity
+                          </h4>
+                          <div className='mt-3 space-y-2'>
+                            {metrics?.activity_timeline?.length ? (
+                              metrics.activity_timeline.map((event, index) => (
+                                <Card
+                                  key={`${event.type}-${index}`}
+                                  className='border-muted'
+                                >
+                                  <CardHeader className='py-3'>
+                                    <CardDescription className='capitalize'>
+                                      {event.type}
+                                    </CardDescription>
+                                    <CardTitle className='text-sm'>
+                                      {event.type === 'scan'
+                                        ? `Scanned ${event.code_id}`
+                                        : `Pickup collected (${event.quantity_collected ?? 0})`}
+                                    </CardTitle>
+                                    <p className='text-muted-foreground text-xs'>
+                                      {event.occurred_at
+                                        ? format(
+                                            new Date(event.occurred_at),
+                                            'PP p'
+                                          )
+                                        : '—'}
+                                    </p>
+                                  </CardHeader>
+                                </Card>
+                              ))
+                            ) : (
+                              <p className='text-muted-foreground text-sm'>
+                                No recent activity yet.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </CardContent>
           </Card>

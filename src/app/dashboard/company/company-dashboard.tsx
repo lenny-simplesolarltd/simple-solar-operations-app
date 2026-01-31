@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ContributionGraph } from '@/components/metrics/contribution-graph';
 import {
   Select,
   SelectContent,
@@ -50,11 +51,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -77,7 +73,6 @@ import type { ScanEventWithCode } from '@/lib/supabaseClient';
 import {
   IconAlertCircle,
   IconCamera,
-  IconChevronsDown,
   IconLoader2,
   IconScan,
   IconUsers
@@ -116,6 +111,17 @@ type CompanyMetrics = {
     month: string;
     totals: { client_id: string; name?: string | null; quantity: number }[];
   }[];
+  scans_this_week: number;
+  scans_this_month: number;
+  scan_volume_by_day: { date: string; count: number }[];
+  activity_timeline?: {
+    type: 'scan' | 'pickup';
+    occurred_at: string;
+    code_id?: string;
+    status?: string | null;
+    client_id?: string | null;
+    quantity_collected?: number;
+  }[];
 };
 
 type CodeRow = {
@@ -133,6 +139,7 @@ type CodeRow = {
 type CompanyDashboardView = 'metrics' | 'scanner' | 'codes' | 'clients';
 
 const PAGE_SIZE = 10;
+const POLL_INTERVAL_MS = 30000;
 
 const VIEW_COPY: Record<
   CompanyDashboardView,
@@ -195,6 +202,7 @@ export default function CompanyDashboard({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>('unspecified');
+  const [hasSingleCamera, setHasSingleCamera] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>(
     'environment'
   );
@@ -249,8 +257,10 @@ export default function CompanyDashboard({
     }
   }, [activeScanClientId]);
 
-  const loadMetrics = useCallback(async () => {
-    setMetricsLoading(true);
+  const loadMetrics = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setMetricsLoading(true);
+    }
     try {
       const res = await fetch('/api/metrics/company');
       if (!res.ok) {
@@ -265,13 +275,21 @@ export default function CompanyDashboard({
         error instanceof Error ? error.message : 'Failed to load metrics'
       );
     } finally {
-      setMetricsLoading(false);
+      if (!options?.silent) {
+        setMetricsLoading(false);
+      }
     }
   }, []);
 
   const loadCodes = useCallback(
-    async (page = 0, clientId = codesClientFilter) => {
-      setCodesLoading(true);
+    async (
+      page = 0,
+      clientId = codesClientFilter,
+      options?: { silent?: boolean }
+    ) => {
+      if (!options?.silent) {
+        setCodesLoading(true);
+      }
       try {
         const params = new URLSearchParams();
         params.set('limit', PAGE_SIZE.toString());
@@ -295,7 +313,9 @@ export default function CompanyDashboard({
           error instanceof Error ? error.message : 'Failed to load codes'
         );
       } finally {
-        setCodesLoading(false);
+        if (!options?.silent) {
+          setCodesLoading(false);
+        }
       }
     },
     [codesClientFilter]
@@ -317,6 +337,37 @@ export default function CompanyDashboard({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showScanner) return;
+    let isActive = true;
+
+    const selectCamera = async () => {
+      if (!navigator?.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (!isActive) return;
+        const videoDevices = devices.filter(
+          (device) => device.kind === 'videoinput'
+        );
+        if (videoDevices.length <= 1) {
+          setHasSingleCamera(true);
+          setFacingMode('user');
+          return;
+        }
+        setHasSingleCamera(false);
+        setFacingMode('environment');
+      } catch (error) {
+        console.warn('Failed to detect cameras', error);
+      }
+    };
+
+    selectCamera();
+
+    return () => {
+      isActive = false;
+    };
+  }, [showScanner]);
 
   const handlePlanChange = async (clientId: string, plan: 'basic' | 'pro') => {
     try {
@@ -512,8 +563,7 @@ export default function CompanyDashboard({
         );
         setIsScanning(false);
         console.error('QR Scanner permission error:', scanError);
-        // Some browsers fail environment camera selection; try front camera as fallback
-        if (facingMode === 'environment') {
+        if (hasSingleCamera) {
           setFacingMode('user');
         }
       }
@@ -615,6 +665,26 @@ export default function CompanyDashboard({
   const showScanner = view === 'scanner';
   const showCodes = view === 'codes';
   const showClients = view === 'clients';
+  const activityTimeline = metrics?.activity_timeline ?? [];
+
+  useEffect(() => {
+    if (!showMetrics) return;
+    const intervalId = setInterval(() => {
+      loadMetrics({ silent: true });
+      refreshScans({ silent: true });
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [loadMetrics, refreshScans, showMetrics]);
+
+  useEffect(() => {
+    if (!showCodes) return;
+    const intervalId = setInterval(() => {
+      loadCodes(codesPage, codesClientFilter, { silent: true });
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [codesClientFilter, codesPage, loadCodes, showCodes]);
 
   return (
     <PageContainer>
@@ -748,6 +818,99 @@ export default function CompanyDashboard({
         )}
 
         {showMetrics && (
+          <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+            <Card>
+              <CardHeader>
+                <CardDescription>Scans This Week</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading ? '—' : (metrics?.scans_this_week ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Since Monday (UTC)
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Scans This Month</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading ? '—' : (metrics?.scans_this_month ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Month to date
+              </CardFooter>
+            </Card>
+          </div>
+        )}
+
+        {showMetrics && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Scan Activity</CardTitle>
+              <CardDescription>
+                Daily scan volume with the latest events.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {metricsLoading ? (
+                <div className='text-muted-foreground flex items-center gap-2'>
+                  <IconLoader2 className='h-4 w-4 animate-spin' />
+                  Loading scan activity...
+                </div>
+              ) : (
+                <div className='grid gap-6 lg:grid-cols-[2fr,1fr]'>
+                  <ContributionGraph
+                    data={metrics?.scan_volume_by_day || []}
+                    year={new Date().getFullYear()}
+                  />
+                  <div>
+                    <h4 className='text-sm font-semibold'>Latest activity</h4>
+                    <div className='mt-3 space-y-2'>
+                      {activityTimeline.length === 0 ? (
+                        <p className='text-muted-foreground text-sm'>
+                          No recent activity yet.
+                        </p>
+                      ) : (
+                        activityTimeline.map((event, index) => (
+                          <div
+                            className='rounded-md border p-3'
+                            key={`${event.type}-${index}`}
+                          >
+                            <div className='flex items-center justify-between gap-2'>
+                              <p className='text-sm font-medium'>
+                                {event.type === 'scan'
+                                  ? `Scanned ${event.code_id ?? 'code'}`
+                                  : `Pickup completed (${event.quantity_collected ?? 0})`}
+                              </p>
+                              <Badge variant='outline' className='capitalize'>
+                                {event.type}
+                              </Badge>
+                            </div>
+                            {event.client_id && (
+                              <p className='text-muted-foreground mt-1 text-xs'>
+                                Client:{' '}
+                                {clientNameMap.get(event.client_id) ||
+                                  event.client_id}
+                              </p>
+                            )}
+                            <p className='text-muted-foreground mt-1 text-xs'>
+                              {event.occurred_at
+                                ? format(new Date(event.occurred_at), 'PP p')
+                                : '—'}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showMetrics && (
           <Card>
             <CardHeader>
               <CardTitle>Client Collections</CardTitle>
@@ -864,78 +1027,6 @@ export default function CompanyDashboard({
                   Scan a code to activate it under a client and inventory
                   status.
                 </CardDescription>
-              </div>
-              <div className='flex flex-col gap-3 md:flex-row md:items-center'>
-                <div className='w-full md:w-72'>
-                  <p className='text-muted-foreground text-sm'>Active client</p>
-                  <Popover
-                    open={clientPickerOpen}
-                    onOpenChange={setClientPickerOpen}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant='outline'
-                        role='combobox'
-                        aria-expanded={clientPickerOpen}
-                        className='w-full justify-between'
-                        disabled={clientsLoading || clients.length === 0}
-                      >
-                        {activeScanClientId
-                          ? clientNameMap.get(activeScanClientId) ||
-                            'Select client'
-                          : 'Select client'}
-                        <IconChevronsDown className='h-4 w-4 opacity-50' />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-[320px] p-0'>
-                      <Command>
-                        <CommandInput placeholder='Search clients...' />
-                        <CommandList>
-                          <CommandEmpty>No clients found.</CommandEmpty>
-                          <CommandGroup>
-                            {clients.map((client) => (
-                              <CommandItem
-                                key={client.id}
-                                value={`${client.name} ${client.email ?? ''}`.trim()}
-                                onSelect={() => {
-                                  setActiveScanClientId(client.id);
-                                  setClientPickerOpen(false);
-                                }}
-                              >
-                                <div className='flex flex-col'>
-                                  <span>{client.name}</span>
-                                  <span className='text-muted-foreground text-xs'>
-                                    {client.email || '—'}
-                                  </span>
-                                </div>
-                                <span className='text-muted-foreground ml-auto text-xs'>
-                                  {client.subscription_plan}
-                                </span>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className='w-full md:w-48'>
-                  <p className='text-muted-foreground text-sm'>Size</p>
-                  <Select value={selectedSize} onValueChange={setSelectedSize}>
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder='Select size' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='unspecified'>Unspecified</SelectItem>
-                      <SelectItem value='XS'>XS</SelectItem>
-                      <SelectItem value='S'>S</SelectItem>
-                      <SelectItem value='M'>M</SelectItem>
-                      <SelectItem value='L'>L</SelectItem>
-                      <SelectItem value='XL'>XL</SelectItem>
-                      <SelectItem value='XXL'>XXL</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1488,6 +1579,28 @@ export default function CompanyDashboard({
                       Pick one or two options. Use “None” for no inventory
                       status.
                     </p>
+                    <div className='grid gap-2'>
+                      <Label htmlFor='activation-size'>Size</Label>
+                      <Select
+                        value={selectedSize}
+                        onValueChange={setSelectedSize}
+                      >
+                        <SelectTrigger id='activation-size'>
+                          <SelectValue placeholder='Select size' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='unspecified'>
+                            Unspecified
+                          </SelectItem>
+                          <SelectItem value='XS'>XS</SelectItem>
+                          <SelectItem value='S'>S</SelectItem>
+                          <SelectItem value='M'>M</SelectItem>
+                          <SelectItem value='L'>L</SelectItem>
+                          <SelectItem value='XL'>XL</SelectItem>
+                          <SelectItem value='XXL'>XXL</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className='grid gap-2'>
                       <Label htmlFor='activation-quantity'>Quantity</Label>
                       <Input
