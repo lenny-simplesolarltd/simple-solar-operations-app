@@ -93,7 +93,9 @@ export default function ClientDashboard() {
       setClient(data);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to load client');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load client'
+      );
     }
   }, []);
 
@@ -109,38 +111,39 @@ export default function ClientDashboard() {
       setMetrics(data);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to load metrics');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load metrics'
+      );
     } finally {
       setLoadingMeta(false);
     }
   }, []);
 
-  const loadCodes = useCallback(
-    async (pageNumber = 0) => {
-      setLoadingCodes(true);
-      try {
-        const params = new URLSearchParams();
-        params.set('limit', PAGE_SIZE.toString());
-        params.set('offset', (pageNumber * PAGE_SIZE).toString());
+  const loadCodes = useCallback(async (pageNumber = 0) => {
+    setLoadingCodes(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('limit', PAGE_SIZE.toString());
+      params.set('offset', (pageNumber * PAGE_SIZE).toString());
 
-        const res = await fetch(`/api/codes?${params.toString()}`);
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to load codes');
-        }
-
-        const payload = await res.json();
-        setCodes(payload.codes || []);
-        setCodesTotal(payload.total || 0);
-      } catch (error) {
-        console.error(error);
-        toast.error(error instanceof Error ? error.message : 'Failed to load codes');
-      } finally {
-        setLoadingCodes(false);
+      const res = await fetch(`/api/codes?${params.toString()}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to load codes');
       }
-    },
-    []
-  );
+
+      const payload = await res.json();
+      setCodes(payload.codes || []);
+      setCodesTotal(payload.total || 0);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load codes'
+      );
+    } finally {
+      setLoadingCodes(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadClient();
@@ -158,17 +161,21 @@ export default function ClientDashboard() {
       <div className='space-y-8'>
         <div className='flex items-center justify-between'>
           <div>
-            <h1 className='text-3xl font-bold tracking-tight'>Client Dashboard</h1>
+            <h1 className='text-3xl font-bold tracking-tight'>
+              Client Dashboard
+            </h1>
             <p className='text-muted-foreground'>
               View your QR codes and status-only metrics.
             </p>
           </div>
           <Badge variant='secondary'>
-            {client?.subscription_plan ? `${client.subscription_plan} plan` : '—'}
+            {client?.subscription_plan
+              ? `${client.subscription_plan} plan`
+              : '—'}
           </Badge>
         </div>
 
-        <Card>
+        <Card id='metrics' className='scroll-mt-24'>
           <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
             <div>
               <CardTitle>Your metrics</CardTitle>
@@ -176,7 +183,12 @@ export default function ClientDashboard() {
                 Real-time counts scoped to your account.
               </CardDescription>
             </div>
-            <Button variant='outline' size='sm' onClick={loadMetrics} disabled={loadingMeta}>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={loadMetrics}
+              disabled={loadingMeta}
+            >
               {loadingMeta ? (
                 <>
                   <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
@@ -193,7 +205,7 @@ export default function ClientDashboard() {
                 <CardHeader>
                   <CardDescription>Total Codes</CardDescription>
                   <CardTitle className='text-3xl'>
-                    {loadingMeta ? '—' : metrics?.total_codes ?? 0}
+                    {loadingMeta ? '—' : (metrics?.total_codes ?? 0)}
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -201,7 +213,7 @@ export default function ClientDashboard() {
                 <CardHeader>
                   <CardDescription>Total Collected</CardDescription>
                   <CardTitle className='text-3xl'>
-                    {loadingMeta ? '—' : metrics?.total_collected ?? 0}
+                    {loadingMeta ? '—' : (metrics?.total_collected ?? 0)}
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -211,7 +223,7 @@ export default function ClientDashboard() {
                   <CardTitle className='text-3xl'>
                     {loadingMeta
                       ? '—'
-                      : metrics?.codes_by_status?.pending ?? 0}
+                      : (metrics?.codes_by_status?.pending ?? 0)}
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -221,7 +233,7 @@ export default function ClientDashboard() {
                   <CardTitle className='text-3xl'>
                     {loadingMeta
                       ? '—'
-                      : metrics?.codes_by_status?.in_progress ?? 0}
+                      : (metrics?.codes_by_status?.in_progress ?? 0)}
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -231,7 +243,7 @@ export default function ClientDashboard() {
                   <CardTitle className='text-3xl'>
                     {loadingMeta
                       ? '—'
-                      : metrics?.codes_by_status?.completed ?? 0}
+                      : (metrics?.codes_by_status?.completed ?? 0)}
                   </CardTitle>
                 </CardHeader>
               </Card>
@@ -246,7 +258,7 @@ export default function ClientDashboard() {
                       <CardTitle>
                         {loadingMeta
                           ? '—'
-                          : metrics?.codes_by_inventory_status?.[status] ?? 0}
+                          : (metrics?.codes_by_inventory_status?.[status] ?? 0)}
                       </CardTitle>
                     </CardHeader>
                   </Card>
@@ -274,8 +286,9 @@ export default function ClientDashboard() {
               </div>
             )}
             {!isPro && (
-              <p className='mt-4 text-sm text-muted-foreground'>
-                Upgrade to pro to unlock monthly charts, size breakdowns, and pickups.
+              <p className='text-muted-foreground mt-4 text-sm'>
+                Upgrade to pro to unlock monthly charts, size breakdowns, and
+                pickups.
               </p>
             )}
             {isPro && metrics?.codes_by_size && (
@@ -283,9 +296,11 @@ export default function ClientDashboard() {
                 {metrics.codes_by_size.map((row) => (
                   <Card key={row.size} className='border-muted'>
                     <CardHeader>
-                      <CardDescription>{row.size || 'Unspecified'}</CardDescription>
+                      <CardDescription>
+                        {row.size || 'Unspecified'}
+                      </CardDescription>
                       <CardTitle>{row.total_quantity}</CardTitle>
-                      <p className='text-xs text-muted-foreground'>
+                      <p className='text-muted-foreground text-xs'>
                         {row.count} codes
                       </p>
                     </CardHeader>
@@ -300,9 +315,11 @@ export default function ClientDashboard() {
                   {metrics.top_sizes.map((row) => (
                     <Card key={`top-${row.size}`} className='border-muted'>
                       <CardHeader>
-                        <CardDescription>{row.size || 'Unspecified'}</CardDescription>
+                        <CardDescription>
+                          {row.size || 'Unspecified'}
+                        </CardDescription>
                         <CardTitle>{row.total_quantity}</CardTitle>
-                        <p className='text-xs text-muted-foreground'>
+                        <p className='text-muted-foreground text-xs'>
                           {row.count} codes
                         </p>
                       </CardHeader>
@@ -317,7 +334,9 @@ export default function ClientDashboard() {
                   <CardHeader>
                     <CardDescription>Pickups completed (week)</CardDescription>
                     <CardTitle>
-                      {loadingMeta ? '—' : metrics?.pickups_completed_week ?? 0}
+                      {loadingMeta
+                        ? '—'
+                        : (metrics?.pickups_completed_week ?? 0)}
                     </CardTitle>
                   </CardHeader>
                 </Card>
@@ -325,7 +344,9 @@ export default function ClientDashboard() {
                   <CardHeader>
                     <CardDescription>Pickups completed (month)</CardDescription>
                     <CardTitle>
-                      {loadingMeta ? '—' : metrics?.pickups_completed_month ?? 0}
+                      {loadingMeta
+                        ? '—'
+                        : (metrics?.pickups_completed_month ?? 0)}
                     </CardTitle>
                   </CardHeader>
                 </Card>
@@ -336,12 +357,15 @@ export default function ClientDashboard() {
                 <h4 className='text-sm font-semibold'>Recent activity</h4>
                 <div className='mt-3 space-y-2'>
                   {metrics.activity_timeline.length === 0 ? (
-                    <p className='text-sm text-muted-foreground'>
+                    <p className='text-muted-foreground text-sm'>
                       No recent activity yet.
                     </p>
                   ) : (
                     metrics.activity_timeline.map((event, index) => (
-                      <Card key={`${event.type}-${index}`} className='border-muted'>
+                      <Card
+                        key={`${event.type}-${index}`}
+                        className='border-muted'
+                      >
                         <CardHeader className='py-3'>
                           <CardDescription className='capitalize'>
                             {event.type}
@@ -351,7 +375,7 @@ export default function ClientDashboard() {
                               ? `Scanned ${event.code_id}`
                               : `Pickup collected (${event.quantity_collected ?? 0})`}
                           </CardTitle>
-                          <p className='text-xs text-muted-foreground'>
+                          <p className='text-muted-foreground text-xs'>
                             {event.occurred_at
                               ? format(new Date(event.occurred_at), 'PP p')
                               : '—'}
@@ -366,7 +390,7 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id='codes' className='scroll-mt-24'>
           <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
             <div>
               <CardTitle>Your Codes</CardTitle>
@@ -376,18 +400,18 @@ export default function ClientDashboard() {
                   : 'Basic view: code, size, status, year.'}
               </CardDescription>
             </div>
-            <div className='text-sm text-muted-foreground'>
+            <div className='text-muted-foreground text-sm'>
               {codesTotal} code{codesTotal === 1 ? '' : 's'}
             </div>
           </CardHeader>
           <CardContent>
             {loadingCodes ? (
-              <div className='flex items-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading codes...
               </div>
             ) : codes.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>No codes yet.</p>
+              <p className='text-muted-foreground text-sm'>No codes yet.</p>
             ) : (
               <div className='overflow-x-auto'>
                 <Table>
@@ -416,7 +440,7 @@ export default function ClientDashboard() {
                         </TableCell>
                         <TableCell className='text-sm'>{code.year}</TableCell>
                         {isPro && (
-                          <TableCell className='text-sm text-muted-foreground'>
+                          <TableCell className='text-muted-foreground text-sm'>
                             {code.created_at
                               ? format(new Date(code.created_at), 'PP')
                               : '—'}
@@ -438,8 +462,9 @@ export default function ClientDashboard() {
             >
               Previous
             </Button>
-            <div className='text-sm text-muted-foreground'>
-              Page {page + 1} of {Math.max(1, Math.ceil(codesTotal / PAGE_SIZE))}
+            <div className='text-muted-foreground text-sm'>
+              Page {page + 1} of{' '}
+              {Math.max(1, Math.ceil(codesTotal / PAGE_SIZE))}
             </div>
             <Button
               variant='outline'
@@ -453,7 +478,7 @@ export default function ClientDashboard() {
         </Card>
 
         <Card className='border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20'>
-          <CardContent className='p-4 text-sm text-muted-foreground'>
+          <CardContent className='text-muted-foreground p-4 text-sm'>
             Need scanner access? Contact your company admin to upgrade or enable
             company permissions. Client dashboards are view-only.
           </CardContent>

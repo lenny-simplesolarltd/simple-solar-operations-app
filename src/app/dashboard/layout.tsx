@@ -70,6 +70,20 @@ function buildNavItems(role: UserRole): NavItem[] {
         shortcut: ['d', 'c'],
         items: []
       },
+      {
+        title: 'Metrics',
+        url: '/dashboard/client#metrics',
+        icon: 'dashboard',
+        shortcut: ['m', 't'],
+        items: []
+      },
+      {
+        title: 'Codes',
+        url: '/dashboard/client#codes',
+        icon: 'post',
+        shortcut: ['c', 'd'],
+        items: []
+      },
       accountSection
     ];
   }
