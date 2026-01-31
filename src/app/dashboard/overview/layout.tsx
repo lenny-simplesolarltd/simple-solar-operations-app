@@ -10,11 +10,17 @@ import {
   CardFooter,
   CardContent
 } from '@/components/ui/card';
-import { IconTrendingDown, IconTrendingUp, IconScan } from '@tabler/icons-react';
+import {
+  IconTrendingDown,
+  IconTrendingUp,
+  IconScan
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import React from 'react';
+import { currentUser } from '@clerk/nextjs/server';
+import { getUserRole } from '@/lib/userRoles';
 
-export default function OverViewLayout({
+export default async function OverViewLayout({
   sales,
   pie_stats,
   bar_stats,
@@ -25,6 +31,10 @@ export default function OverViewLayout({
   bar_stats: React.ReactNode;
   area_stats: React.ReactNode;
 }) {
+  const user = await currentUser();
+  const { role } = await getUserRole(user);
+  const showScannerCta = role === 'company';
+
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col space-y-2'>
@@ -35,30 +45,32 @@ export default function OverViewLayout({
         </div>
 
         {/* QR Scanner CTA Card */}
-        <Card className='border-primary/20 bg-gradient-to-br from-primary/5 via-primary/10 to-card'>
-          <CardContent className='p-6'>
-            <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-              <div className='flex items-start gap-4'>
-                <div className='flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10'>
-                  <IconScan className='h-6 w-6 text-primary' />
+        {showScannerCta && (
+          <Card className='border-primary/20 from-primary/5 via-primary/10 to-card bg-gradient-to-br'>
+            <CardContent className='p-6'>
+              <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                <div className='flex items-start gap-4'>
+                  <div className='bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg'>
+                    <IconScan className='text-primary h-6 w-6' />
+                  </div>
+                  <div className='space-y-1'>
+                    <h3 className='text-lg font-semibold'>Scan a Code</h3>
+                    <p className='text-muted-foreground text-sm'>
+                      Use your camera to scan QR codes and save them to your
+                      account
+                    </p>
+                  </div>
                 </div>
-                <div className='space-y-1'>
-                  <h3 className='text-lg font-semibold'>Scan a Code</h3>
-                  <p className='text-sm text-muted-foreground'>
-                    Use your camera to scan QR codes and save them to your
-                    account
-                  </p>
-                </div>
+                <Button asChild size='lg' className='w-full md:w-auto'>
+                  <Link href='/dashboard/qr-scanner'>
+                    <IconScan className='mr-2 h-4 w-4' />
+                    Scan Now
+                  </Link>
+                </Button>
               </div>
-              <Button asChild size='lg' className='w-full md:w-auto'>
-                <Link href='/dashboard/qr-scanner'>
-                  <IconScan className='mr-2 h-4 w-4' />
-                  Scan Now
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
           <Card className='@container/card'>

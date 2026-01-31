@@ -1,4 +1,3 @@
-import ClientScanner from './client-scanner';
 import { getUserRole } from '@/lib/userRoles';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -13,9 +12,9 @@ export default async function ClientScannerPage() {
 
   const { role } = await getUserRole(user);
 
-  if (role !== 'client') {
+  if (role === 'company') {
     return redirect('/dashboard/company');
   }
 
-  return <ClientScanner />;
+  return redirect('/dashboard/client');
 }

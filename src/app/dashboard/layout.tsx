@@ -70,13 +70,6 @@ function buildNavItems(role: UserRole): NavItem[] {
         shortcut: ['d', 'c'],
         items: []
       },
-      {
-        title: 'Scanner',
-        url: '/dashboard/client/scanner',
-        icon: 'scan',
-        shortcut: ['q', 's'],
-        items: []
-      },
       accountSection
     ];
   }

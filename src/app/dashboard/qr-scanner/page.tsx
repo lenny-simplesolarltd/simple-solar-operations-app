@@ -16,5 +16,5 @@ export default async function QRScannerRedirect() {
     return redirect('/dashboard/company#scanner');
   }
 
-  return redirect('/dashboard/client/scanner');
+  return redirect('/dashboard/client');
 }
