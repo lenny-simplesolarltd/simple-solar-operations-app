@@ -1347,7 +1347,11 @@ export default function CompanyDashboard({
                     Recent creation trend (last 12 months)
                   </CardDescription>
                 </div>
-                <Button variant='outline' size='sm' onClick={loadMetrics}>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => loadMetrics()}
+                >
                   Refresh
                 </Button>
               </CardHeader>
@@ -1389,7 +1393,7 @@ export default function CompanyDashboard({
                 <Button
                   variant='outline'
                   size='sm'
-                  onClick={refreshScans}
+                  onClick={() => refreshScans()}
                   disabled={scansLoading}
                 >
                   {scansLoading ? (

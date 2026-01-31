@@ -242,7 +242,7 @@ export default function ClientDashboard({
               <Button
                 variant='outline'
                 size='sm'
-                onClick={loadMetrics}
+                onClick={() => loadMetrics()}
                 disabled={loadingMeta}
               >
                 {loadingMeta ? (
