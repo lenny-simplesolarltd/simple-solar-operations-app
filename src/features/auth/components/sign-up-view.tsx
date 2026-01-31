@@ -75,6 +75,8 @@ export default function SignUpViewPage({ stars }: { stars: number }) {
             initialValues={{
               emailAddress: 'your_mail+clerk_test@example.com'
             }}
+            afterSignUpUrl='/onboarding'
+            afterSignInUrl='/dashboard'
           />
           <p className='text-muted-foreground px-8 text-center text-sm'>
             By clicking continue, you agree to our{' '}

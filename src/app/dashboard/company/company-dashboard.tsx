@@ -51,7 +51,11 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -64,7 +68,11 @@ import {
   INVENTORY_STATUSES,
   type InventoryStatus
 } from '@/constants/inventory-statuses';
-import { CODE_STATUSES, CODE_STATUS_LABELS, type CodeStatus } from '@/constants/statuses';
+import {
+  CODE_STATUSES,
+  CODE_STATUS_LABELS,
+  type CodeStatus
+} from '@/constants/statuses';
 import { useScanEvents } from '@/hooks/use-scan-events';
 import type { ScanEventWithCode } from '@/lib/supabaseClient';
 import {
@@ -129,10 +137,16 @@ export default function CompanyDashboard() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(true);
   const [clientPickerOpen, setClientPickerOpen] = useState(false);
-  const [activeScanClientId, setActiveScanClientId] = useState<string | null>(null);
+  const [activeScanClientId, setActiveScanClientId] = useState<string | null>(
+    null
+  );
   const [activationDialogOpen, setActivationDialogOpen] = useState(false);
-  const [activationStep, setActivationStep] = useState<'client' | 'status'>('client');
-  const [activationClientId, setActivationClientId] = useState<string | null>(null);
+  const [activationStep, setActivationStep] = useState<'client' | 'status'>(
+    'client'
+  );
+  const [activationClientId, setActivationClientId] = useState<string | null>(
+    null
+  );
   const [pendingPayload, setPendingPayload] = useState<string | null>(null);
   const [selectedInventoryStatuses, setSelectedInventoryStatuses] = useState<
     InventoryStatus[]
@@ -145,15 +159,18 @@ export default function CompanyDashboard() {
   const [codesLoading, setCodesLoading] = useState(false);
   const [metrics, setMetrics] = useState<CompanyMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
-  const [lastScanned, setLastScanned] = useState<ScanEventWithCode | null>(null);
+  const [lastScanned, setLastScanned] = useState<ScanEventWithCode | null>(
+    null
+  );
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<CodeStatus>('pending');
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>('unspecified');
-  const [facingMode, setFacingMode] =
-    useState<'environment' | 'user'>('environment');
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>(
+    'environment'
+  );
   const [isScanning, setIsScanning] = useState(true);
   const lastScanRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -197,7 +214,9 @@ export default function CompanyDashboard() {
       }
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to load clients');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load clients'
+      );
     } finally {
       setClientsLoading(false);
     }
@@ -215,7 +234,9 @@ export default function CompanyDashboard() {
       setMetrics(data);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to load metrics');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load metrics'
+      );
     } finally {
       setMetricsLoading(false);
     }
@@ -243,7 +264,9 @@ export default function CompanyDashboard() {
         setCodesTotal(payload.total || 0);
       } catch (error) {
         console.error(error);
-        toast.error(error instanceof Error ? error.message : 'Failed to load codes');
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to load codes'
+        );
       } finally {
         setCodesLoading(false);
       }
@@ -292,7 +315,9 @@ export default function CompanyDashboard() {
       toast.success('Subscription updated');
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update plan');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update plan'
+      );
     }
   };
 
@@ -333,7 +358,9 @@ export default function CompanyDashboard() {
       ]);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update status');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update status'
+      );
     } finally {
       setStatusUpdating(false);
     }
@@ -471,7 +498,11 @@ export default function CompanyDashboard() {
     const resultText = result?.text || result;
     if (!resultText) return;
 
-    if (lastScanRef.current === resultText || isRecording || activationDialogOpen) {
+    if (
+      lastScanRef.current === resultText ||
+      isRecording ||
+      activationDialogOpen
+    ) {
       return;
     }
     lastScanRef.current = resultText;
@@ -487,8 +518,9 @@ export default function CompanyDashboard() {
   };
 
   const hasNextPage = (codesPage + 1) * PAGE_SIZE < codesTotal;
-  const activeClientPlan = clients.find((c) => c.id === activeScanClientId)
-    ?.subscription_plan;
+  const activeClientPlan = clients.find(
+    (c) => c.id === activeScanClientId
+  )?.subscription_plan;
   const clientCollectionRows = useMemo(() => {
     if (!metrics) return [];
 
@@ -546,8 +578,7 @@ export default function CompanyDashboard() {
       .sort(
         (a, b) =>
           new Date(`${b.month}-01`).getTime() -
-            new Date(`${a.month}-01`).getTime() ||
-          b.quantity - a.quantity
+            new Date(`${a.month}-01`).getTime() || b.quantity - a.quantity
       )
       .slice(0, 24);
   }, [metrics]);
@@ -557,7 +588,9 @@ export default function CompanyDashboard() {
       <div className='space-y-8'>
         <div className='flex items-center justify-between'>
           <div>
-            <h1 className='text-3xl font-bold tracking-tight'>Company Dashboard</h1>
+            <h1 className='text-3xl font-bold tracking-tight'>
+              Company Dashboard
+            </h1>
             <p className='text-muted-foreground'>
               Scan codes, assign clients, and monitor inventory activity.
             </p>
@@ -570,10 +603,10 @@ export default function CompanyDashboard() {
             <CardHeader>
               <CardDescription>Total Codes</CardDescription>
               <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : metrics?.total_codes ?? 0}
+                {metricsLoading ? '—' : (metrics?.total_codes ?? 0)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Across all clients
             </CardFooter>
           </Card>
@@ -581,10 +614,10 @@ export default function CompanyDashboard() {
             <CardHeader>
               <CardDescription>Codes This Month</CardDescription>
               <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : metrics?.codes_this_month ?? 0}
+                {metricsLoading ? '—' : (metrics?.codes_this_month ?? 0)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Created since the 1st
             </CardFooter>
           </Card>
@@ -594,10 +627,10 @@ export default function CompanyDashboard() {
               <CardTitle className='text-3xl'>
                 {metricsLoading
                   ? '—'
-                  : metrics?.codes_by_status?.pending ?? 0}
+                  : (metrics?.codes_by_status?.pending ?? 0)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Waiting for action
             </CardFooter>
           </Card>
@@ -607,16 +640,16 @@ export default function CompanyDashboard() {
               <CardTitle className='text-3xl'>
                 {metricsLoading
                   ? '—'
-                  : metrics?.codes_by_status?.completed ?? 0}
+                  : (metrics?.codes_by_status?.completed ?? 0)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Finished items
             </CardFooter>
           </Card>
         </div>
 
-        <Card>
+        <Card id='scanner' className='scroll-mt-24'>
           <CardHeader>
             <CardTitle>Inventory status (primary)</CardTitle>
             <CardDescription>v0.2 inventory breakdown</CardDescription>
@@ -625,11 +658,11 @@ export default function CompanyDashboard() {
             <div className='grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4'>
               {INVENTORY_STATUSES.map((status) => (
                 <div key={status} className='rounded-md border p-3'>
-                  <p className='text-xs text-muted-foreground'>{status}</p>
+                  <p className='text-muted-foreground text-xs'>{status}</p>
                   <p className='text-lg font-semibold'>
                     {metricsLoading
                       ? '—'
-                      : metrics?.codes_by_inventory_status?.[status] ?? 0}
+                      : (metrics?.codes_by_inventory_status?.[status] ?? 0)}
                   </p>
                 </div>
               ))}
@@ -642,10 +675,10 @@ export default function CompanyDashboard() {
             <CardHeader>
               <CardDescription>Storage Load</CardDescription>
               <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : metrics?.storage_load ?? 0}
+                {metricsLoading ? '—' : (metrics?.storage_load ?? 0)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Quantity in storage statuses
             </CardFooter>
           </Card>
@@ -658,7 +691,7 @@ export default function CompanyDashboard() {
                   : (metrics?.average_quantity_per_pickup ?? 0).toFixed(1)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Completed pickups
             </CardFooter>
           </Card>
@@ -666,28 +699,32 @@ export default function CompanyDashboard() {
             <CardHeader>
               <CardDescription>Missed/Delayed Pickups</CardDescription>
               <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : metrics?.missed_delayed_pickups ?? 0}
+                {metricsLoading ? '—' : (metrics?.missed_delayed_pickups ?? 0)}
               </CardTitle>
             </CardHeader>
-            <CardFooter className='text-sm text-muted-foreground'>
+            <CardFooter className='text-muted-foreground text-sm'>
               Last 30 days
             </CardFooter>
           </Card>
         </div>
 
-        <Card>
+        <Card id='clients' className='scroll-mt-24'>
           <CardHeader>
             <CardTitle>Client Collections</CardTitle>
-            <CardDescription>Total collected + completed pickups</CardDescription>
+            <CardDescription>
+              Total collected + completed pickups
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {metricsLoading ? (
-              <div className='flex items-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading client totals...
               </div>
             ) : clientCollectionRows.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>No client data yet.</p>
+              <p className='text-muted-foreground text-sm'>
+                No client data yet.
+              </p>
             ) : (
               <div className='overflow-x-auto'>
                 <Table>
@@ -704,7 +741,7 @@ export default function CompanyDashboard() {
                         <TableCell className='text-sm'>
                           <div className='flex flex-col'>
                             <span>{row.name || '—'}</span>
-                            <span className='text-xs text-muted-foreground'>
+                            <span className='text-muted-foreground text-xs'>
                               {row.email || row.client_id}
                             </span>
                           </div>
@@ -727,16 +764,20 @@ export default function CompanyDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Client Volume Trend</CardTitle>
-            <CardDescription>Monthly pickup quantities (sample)</CardDescription>
+            <CardDescription>
+              Monthly pickup quantities (sample)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {metricsLoading ? (
-              <div className='flex items-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading trend...
               </div>
             ) : volumeTrendRows.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>No pickup volume yet.</p>
+              <p className='text-muted-foreground text-sm'>
+                No pickup volume yet.
+              </p>
             ) : (
               <div className='overflow-x-auto'>
                 <Table>
@@ -754,7 +795,9 @@ export default function CompanyDashboard() {
                         <TableCell className='text-sm'>
                           {row.name || row.client_id}
                         </TableCell>
-                        <TableCell className='text-sm'>{row.quantity}</TableCell>
+                        <TableCell className='text-sm'>
+                          {row.quantity}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -777,8 +820,11 @@ export default function CompanyDashboard() {
             </div>
             <div className='flex flex-col gap-3 md:flex-row md:items-center'>
               <div className='w-full md:w-72'>
-                <p className='text-sm text-muted-foreground'>Active client</p>
-                <Popover open={clientPickerOpen} onOpenChange={setClientPickerOpen}>
+                <p className='text-muted-foreground text-sm'>Active client</p>
+                <Popover
+                  open={clientPickerOpen}
+                  onOpenChange={setClientPickerOpen}
+                >
                   <PopoverTrigger asChild>
                     <Button
                       variant='outline'
@@ -788,7 +834,8 @@ export default function CompanyDashboard() {
                       disabled={clientsLoading || clients.length === 0}
                     >
                       {activeScanClientId
-                        ? clientNameMap.get(activeScanClientId) || 'Select client'
+                        ? clientNameMap.get(activeScanClientId) ||
+                          'Select client'
                         : 'Select client'}
                       <IconChevronsDown className='h-4 w-4 opacity-50' />
                     </Button>
@@ -810,11 +857,11 @@ export default function CompanyDashboard() {
                             >
                               <div className='flex flex-col'>
                                 <span>{client.name}</span>
-                                <span className='text-xs text-muted-foreground'>
+                                <span className='text-muted-foreground text-xs'>
                                   {client.email || '—'}
                                 </span>
                               </div>
-                              <span className='ml-auto text-xs text-muted-foreground'>
+                              <span className='text-muted-foreground ml-auto text-xs'>
                                 {client.subscription_plan}
                               </span>
                             </CommandItem>
@@ -826,7 +873,7 @@ export default function CompanyDashboard() {
                 </Popover>
               </div>
               <div className='w-full md:w-48'>
-                <p className='text-sm text-muted-foreground'>Size</p>
+                <p className='text-muted-foreground text-sm'>Size</p>
                 <Select value={selectedSize} onValueChange={setSelectedSize}>
                   <SelectTrigger className='w-full'>
                     <SelectValue placeholder='Select size' />
@@ -848,10 +895,12 @@ export default function CompanyDashboard() {
             <div className='grid gap-4 lg:grid-cols-[2fr,1fr]'>
               <div className='overflow-hidden rounded-lg border'>
                 {cameraError ? (
-                  <div className='flex flex-col items-center justify-center rounded-lg border border-destructive/50 bg-destructive/10 p-8'>
-                    <IconAlertCircle className='mb-4 h-12 w-12 text-destructive' />
+                  <div className='border-destructive/50 bg-destructive/10 flex flex-col items-center justify-center rounded-lg border p-8'>
+                    <IconAlertCircle className='text-destructive mb-4 h-12 w-12' />
                     <h3 className='mb-2 text-lg font-semibold'>Camera Error</h3>
-                    <p className='mb-4 text-center text-sm text-muted-foreground'>{cameraError}</p>
+                    <p className='text-muted-foreground mb-4 text-center text-sm'>
+                      {cameraError}
+                    </p>
                     <Button
                       className='mt-2'
                       onClick={() => {
@@ -891,11 +940,11 @@ export default function CompanyDashboard() {
                         <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
                           <div className='absolute inset-0 bg-black/30' />
                           <div className='relative z-10 h-64 w-64'>
-                            <div className='absolute left-0 top-0 h-12 w-12 border-l-4 border-t-4 border-primary' />
-                            <div className='absolute right-0 top-0 h-12 w-12 border-r-4 border-t-4 border-primary' />
-                            <div className='absolute bottom-0 left-0 h-12 w-12 border-b-4 border-l-4 border-primary' />
-                            <div className='absolute bottom-0 right-0 h-12 w-12 border-b-4 border-r-4 border-primary' />
-                            <div className='absolute left-0 right-0 top-0 h-1 animate-scan bg-gradient-to-r from-transparent via-primary to-transparent' />
+                            <div className='border-primary absolute top-0 left-0 h-12 w-12 border-t-4 border-l-4' />
+                            <div className='border-primary absolute top-0 right-0 h-12 w-12 border-t-4 border-r-4' />
+                            <div className='border-primary absolute bottom-0 left-0 h-12 w-12 border-b-4 border-l-4' />
+                            <div className='border-primary absolute right-0 bottom-0 h-12 w-12 border-r-4 border-b-4' />
+                            <div className='animate-scan via-primary absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent to-transparent' />
                           </div>
                         </div>
                         <div className='absolute bottom-4 left-1/2 z-20 -translate-x-1/2'>
@@ -923,7 +972,9 @@ export default function CompanyDashboard() {
                 <div className='rounded-lg border p-4'>
                   <div className='flex items-center justify-between'>
                     <div>
-                      <p className='text-sm text-muted-foreground'>Active client</p>
+                      <p className='text-muted-foreground text-sm'>
+                        Active client
+                      </p>
                       <p className='text-lg font-semibold'>
                         {activeScanClientId
                           ? clientNameMap.get(activeScanClientId)
@@ -938,20 +989,23 @@ export default function CompanyDashboard() {
                 <div className='rounded-lg border p-4'>
                   <div className='flex items-center justify-between'>
                     <div>
-                      <p className='text-sm text-muted-foreground'>Last scanned</p>
+                      <p className='text-muted-foreground text-sm'>
+                        Last scanned
+                      </p>
                       <p className='text-lg font-semibold'>
                         {lastScanned?.code?.id ?? '—'}
                       </p>
                     </div>
                     {lastScanned?.code?.status && (
                       <Badge variant='secondary'>
-                        {CODE_STATUS_LABELS[lastScanned.code.status as CodeStatus] ||
-                          lastScanned.code.status}
+                        {CODE_STATUS_LABELS[
+                          lastScanned.code.status as CodeStatus
+                        ] || lastScanned.code.status}
                       </Badge>
                     )}
                   </div>
                   {lastScanned?.scanned_at && (
-                    <p className='mt-2 text-xs text-muted-foreground'>
+                    <p className='text-muted-foreground mt-2 text-xs'>
                       {format(new Date(lastScanned.scanned_at), 'PPpp')}
                     </p>
                   )}
@@ -989,19 +1043,19 @@ export default function CompanyDashboard() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className='text-sm text-muted-foreground'>
+              <div className='text-muted-foreground text-sm'>
                 {codesTotal} code{codesTotal === 1 ? '' : 's'}
               </div>
             </div>
           </CardHeader>
           <CardContent>
             {codesLoading ? (
-              <div className='flex items-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading codes...
               </div>
             ) : codes.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>No codes found.</p>
+              <p className='text-muted-foreground text-sm'>No codes found.</p>
             ) : (
               <div className='overflow-x-auto'>
                 <Table>
@@ -1035,7 +1089,7 @@ export default function CompanyDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell className='text-sm'>{code.year}</TableCell>
-                        <TableCell className='text-sm text-muted-foreground'>
+                        <TableCell className='text-muted-foreground text-sm'>
                           {code.created_at
                             ? format(new Date(code.created_at), 'PP')
                             : '—'}
@@ -1056,8 +1110,9 @@ export default function CompanyDashboard() {
             >
               Previous
             </Button>
-            <div className='text-sm text-muted-foreground'>
-              Page {codesPage + 1} of {Math.max(1, Math.ceil(codesTotal / PAGE_SIZE))}
+            <div className='text-muted-foreground text-sm'>
+              Page {codesPage + 1} of{' '}
+              {Math.max(1, Math.ceil(codesTotal / PAGE_SIZE))}
             </div>
             <Button
               variant='outline'
@@ -1081,12 +1136,12 @@ export default function CompanyDashboard() {
           </CardHeader>
           <CardContent>
             {clientsLoading ? (
-              <div className='flex items-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading clients...
               </div>
             ) : clients.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>No clients yet.</p>
+              <p className='text-muted-foreground text-sm'>No clients yet.</p>
             ) : (
               <div className='overflow-x-auto'>
                 <Table>
@@ -1101,14 +1156,17 @@ export default function CompanyDashboard() {
                     {clients.map((client) => (
                       <TableRow key={client.id}>
                         <TableCell className='flex items-center gap-2 text-sm'>
-                          <IconUsers className='h-4 w-4 text-muted-foreground' />
+                          <IconUsers className='text-muted-foreground h-4 w-4' />
                           {client.name}
                         </TableCell>
                         <TableCell>
                           <Select
                             value={client.subscription_plan}
                             onValueChange={(value) =>
-                              handlePlanChange(client.id, value as 'basic' | 'pro')
+                              handlePlanChange(
+                                client.id,
+                                value as 'basic' | 'pro'
+                              )
                             }
                           >
                             <SelectTrigger className='w-32'>
@@ -1120,7 +1178,7 @@ export default function CompanyDashboard() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className='text-sm text-muted-foreground'>
+                        <TableCell className='text-muted-foreground text-sm'>
                           {client.created_at
                             ? format(new Date(client.created_at), 'PP')
                             : '—'}
@@ -1138,7 +1196,9 @@ export default function CompanyDashboard() {
           <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
             <div>
               <CardTitle>Codes Per Month</CardTitle>
-              <CardDescription>Recent creation trend (last 12 months)</CardDescription>
+              <CardDescription>
+                Recent creation trend (last 12 months)
+              </CardDescription>
             </div>
             <Button variant='outline' size='sm' onClick={loadMetrics}>
               Refresh
@@ -1146,7 +1206,7 @@ export default function CompanyDashboard() {
           </CardHeader>
           <CardContent className='h-80'>
             {metricsLoading ? (
-              <div className='flex h-full items-center justify-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex h-full items-center justify-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading chart...
               </div>
@@ -1175,12 +1235,20 @@ export default function CompanyDashboard() {
           <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
             <div>
               <CardTitle>Recent Scans</CardTitle>
-              <CardDescription>Showing the latest 10 scans you performed</CardDescription>
+              <CardDescription>
+                Showing the latest 10 scans you performed
+              </CardDescription>
             </div>
-            <Button variant='outline' size='sm' onClick={refreshScans} disabled={scansLoading}>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={refreshScans}
+              disabled={scansLoading}
+            >
               {scansLoading ? (
                 <>
-                  <IconLoader2 className='mr-2 h-4 w-4 animate-spin' /> Refreshing
+                  <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />{' '}
+                  Refreshing
                 </>
               ) : (
                 'Refresh'
@@ -1189,17 +1257,17 @@ export default function CompanyDashboard() {
           </CardHeader>
           <CardContent>
             {scansError && (
-              <div className='mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive'>
+              <div className='border-destructive/50 bg-destructive/10 text-destructive mb-4 rounded-md border p-3 text-sm'>
                 {scansError.message}
               </div>
             )}
             {scansLoading ? (
-              <div className='flex items-center gap-2 text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center gap-2'>
                 <IconLoader2 className='h-4 w-4 animate-spin' />
                 Loading scans...
               </div>
             ) : scans.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>No scans yet.</p>
+              <p className='text-muted-foreground text-sm'>No scans yet.</p>
             ) : (
               <div className='overflow-x-auto'>
                 <Table>
@@ -1223,15 +1291,16 @@ export default function CompanyDashboard() {
                               ? CODE_STATUS_LABELS[scan.status as CodeStatus] ||
                                 scan.status
                               : scan.code?.status
-                                ? CODE_STATUS_LABELS[scan.code.status as CodeStatus] ||
-                                  scan.code.status
+                                ? CODE_STATUS_LABELS[
+                                    scan.code.status as CodeStatus
+                                  ] || scan.code.status
                                 : 'pending'}
                           </Badge>
                         </TableCell>
-                        <TableCell className='text-xs text-muted-foreground'>
+                        <TableCell className='text-muted-foreground text-xs'>
                           <code>{scan.raw_payload.slice(0, 40)}</code>
                         </TableCell>
-                        <TableCell className='text-sm text-muted-foreground'>
+                        <TableCell className='text-muted-foreground text-sm'>
                           {format(new Date(scan.scanned_at), 'PP p')}
                         </TableCell>
                       </TableRow>
@@ -1242,7 +1311,6 @@ export default function CompanyDashboard() {
             )}
           </CardContent>
         </Card>
-
       </div>
 
       <Dialog
@@ -1266,7 +1334,7 @@ export default function CompanyDashboard() {
               </DialogHeader>
               <div className='space-y-3'>
                 {clientsLoading ? (
-                  <div className='flex items-center gap-2 text-muted-foreground'>
+                  <div className='text-muted-foreground flex items-center gap-2'>
                     <IconLoader2 className='h-4 w-4 animate-spin' />
                     Loading clients...
                   </div>
@@ -1287,7 +1355,7 @@ export default function CompanyDashboard() {
                           >
                             <div className='flex flex-col'>
                               <span className='text-sm'>{client.name}</span>
-                              <span className='text-xs text-muted-foreground'>
+                              <span className='text-muted-foreground text-xs'>
                                 {client.email || '—'}
                               </span>
                             </div>
@@ -1324,11 +1392,12 @@ export default function CompanyDashboard() {
                 </DialogDescription>
               </DialogHeader>
               <div className='space-y-4'>
-                <div className='rounded-md border bg-muted/30 p-3'>
-                  <p className='text-xs text-muted-foreground'>Client</p>
+                <div className='bg-muted/30 rounded-md border p-3'>
+                  <p className='text-muted-foreground text-xs'>Client</p>
                   <p className='text-sm font-medium'>
                     {activationClientId
-                      ? clientNameMap.get(activationClientId) || 'Selected client'
+                      ? clientNameMap.get(activationClientId) ||
+                        'Selected client'
                       : 'Select client'}
                   </p>
                 </div>
@@ -1346,7 +1415,7 @@ export default function CompanyDashboard() {
                     </label>
                   ))}
                 </div>
-                <p className='text-xs text-muted-foreground'>
+                <p className='text-muted-foreground text-xs'>
                   Pick one or two options. Use “None” for no inventory status.
                 </p>
                 <div className='grid gap-2'>
@@ -1403,7 +1472,7 @@ export default function CompanyDashboard() {
           </DialogHeader>
           <div className='space-y-3'>
             <div className='flex items-center justify-between'>
-              <span className='text-sm text-muted-foreground'>Current</span>
+              <span className='text-muted-foreground text-sm'>Current</span>
               <Badge variant='outline'>
                 {lastScanned?.code?.status
                   ? CODE_STATUS_LABELS[lastScanned.code.status as CodeStatus] ||
@@ -1411,7 +1480,10 @@ export default function CompanyDashboard() {
                   : 'pending'}
               </Badge>
             </div>
-            <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as CodeStatus)}>
+            <Select
+              value={selectedStatus}
+              onValueChange={(value) => setSelectedStatus(value as CodeStatus)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder='Select status' />
               </SelectTrigger>
@@ -1425,11 +1497,16 @@ export default function CompanyDashboard() {
             </Select>
           </div>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setStatusDialogOpen(false)}>
+            <Button
+              variant='outline'
+              onClick={() => setStatusDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleStatusUpdate} disabled={statusUpdating}>
-              {statusUpdating && <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {statusUpdating && (
+                <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
+              )}
               Save
             </Button>
           </DialogFooter>
