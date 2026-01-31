@@ -205,6 +205,10 @@ export default function CompanyDashboard({
   const [preferredDeviceId, setPreferredDeviceId] = useState<string | null>(
     null
   );
+  const [fallbackFacingMode, setFallbackFacingMode] = useState<
+    'environment' | 'user'
+  >('environment');
+  const [useExactFacingMode, setUseExactFacingMode] = useState(true);
   const [isScanning, setIsScanning] = useState(true);
   const lastScanRef = useRef<string | null>(null);
   const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -226,16 +230,19 @@ export default function CompanyDashboard({
   const scannerConstraints = useMemo(() => {
     const baseConstraints = {
       width: { ideal: 640 },
-      height: { ideal: 480 },
-      aspectRatio: 1
+      height: { ideal: 480 }
     };
 
     if (preferredDeviceId) {
       return { ...baseConstraints, deviceId: { exact: preferredDeviceId } };
     }
 
-    return { ...baseConstraints, facingMode: { ideal: 'environment' } };
-  }, [preferredDeviceId]);
+    const facingMode = useExactFacingMode
+      ? { exact: fallbackFacingMode }
+      : { ideal: fallbackFacingMode };
+
+    return { ...baseConstraints, facingMode };
+  }, [fallbackFacingMode, preferredDeviceId, useExactFacingMode]);
 
   const loadClients = useCallback(async () => {
     setClientsLoading(true);
@@ -641,25 +648,46 @@ export default function CompanyDashboard({
     let isActive = true;
 
     const selectCamera = async () => {
-      if (!navigator?.mediaDevices?.enumerateDevices) return;
+      if (!navigator?.mediaDevices?.getUserMedia) return;
       let stream: MediaStream | null = null;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const devices = await navigator.mediaDevices.enumerateDevices();
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: 'environment' } }
+        });
         if (!isActive) return;
-        const videoDevices = devices.filter(
-          (device) => device.kind === 'videoinput'
-        );
-        if (videoDevices.length === 0) return;
-        const labeled = videoDevices.filter((device) => device.label);
-        const candidates = labeled.length > 0 ? labeled : videoDevices;
-        const backMatch = candidates.find((device) =>
-          /back|rear|environment/i.test(device.label)
-        );
-        const selected = backMatch || candidates[candidates.length - 1];
-        setPreferredDeviceId(selected.deviceId || null);
+        const track = stream.getVideoTracks()[0];
+        const settings = track?.getSettings?.();
+        if (settings?.deviceId) {
+          setPreferredDeviceId(settings.deviceId);
+        }
+        setFallbackFacingMode('environment');
+        setUseExactFacingMode(true);
       } catch (error) {
-        console.warn('Failed to detect cameras', error);
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          if (!isActive) return;
+          const videoDevices = devices.filter(
+            (device) => device.kind === 'videoinput'
+          );
+          if (videoDevices.length <= 1) {
+            setFallbackFacingMode('user');
+            setUseExactFacingMode(true);
+            return;
+          }
+
+          setFallbackFacingMode('environment');
+          setUseExactFacingMode(false);
+          const labeled = videoDevices.filter((device) => device.label);
+          const candidates = labeled.length > 0 ? labeled : videoDevices;
+          const backMatch = candidates.find((device) =>
+            /back|rear|environment/i.test(device.label)
+          );
+          if (backMatch?.deviceId) {
+            setPreferredDeviceId(backMatch.deviceId);
+          }
+        } catch (innerError) {
+          console.warn('Failed to detect cameras', innerError);
+        }
       } finally {
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
@@ -1063,7 +1091,7 @@ export default function CompanyDashboard({
                       {isScanning && (
                         <>
                           <QrReader
-                            key={`company-scanner-${preferredDeviceId || 'env'}`}
+                            key={`company-scanner-${preferredDeviceId || fallbackFacingMode}`}
                             onResult={handleScan}
                             constraints={scannerConstraints}
                             scanDelay={500}
@@ -1214,15 +1242,21 @@ export default function CompanyDashboard({
                 <p className='text-muted-foreground text-sm'>No codes found.</p>
               ) : (
                 <div className='overflow-x-auto'>
-                  <Table>
+                  <Table className='min-w-[720px]'>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Code ID</TableHead>
                         <TableHead>Client</TableHead>
-                        <TableHead>Size</TableHead>
+                        <TableHead className='hidden sm:table-cell'>
+                          Size
+                        </TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Year</TableHead>
-                        <TableHead>Created</TableHead>
+                        <TableHead className='hidden md:table-cell'>
+                          Year
+                        </TableHead>
+                        <TableHead className='hidden md:table-cell'>
+                          Created
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1236,7 +1270,9 @@ export default function CompanyDashboard({
                               ? clientNameMap.get(code.owner_user_id) || '—'
                               : 'Unassigned'}
                           </TableCell>
-                          <TableCell className='text-sm'>{code.size}</TableCell>
+                          <TableCell className='hidden text-sm sm:table-cell'>
+                            {code.size}
+                          </TableCell>
                           <TableCell>
                             <Badge variant='outline'>
                               {code.status
@@ -1244,8 +1280,10 @@ export default function CompanyDashboard({
                                 : 'pending'}
                             </Badge>
                           </TableCell>
-                          <TableCell className='text-sm'>{code.year}</TableCell>
-                          <TableCell className='text-muted-foreground text-sm'>
+                          <TableCell className='hidden text-sm md:table-cell'>
+                            {code.year}
+                          </TableCell>
+                          <TableCell className='text-muted-foreground hidden text-sm md:table-cell'>
                             {code.created_at
                               ? format(new Date(code.created_at), 'PP')
                               : '—'}
@@ -1302,12 +1340,14 @@ export default function CompanyDashboard({
                 <p className='text-muted-foreground text-sm'>No clients yet.</p>
               ) : (
                 <div className='overflow-x-auto'>
-                  <Table>
+                  <Table className='min-w-[520px]'>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Client</TableHead>
                         <TableHead>Plan</TableHead>
-                        <TableHead>Created</TableHead>
+                        <TableHead className='hidden sm:table-cell'>
+                          Created
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1336,7 +1376,7 @@ export default function CompanyDashboard({
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className='text-muted-foreground text-sm'>
+                          <TableCell className='text-muted-foreground hidden text-sm sm:table-cell'>
                             {client.created_at
                               ? format(new Date(client.created_at), 'PP')
                               : '—'}
@@ -1435,12 +1475,14 @@ export default function CompanyDashboard({
                   <p className='text-muted-foreground text-sm'>No scans yet.</p>
                 ) : (
                   <div className='overflow-x-auto'>
-                    <Table>
+                    <Table className='min-w-[640px]'>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Code ID</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Payload</TableHead>
+                          <TableHead className='hidden md:table-cell'>
+                            Payload
+                          </TableHead>
                           <TableHead>Scanned At</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1463,10 +1505,10 @@ export default function CompanyDashboard({
                                     : 'pending'}
                               </Badge>
                             </TableCell>
-                            <TableCell className='text-muted-foreground text-xs'>
+                            <TableCell className='text-muted-foreground hidden text-xs md:table-cell'>
                               <code>{scan.raw_payload.slice(0, 40)}</code>
                             </TableCell>
-                            <TableCell className='text-muted-foreground text-sm'>
+                            <TableCell className='text-muted-foreground text-xs'>
                               {format(new Date(scan.scanned_at), 'PP p')}
                             </TableCell>
                           </TableRow>

@@ -507,8 +507,8 @@ export default function ClientDashboard({
                 <CardTitle>Your Codes</CardTitle>
                 <CardDescription>
                   {isPro
-                    ? 'Includes creation dates plus core fields.'
-                    : 'Basic view: code, size, status, year.'}
+                    ? 'Includes creation timestamps plus core fields.'
+                    : 'Includes creation timestamps plus core fields.'}
                 </CardDescription>
               </div>
               <div className='text-muted-foreground text-sm'>
@@ -525,14 +525,16 @@ export default function ClientDashboard({
                 <p className='text-muted-foreground text-sm'>No codes yet.</p>
               ) : (
                 <div className='overflow-x-auto'>
-                  <Table>
+                  <Table className='min-w-[560px]'>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Code ID</TableHead>
                         <TableHead>Size</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Year</TableHead>
-                        {isPro && <TableHead>Created</TableHead>}
+                        <TableHead className='hidden sm:table-cell'>
+                          Year
+                        </TableHead>
+                        <TableHead>Created</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -549,14 +551,14 @@ export default function ClientDashboard({
                                 : 'pending'}
                             </Badge>
                           </TableCell>
-                          <TableCell className='text-sm'>{code.year}</TableCell>
-                          {isPro && (
-                            <TableCell className='text-muted-foreground text-sm'>
-                              {code.created_at
-                                ? format(new Date(code.created_at), 'PP')
-                                : '—'}
-                            </TableCell>
-                          )}
+                          <TableCell className='hidden text-sm sm:table-cell'>
+                            {code.year}
+                          </TableCell>
+                          <TableCell className='text-muted-foreground text-xs'>
+                            {code.created_at
+                              ? format(new Date(code.created_at), 'PP p')
+                              : '—'}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

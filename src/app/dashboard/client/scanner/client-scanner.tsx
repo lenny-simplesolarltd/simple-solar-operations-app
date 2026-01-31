@@ -45,6 +45,10 @@ export default function ClientScanner() {
   const [preferredDeviceId, setPreferredDeviceId] = useState<string | null>(
     null
   );
+  const [fallbackFacingMode, setFallbackFacingMode] = useState<
+    'environment' | 'user'
+  >('environment');
+  const [useExactFacingMode, setUseExactFacingMode] = useState(true);
   const lastScanRef = useRef<string | null>(null);
 
   const loadCode = useCallback(async (codeId: string) => {
@@ -137,25 +141,46 @@ export default function ClientScanner() {
     let isActive = true;
 
     const selectCamera = async () => {
-      if (!navigator?.mediaDevices?.enumerateDevices) return;
+      if (!navigator?.mediaDevices?.getUserMedia) return;
       let stream: MediaStream | null = null;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const devices = await navigator.mediaDevices.enumerateDevices();
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: 'environment' } }
+        });
         if (!isActive) return;
-        const videoDevices = devices.filter(
-          (device) => device.kind === 'videoinput'
-        );
-        if (videoDevices.length === 0) return;
-        const labeled = videoDevices.filter((device) => device.label);
-        const candidates = labeled.length > 0 ? labeled : videoDevices;
-        const backMatch = candidates.find((device) =>
-          /back|rear|environment/i.test(device.label)
-        );
-        const selected = backMatch || candidates[candidates.length - 1];
-        setPreferredDeviceId(selected.deviceId || null);
+        const track = stream.getVideoTracks()[0];
+        const settings = track?.getSettings?.();
+        if (settings?.deviceId) {
+          setPreferredDeviceId(settings.deviceId);
+        }
+        setFallbackFacingMode('environment');
+        setUseExactFacingMode(true);
       } catch (error) {
-        console.warn('Failed to detect cameras', error);
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          if (!isActive) return;
+          const videoDevices = devices.filter(
+            (device) => device.kind === 'videoinput'
+          );
+          if (videoDevices.length <= 1) {
+            setFallbackFacingMode('user');
+            setUseExactFacingMode(true);
+            return;
+          }
+
+          setFallbackFacingMode('environment');
+          setUseExactFacingMode(false);
+          const labeled = videoDevices.filter((device) => device.label);
+          const candidates = labeled.length > 0 ? labeled : videoDevices;
+          const backMatch = candidates.find((device) =>
+            /back|rear|environment/i.test(device.label)
+          );
+          if (backMatch?.deviceId) {
+            setPreferredDeviceId(backMatch.deviceId);
+          }
+        } catch (innerError) {
+          console.warn('Failed to detect cameras', innerError);
+        }
       } finally {
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
@@ -252,12 +277,16 @@ export default function ClientScanner() {
                 {isScanning && (
                   <>
                     <QrReader
-                      key={`client-scanner-${preferredDeviceId || 'env'}`}
+                      key={`client-scanner-${preferredDeviceId || fallbackFacingMode}`}
                       onResult={handleScan}
                       constraints={
                         preferredDeviceId
                           ? { deviceId: { exact: preferredDeviceId } }
-                          : { facingMode: { ideal: 'environment' } }
+                          : {
+                              facingMode: useExactFacingMode
+                                ? { exact: fallbackFacingMode }
+                                : { ideal: fallbackFacingMode }
+                            }
                       }
                       scanDelay={500}
                       containerStyle={{
