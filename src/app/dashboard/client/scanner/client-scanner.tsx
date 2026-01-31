@@ -42,9 +42,8 @@ export default function ClientScanner() {
   const [isSaving, setIsSaving] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [hasSingleCamera, setHasSingleCamera] = useState<boolean | null>(null);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>(
-    'environment'
+  const [preferredDeviceId, setPreferredDeviceId] = useState<string | null>(
+    null
   );
   const lastScanRef = useRef<string | null>(null);
 
@@ -102,9 +101,6 @@ export default function ClientScanner() {
             'Unable to access camera. Please ensure camera permissions are granted.'
           );
           setIsScanning(false);
-          if (hasSingleCamera) {
-            setFacingMode('user');
-          }
         }
         return;
       }
@@ -134,7 +130,7 @@ export default function ClientScanner() {
         lastScanRef.current = null;
       }
     },
-    [hasSingleCamera, isLoading, isScanning, loadCode]
+    [isLoading, isScanning, loadCode]
   );
 
   useEffect(() => {
@@ -142,21 +138,28 @@ export default function ClientScanner() {
 
     const selectCamera = async () => {
       if (!navigator?.mediaDevices?.enumerateDevices) return;
+      let stream: MediaStream | null = null;
       try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
         if (!isActive) return;
         const videoDevices = devices.filter(
           (device) => device.kind === 'videoinput'
         );
-        if (videoDevices.length <= 1) {
-          setHasSingleCamera(true);
-          setFacingMode('user');
-          return;
-        }
-        setHasSingleCamera(false);
-        setFacingMode('environment');
+        if (videoDevices.length === 0) return;
+        const labeled = videoDevices.filter((device) => device.label);
+        const candidates = labeled.length > 0 ? labeled : videoDevices;
+        const backMatch = candidates.find((device) =>
+          /back|rear|environment/i.test(device.label)
+        );
+        const selected = backMatch || candidates[candidates.length - 1];
+        setPreferredDeviceId(selected.deviceId || null);
       } catch (error) {
         console.warn('Failed to detect cameras', error);
+      } finally {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
       }
     };
 
@@ -249,9 +252,13 @@ export default function ClientScanner() {
                 {isScanning && (
                   <>
                     <QrReader
-                      key={`client-scanner-${facingMode}`}
+                      key={`client-scanner-${preferredDeviceId || 'env'}`}
                       onResult={handleScan}
-                      constraints={{ facingMode: { ideal: facingMode } }}
+                      constraints={
+                        preferredDeviceId
+                          ? { deviceId: { exact: preferredDeviceId } }
+                          : { facingMode: { ideal: 'environment' } }
+                      }
                       scanDelay={500}
                       containerStyle={{
                         position: 'absolute',

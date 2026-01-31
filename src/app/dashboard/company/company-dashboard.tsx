@@ -202,9 +202,8 @@ export default function CompanyDashboard({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>('unspecified');
-  const [hasSingleCamera, setHasSingleCamera] = useState<boolean | null>(null);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>(
-    'environment'
+  const [preferredDeviceId, setPreferredDeviceId] = useState<string | null>(
+    null
   );
   const [isScanning, setIsScanning] = useState(true);
   const lastScanRef = useRef<string | null>(null);
@@ -223,16 +222,20 @@ export default function CompanyDashboard({
     clients.forEach((client) => map.set(client.id, client.name));
     return map;
   }, [clients]);
-  // Simple camera constraints; avoid deviceId to keep the preview reliable
-  const scannerConstraints = useMemo(
-    () => ({
+  // Default to the rear camera when available.
+  const scannerConstraints = useMemo(() => {
+    const baseConstraints = {
       width: { ideal: 640 },
       height: { ideal: 480 },
-      facingMode: { ideal: facingMode },
       aspectRatio: 1
-    }),
-    [facingMode]
-  );
+    };
+
+    if (preferredDeviceId) {
+      return { ...baseConstraints, deviceId: { exact: preferredDeviceId } };
+    }
+
+    return { ...baseConstraints, facingMode: { ideal: 'environment' } };
+  }, [preferredDeviceId]);
 
   const loadClients = useCallback(async () => {
     setClientsLoading(true);
@@ -532,9 +535,6 @@ export default function CompanyDashboard({
         );
         setIsScanning(false);
         console.error('QR Scanner permission error:', scanError);
-        if (hasSingleCamera) {
-          setFacingMode('user');
-        }
       }
       return;
     }
@@ -642,21 +642,28 @@ export default function CompanyDashboard({
 
     const selectCamera = async () => {
       if (!navigator?.mediaDevices?.enumerateDevices) return;
+      let stream: MediaStream | null = null;
       try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
         if (!isActive) return;
         const videoDevices = devices.filter(
           (device) => device.kind === 'videoinput'
         );
-        if (videoDevices.length <= 1) {
-          setHasSingleCamera(true);
-          setFacingMode('user');
-          return;
-        }
-        setHasSingleCamera(false);
-        setFacingMode('environment');
+        if (videoDevices.length === 0) return;
+        const labeled = videoDevices.filter((device) => device.label);
+        const candidates = labeled.length > 0 ? labeled : videoDevices;
+        const backMatch = candidates.find((device) =>
+          /back|rear|environment/i.test(device.label)
+        );
+        const selected = backMatch || candidates[candidates.length - 1];
+        setPreferredDeviceId(selected.deviceId || null);
       } catch (error) {
         console.warn('Failed to detect cameras', error);
+      } finally {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
       }
     };
 
@@ -1056,7 +1063,7 @@ export default function CompanyDashboard({
                       {isScanning && (
                         <>
                           <QrReader
-                            key={`company-scanner-${facingMode}`}
+                            key={`company-scanner-${preferredDeviceId || 'env'}`}
                             onResult={handleScan}
                             constraints={scannerConstraints}
                             scanDelay={500}
