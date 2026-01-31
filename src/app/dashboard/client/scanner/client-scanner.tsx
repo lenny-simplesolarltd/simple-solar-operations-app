@@ -266,6 +266,13 @@ export default function ClientScanner() {
                         width: '100%',
                         height: '100%'
                       }}
+                      videoContainerStyle={{
+                        position: 'relative',
+                        width: '100%',
+                        height: '100%',
+                        paddingTop: 0,
+                        overflow: 'hidden'
+                      }}
                       videoStyle={{
                         position: 'absolute',
                         top: 0,
