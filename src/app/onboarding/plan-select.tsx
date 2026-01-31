@@ -50,7 +50,7 @@ export default function PlanSelect() {
 
   const handleContinue = () => {
     setIsSubmitting(true);
-    router.push('/dashboard/client');
+    router.push('/dashboard/client/metrics');
   };
 
   return (

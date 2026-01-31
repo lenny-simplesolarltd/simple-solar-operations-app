@@ -14,7 +14,7 @@ export default async function OnboardingPage() {
   const { role } = await getUserRole(user);
 
   if (role === 'company') {
-    return redirect('/dashboard/company');
+    return redirect('/dashboard/company/metrics');
   }
 
   return <PlanSelect />;

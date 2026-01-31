@@ -1,8 +1,9 @@
+import CompanyDashboard from '../company-dashboard';
 import { getUserRole } from '@/lib/userRoles';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 
-export default async function CompanyPage() {
+export default async function CompanyClientsPage() {
   const { userId } = await auth();
   const user = await currentUser();
 
@@ -16,5 +17,5 @@ export default async function CompanyPage() {
     return redirect('/dashboard/client/metrics');
   }
 
-  return redirect('/dashboard/company/metrics');
+  return <CompanyDashboard view='clients' />;
 }

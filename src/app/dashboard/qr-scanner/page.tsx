@@ -13,8 +13,8 @@ export default async function QRScannerRedirect() {
   const { role } = await getUserRole(user);
 
   if (role === 'company') {
-    return redirect('/dashboard/company#scanner');
+    return redirect('/dashboard/company/scanner');
   }
 
-  return redirect('/dashboard/client');
+  return redirect('/dashboard/client/metrics');
 }

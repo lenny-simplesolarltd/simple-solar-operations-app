@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { QrReader } from 'react-qr-reader';
@@ -131,9 +130,37 @@ type CodeRow = {
   created_at?: string;
 };
 
+type CompanyDashboardView = 'metrics' | 'scanner' | 'codes' | 'clients';
+
 const PAGE_SIZE = 10;
 
-export default function CompanyDashboard() {
+const VIEW_COPY: Record<
+  CompanyDashboardView,
+  { title: string; description: string }
+> = {
+  metrics: {
+    title: 'Company Metrics',
+    description: 'Monitor inventory activity across all clients.'
+  },
+  scanner: {
+    title: 'Company Scanner',
+    description: 'Scan codes and activate them for client inventory.'
+  },
+  codes: {
+    title: 'Company Codes',
+    description: 'Review and filter codes by client.'
+  },
+  clients: {
+    title: 'Clients & Subscriptions',
+    description: 'Manage client plans and visibility.'
+  }
+};
+
+export default function CompanyDashboard({
+  view = 'metrics'
+}: {
+  view?: CompanyDashboardView;
+}) {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(true);
   const [clientPickerOpen, setClientPickerOpen] = useState(false);
@@ -583,935 +610,983 @@ export default function CompanyDashboard() {
       .slice(0, 24);
   }, [metrics]);
 
+  const viewCopy = VIEW_COPY[view];
+  const showMetrics = view === 'metrics';
+  const showScanner = view === 'scanner';
+  const showCodes = view === 'codes';
+  const showClients = view === 'clients';
+
   return (
     <PageContainer>
       <div className='space-y-8'>
         <div className='flex items-center justify-between'>
           <div>
             <h1 className='text-3xl font-bold tracking-tight'>
-              Company Dashboard
+              {viewCopy.title}
             </h1>
-            <p className='text-muted-foreground'>
-              Scan codes, assign clients, and monitor inventory activity.
-            </p>
+            <p className='text-muted-foreground'>{viewCopy.description}</p>
           </div>
           <Badge variant='secondary'>Company</Badge>
         </div>
 
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4'>
-          <Card>
-            <CardHeader>
-              <CardDescription>Total Codes</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : (metrics?.total_codes ?? 0)}
-              </CardTitle>
-            </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Across all clients
-            </CardFooter>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Codes This Month</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : (metrics?.codes_this_month ?? 0)}
-              </CardTitle>
-            </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Created since the 1st
-            </CardFooter>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Pending</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading
-                  ? '—'
-                  : (metrics?.codes_by_status?.pending ?? 0)}
-              </CardTitle>
-            </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Waiting for action
-            </CardFooter>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Completed</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading
-                  ? '—'
-                  : (metrics?.codes_by_status?.completed ?? 0)}
-              </CardTitle>
-            </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Finished items
-            </CardFooter>
-          </Card>
-        </div>
+        {showMetrics && (
+          <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4'>
+            <Card>
+              <CardHeader>
+                <CardDescription>Total Codes</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading ? '—' : (metrics?.total_codes ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Across all clients
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Codes This Month</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading ? '—' : (metrics?.codes_this_month ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Created since the 1st
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Pending</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading
+                    ? '—'
+                    : (metrics?.codes_by_status?.pending ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Waiting for action
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Completed</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading
+                    ? '—'
+                    : (metrics?.codes_by_status?.completed ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Finished items
+              </CardFooter>
+            </Card>
+          </div>
+        )}
 
-        <Card id='scanner' className='scroll-mt-24'>
-          <CardHeader>
-            <CardTitle>Inventory status (primary)</CardTitle>
-            <CardDescription>v0.2 inventory breakdown</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className='grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4'>
-              {INVENTORY_STATUSES.map((status) => (
-                <div key={status} className='rounded-md border p-3'>
-                  <p className='text-muted-foreground text-xs'>{status}</p>
-                  <p className='text-lg font-semibold'>
-                    {metricsLoading
-                      ? '—'
-                      : (metrics?.codes_by_inventory_status?.[status] ?? 0)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
+        {showMetrics && (
           <Card>
             <CardHeader>
-              <CardDescription>Storage Load</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : (metrics?.storage_load ?? 0)}
-              </CardTitle>
+              <CardTitle>Inventory status (primary)</CardTitle>
+              <CardDescription>v0.2 inventory breakdown</CardDescription>
             </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Quantity in storage statuses
-            </CardFooter>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Avg Qty / Pickup</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading
-                  ? '—'
-                  : (metrics?.average_quantity_per_pickup ?? 0).toFixed(1)}
-              </CardTitle>
-            </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Completed pickups
-            </CardFooter>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardDescription>Missed/Delayed Pickups</CardDescription>
-              <CardTitle className='text-3xl'>
-                {metricsLoading ? '—' : (metrics?.missed_delayed_pickups ?? 0)}
-              </CardTitle>
-            </CardHeader>
-            <CardFooter className='text-muted-foreground text-sm'>
-              Last 30 days
-            </CardFooter>
-          </Card>
-        </div>
-
-        <Card id='clients' className='scroll-mt-24'>
-          <CardHeader>
-            <CardTitle>Client Collections</CardTitle>
-            <CardDescription>
-              Total collected + completed pickups
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {metricsLoading ? (
-              <div className='text-muted-foreground flex items-center gap-2'>
-                <IconLoader2 className='h-4 w-4 animate-spin' />
-                Loading client totals...
+            <CardContent>
+              <div className='grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4'>
+                {INVENTORY_STATUSES.map((status) => (
+                  <div key={status} className='rounded-md border p-3'>
+                    <p className='text-muted-foreground text-xs'>{status}</p>
+                    <p className='text-lg font-semibold'>
+                      {metricsLoading
+                        ? '—'
+                        : (metrics?.codes_by_inventory_status?.[status] ?? 0)}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ) : clientCollectionRows.length === 0 ? (
-              <p className='text-muted-foreground text-sm'>
-                No client data yet.
-              </p>
-            ) : (
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Total Collected</TableHead>
-                      <TableHead>Completed Pickups</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clientCollectionRows.map((row) => (
-                      <TableRow key={row.client_id}>
-                        <TableCell className='text-sm'>
-                          <div className='flex flex-col'>
-                            <span>{row.name || '—'}</span>
-                            <span className='text-muted-foreground text-xs'>
-                              {row.email || row.client_id}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className='text-sm'>
-                          {row.total_quantity ?? 0}
-                        </TableCell>
-                        <TableCell className='text-sm'>
-                          {row.pickups_completed ?? 0}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Client Volume Trend</CardTitle>
-            <CardDescription>
-              Monthly pickup quantities (sample)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {metricsLoading ? (
-              <div className='text-muted-foreground flex items-center gap-2'>
-                <IconLoader2 className='h-4 w-4 animate-spin' />
-                Loading trend...
-              </div>
-            ) : volumeTrendRows.length === 0 ? (
-              <p className='text-muted-foreground text-sm'>
-                No pickup volume yet.
-              </p>
-            ) : (
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Quantity</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {volumeTrendRows.map((row, index) => (
-                      <TableRow key={`${row.client_id}-${row.month}-${index}`}>
-                        <TableCell className='text-sm'>{row.month}</TableCell>
-                        <TableCell className='text-sm'>
-                          {row.name || row.client_id}
-                        </TableCell>
-                        <TableCell className='text-sm'>
-                          {row.quantity}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {showMetrics && (
+          <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
+            <Card>
+              <CardHeader>
+                <CardDescription>Storage Load</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading ? '—' : (metrics?.storage_load ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Quantity in storage statuses
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Avg Qty / Pickup</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading
+                    ? '—'
+                    : (metrics?.average_quantity_per_pickup ?? 0).toFixed(1)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Completed pickups
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Missed/Delayed Pickups</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {metricsLoading
+                    ? '—'
+                    : (metrics?.missed_delayed_pickups ?? 0)}
+                </CardTitle>
+              </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                Last 30 days
+              </CardFooter>
+            </Card>
+          </div>
+        )}
 
-        <Card>
-          <CardHeader className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-            <div className='space-y-1'>
-              <CardTitle className='flex items-center gap-2'>
-                <IconScan className='h-5 w-5' />
-                QR Scanner
-              </CardTitle>
+        {showMetrics && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Client Collections</CardTitle>
               <CardDescription>
-                Scan a code to activate it under a client and inventory status.
+                Total collected + completed pickups
               </CardDescription>
-            </div>
-            <div className='flex flex-col gap-3 md:flex-row md:items-center'>
-              <div className='w-full md:w-72'>
-                <p className='text-muted-foreground text-sm'>Active client</p>
-                <Popover
-                  open={clientPickerOpen}
-                  onOpenChange={setClientPickerOpen}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant='outline'
-                      role='combobox'
-                      aria-expanded={clientPickerOpen}
-                      className='w-full justify-between'
-                      disabled={clientsLoading || clients.length === 0}
-                    >
-                      {activeScanClientId
-                        ? clientNameMap.get(activeScanClientId) ||
-                          'Select client'
-                        : 'Select client'}
-                      <IconChevronsDown className='h-4 w-4 opacity-50' />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className='w-[320px] p-0'>
-                    <Command>
-                      <CommandInput placeholder='Search clients...' />
-                      <CommandList>
-                        <CommandEmpty>No clients found.</CommandEmpty>
-                        <CommandGroup>
-                          {clients.map((client) => (
-                            <CommandItem
-                              key={client.id}
-                              value={`${client.name} ${client.email ?? ''}`.trim()}
-                              onSelect={() => {
-                                setActiveScanClientId(client.id);
-                                setClientPickerOpen(false);
-                              }}
-                            >
-                              <div className='flex flex-col'>
-                                <span>{client.name}</span>
-                                <span className='text-muted-foreground text-xs'>
-                                  {client.email || '—'}
-                                </span>
-                              </div>
-                              <span className='text-muted-foreground ml-auto text-xs'>
-                                {client.subscription_plan}
-                              </span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className='w-full md:w-48'>
-                <p className='text-muted-foreground text-sm'>Size</p>
-                <Select value={selectedSize} onValueChange={setSelectedSize}>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Select size' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='unspecified'>Unspecified</SelectItem>
-                    <SelectItem value='XS'>XS</SelectItem>
-                    <SelectItem value='S'>S</SelectItem>
-                    <SelectItem value='M'>M</SelectItem>
-                    <SelectItem value='L'>L</SelectItem>
-                    <SelectItem value='XL'>XL</SelectItem>
-                    <SelectItem value='XXL'>XXL</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className='grid gap-4 lg:grid-cols-[2fr,1fr]'>
-              <div className='overflow-hidden rounded-lg border'>
-                {cameraError ? (
-                  <div className='border-destructive/50 bg-destructive/10 flex flex-col items-center justify-center rounded-lg border p-8'>
-                    <IconAlertCircle className='text-destructive mb-4 h-12 w-12' />
-                    <h3 className='mb-2 text-lg font-semibold'>Camera Error</h3>
-                    <p className='text-muted-foreground mb-4 text-center text-sm'>
-                      {cameraError}
-                    </p>
-                    <Button
-                      className='mt-2'
-                      onClick={() => {
-                        setCameraError(null);
-                        setIsScanning(true);
-                      }}
-                    >
-                      Try Again
-                    </Button>
-                  </div>
-                ) : (
-                  <div className='relative mx-auto h-[400px] w-full max-w-md overflow-hidden rounded-lg bg-black'>
-                    {isScanning && (
-                      <>
-                        <QrReader
-                          key={`company-scanner-${facingMode}`}
-                          onResult={handleScan}
-                          constraints={scannerConstraints}
-                          scanDelay={500}
-                          containerStyle={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%'
-                          }}
-                          videoStyle={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
-                          }}
-                          videoId='qr-video'
-                          ViewFinder={() => null}
-                        />
-                        <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
-                          <div className='absolute inset-0 bg-black/30' />
-                          <div className='relative z-10 h-64 w-64'>
-                            <div className='border-primary absolute top-0 left-0 h-12 w-12 border-t-4 border-l-4' />
-                            <div className='border-primary absolute top-0 right-0 h-12 w-12 border-t-4 border-r-4' />
-                            <div className='border-primary absolute bottom-0 left-0 h-12 w-12 border-b-4 border-l-4' />
-                            <div className='border-primary absolute right-0 bottom-0 h-12 w-12 border-r-4 border-b-4' />
-                            <div className='animate-scan via-primary absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent to-transparent' />
-                          </div>
-                        </div>
-                        <div className='absolute bottom-4 left-1/2 z-20 -translate-x-1/2'>
-                          <Badge className='bg-primary/90 backdrop-blur-sm'>
-                            {isRecording ? (
-                              <>
-                                <IconLoader2 className='mr-2 h-3 w-3 animate-spin' />
-                                Recording...
-                              </>
-                            ) : (
-                              <>
-                                <IconCamera className='mr-2 h-3 w-3' />
-                                Scanning...
-                              </>
-                            )}
-                          </Badge>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className='space-y-4'>
-                <div className='rounded-lg border p-4'>
-                  <div className='flex items-center justify-between'>
-                    <div>
-                      <p className='text-muted-foreground text-sm'>
-                        Active client
-                      </p>
-                      <p className='text-lg font-semibold'>
-                        {activeScanClientId
-                          ? clientNameMap.get(activeScanClientId)
-                          : 'Not selected'}
-                      </p>
-                    </div>
-                    {activeClientPlan && (
-                      <Badge variant='outline'>{activeClientPlan} plan</Badge>
-                    )}
-                  </div>
+            </CardHeader>
+            <CardContent>
+              {metricsLoading ? (
+                <div className='text-muted-foreground flex items-center gap-2'>
+                  <IconLoader2 className='h-4 w-4 animate-spin' />
+                  Loading client totals...
                 </div>
-                <div className='rounded-lg border p-4'>
-                  <div className='flex items-center justify-between'>
-                    <div>
-                      <p className='text-muted-foreground text-sm'>
-                        Last scanned
+              ) : clientCollectionRows.length === 0 ? (
+                <p className='text-muted-foreground text-sm'>
+                  No client data yet.
+                </p>
+              ) : (
+                <div className='overflow-x-auto'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Total Collected</TableHead>
+                        <TableHead>Completed Pickups</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {clientCollectionRows.map((row) => (
+                        <TableRow key={row.client_id}>
+                          <TableCell className='text-sm'>
+                            <div className='flex flex-col'>
+                              <span>{row.name || '—'}</span>
+                              <span className='text-muted-foreground text-xs'>
+                                {row.email || row.client_id}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className='text-sm'>
+                            {row.total_quantity ?? 0}
+                          </TableCell>
+                          <TableCell className='text-sm'>
+                            {row.pickups_completed ?? 0}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showMetrics && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Client Volume Trend</CardTitle>
+              <CardDescription>
+                Monthly pickup quantities (sample)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {metricsLoading ? (
+                <div className='text-muted-foreground flex items-center gap-2'>
+                  <IconLoader2 className='h-4 w-4 animate-spin' />
+                  Loading trend...
+                </div>
+              ) : volumeTrendRows.length === 0 ? (
+                <p className='text-muted-foreground text-sm'>
+                  No pickup volume yet.
+                </p>
+              ) : (
+                <div className='overflow-x-auto'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Month</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Quantity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {volumeTrendRows.map((row, index) => (
+                        <TableRow
+                          key={`${row.client_id}-${row.month}-${index}`}
+                        >
+                          <TableCell className='text-sm'>{row.month}</TableCell>
+                          <TableCell className='text-sm'>
+                            {row.name || row.client_id}
+                          </TableCell>
+                          <TableCell className='text-sm'>
+                            {row.quantity}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showScanner && (
+          <Card>
+            <CardHeader className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+              <div className='space-y-1'>
+                <CardTitle className='flex items-center gap-2'>
+                  <IconScan className='h-5 w-5' />
+                  QR Scanner
+                </CardTitle>
+                <CardDescription>
+                  Scan a code to activate it under a client and inventory
+                  status.
+                </CardDescription>
+              </div>
+              <div className='flex flex-col gap-3 md:flex-row md:items-center'>
+                <div className='w-full md:w-72'>
+                  <p className='text-muted-foreground text-sm'>Active client</p>
+                  <Popover
+                    open={clientPickerOpen}
+                    onOpenChange={setClientPickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant='outline'
+                        role='combobox'
+                        aria-expanded={clientPickerOpen}
+                        className='w-full justify-between'
+                        disabled={clientsLoading || clients.length === 0}
+                      >
+                        {activeScanClientId
+                          ? clientNameMap.get(activeScanClientId) ||
+                            'Select client'
+                          : 'Select client'}
+                        <IconChevronsDown className='h-4 w-4 opacity-50' />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className='w-[320px] p-0'>
+                      <Command>
+                        <CommandInput placeholder='Search clients...' />
+                        <CommandList>
+                          <CommandEmpty>No clients found.</CommandEmpty>
+                          <CommandGroup>
+                            {clients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={`${client.name} ${client.email ?? ''}`.trim()}
+                                onSelect={() => {
+                                  setActiveScanClientId(client.id);
+                                  setClientPickerOpen(false);
+                                }}
+                              >
+                                <div className='flex flex-col'>
+                                  <span>{client.name}</span>
+                                  <span className='text-muted-foreground text-xs'>
+                                    {client.email || '—'}
+                                  </span>
+                                </div>
+                                <span className='text-muted-foreground ml-auto text-xs'>
+                                  {client.subscription_plan}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className='w-full md:w-48'>
+                  <p className='text-muted-foreground text-sm'>Size</p>
+                  <Select value={selectedSize} onValueChange={setSelectedSize}>
+                    <SelectTrigger className='w-full'>
+                      <SelectValue placeholder='Select size' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='unspecified'>Unspecified</SelectItem>
+                      <SelectItem value='XS'>XS</SelectItem>
+                      <SelectItem value='S'>S</SelectItem>
+                      <SelectItem value='M'>M</SelectItem>
+                      <SelectItem value='L'>L</SelectItem>
+                      <SelectItem value='XL'>XL</SelectItem>
+                      <SelectItem value='XXL'>XXL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className='grid gap-4 lg:grid-cols-[2fr,1fr]'>
+                <div className='overflow-hidden rounded-lg border'>
+                  {cameraError ? (
+                    <div className='border-destructive/50 bg-destructive/10 flex flex-col items-center justify-center rounded-lg border p-8'>
+                      <IconAlertCircle className='text-destructive mb-4 h-12 w-12' />
+                      <h3 className='mb-2 text-lg font-semibold'>
+                        Camera Error
+                      </h3>
+                      <p className='text-muted-foreground mb-4 text-center text-sm'>
+                        {cameraError}
                       </p>
-                      <p className='text-lg font-semibold'>
-                        {lastScanned?.code?.id ?? '—'}
-                      </p>
+                      <Button
+                        className='mt-2'
+                        onClick={() => {
+                          setCameraError(null);
+                          setIsScanning(true);
+                        }}
+                      >
+                        Try Again
+                      </Button>
                     </div>
-                    {lastScanned?.code?.status && (
-                      <Badge variant='secondary'>
-                        {CODE_STATUS_LABELS[
-                          lastScanned.code.status as CodeStatus
-                        ] || lastScanned.code.status}
-                      </Badge>
-                    )}
-                  </div>
-                  {lastScanned?.scanned_at && (
-                    <p className='text-muted-foreground mt-2 text-xs'>
-                      {format(new Date(lastScanned.scanned_at), 'PPpp')}
-                    </p>
+                  ) : (
+                    <div className='relative mx-auto h-[400px] w-full max-w-md overflow-hidden rounded-lg bg-black'>
+                      {isScanning && (
+                        <>
+                          <QrReader
+                            key={`company-scanner-${facingMode}`}
+                            onResult={handleScan}
+                            constraints={scannerConstraints}
+                            scanDelay={500}
+                            containerStyle={{
+                              position: 'absolute',
+                              inset: 0,
+                              width: '100%',
+                              height: '100%'
+                            }}
+                            videoStyle={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                            videoId='qr-video'
+                            ViewFinder={() => null}
+                          />
+                          <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
+                            <div className='absolute inset-0 bg-black/30' />
+                            <div className='relative z-10 h-64 w-64'>
+                              <div className='border-primary absolute top-0 left-0 h-12 w-12 border-t-4 border-l-4' />
+                              <div className='border-primary absolute top-0 right-0 h-12 w-12 border-t-4 border-r-4' />
+                              <div className='border-primary absolute bottom-0 left-0 h-12 w-12 border-b-4 border-l-4' />
+                              <div className='border-primary absolute right-0 bottom-0 h-12 w-12 border-r-4 border-b-4' />
+                              <div className='animate-scan via-primary absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent to-transparent' />
+                            </div>
+                          </div>
+                          <div className='absolute bottom-4 left-1/2 z-20 -translate-x-1/2'>
+                            <Badge className='bg-primary/90 backdrop-blur-sm'>
+                              {isRecording ? (
+                                <>
+                                  <IconLoader2 className='mr-2 h-3 w-3 animate-spin' />
+                                  Recording...
+                                </>
+                              ) : (
+                                <>
+                                  <IconCamera className='mr-2 h-3 w-3' />
+                                  Scanning...
+                                </>
+                              )}
+                            </Badge>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
-            <div>
-              <CardTitle>Codes by Client</CardTitle>
-              <CardDescription>
-                Filter codes by client and monitor their status.
-              </CardDescription>
-            </div>
-            <div className='flex flex-col gap-3 md:flex-row md:items-center'>
-              <Select
-                value={codesClientFilter}
-                onValueChange={(value) => {
-                  setCodesPage(0);
-                  setCodesClientFilter(value);
-                }}
-              >
-                <SelectTrigger className='w-[220px]'>
-                  <SelectValue placeholder='Filter by client' />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='all'>All clients</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className='text-muted-foreground text-sm'>
-                {codesTotal} code{codesTotal === 1 ? '' : 's'}
+                <div className='space-y-4'>
+                  <div className='rounded-lg border p-4'>
+                    <div className='flex items-center justify-between'>
+                      <div>
+                        <p className='text-muted-foreground text-sm'>
+                          Active client
+                        </p>
+                        <p className='text-lg font-semibold'>
+                          {activeScanClientId
+                            ? clientNameMap.get(activeScanClientId)
+                            : 'Not selected'}
+                        </p>
+                      </div>
+                      {activeClientPlan && (
+                        <Badge variant='outline'>{activeClientPlan} plan</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className='rounded-lg border p-4'>
+                    <div className='flex items-center justify-between'>
+                      <div>
+                        <p className='text-muted-foreground text-sm'>
+                          Last scanned
+                        </p>
+                        <p className='text-lg font-semibold'>
+                          {lastScanned?.code?.id ?? '—'}
+                        </p>
+                      </div>
+                      {lastScanned?.code?.status && (
+                        <Badge variant='secondary'>
+                          {CODE_STATUS_LABELS[
+                            lastScanned.code.status as CodeStatus
+                          ] || lastScanned.code.status}
+                        </Badge>
+                      )}
+                    </div>
+                    {lastScanned?.scanned_at && (
+                      <p className='text-muted-foreground mt-2 text-xs'>
+                        {format(new Date(lastScanned.scanned_at), 'PPpp')}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {codesLoading ? (
-              <div className='text-muted-foreground flex items-center gap-2'>
-                <IconLoader2 className='h-4 w-4 animate-spin' />
-                Loading codes...
-              </div>
-            ) : codes.length === 0 ? (
-              <p className='text-muted-foreground text-sm'>No codes found.</p>
-            ) : (
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code ID</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {codes.map((code) => (
-                      <TableRow key={code.id}>
-                        <TableCell>
-                          <code className='font-mono text-sm'>{code.id}</code>
-                        </TableCell>
-                        <TableCell className='text-sm'>
-                          {code.owner_user_id
-                            ? clientNameMap.get(code.owner_user_id) || '—'
-                            : 'Unassigned'}
-                        </TableCell>
-                        <TableCell className='text-sm'>{code.size}</TableCell>
-                        <TableCell>
-                          <Badge variant='outline'>
-                            {code.status
-                              ? CODE_STATUS_LABELS[code.status] || code.status
-                              : 'pending'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className='text-sm'>{code.year}</TableCell>
-                        <TableCell className='text-muted-foreground text-sm'>
-                          {code.created_at
-                            ? format(new Date(code.created_at), 'PP')
-                            : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className='flex items-center justify-between'>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={codesPage === 0 || codesLoading}
-              onClick={() => setCodesPage((p) => Math.max(p - 1, 0))}
-            >
-              Previous
-            </Button>
-            <div className='text-muted-foreground text-sm'>
-              Page {codesPage + 1} of{' '}
-              {Math.max(1, Math.ceil(codesTotal / PAGE_SIZE))}
-            </div>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={!hasNextPage || codesLoading}
-              onClick={() => setCodesPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </CardFooter>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
-            <div>
-              <CardTitle>Clients &amp; Subscription</CardTitle>
-              <CardDescription>
-                Promote clients to pro for deeper metrics.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {clientsLoading ? (
-              <div className='text-muted-foreground flex items-center gap-2'>
-                <IconLoader2 className='h-4 w-4 animate-spin' />
-                Loading clients...
+        {showCodes && (
+          <Card>
+            <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+              <div>
+                <CardTitle>Codes by Client</CardTitle>
+                <CardDescription>
+                  Filter codes by client and monitor their status.
+                </CardDescription>
               </div>
-            ) : clients.length === 0 ? (
-              <p className='text-muted-foreground text-sm'>No clients yet.</p>
-            ) : (
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <div className='flex flex-col gap-3 md:flex-row md:items-center'>
+                <Select
+                  value={codesClientFilter}
+                  onValueChange={(value) => {
+                    setCodesPage(0);
+                    setCodesClientFilter(value);
+                  }}
+                >
+                  <SelectTrigger className='w-[220px]'>
+                    <SelectValue placeholder='Filter by client' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='all'>All clients</SelectItem>
                     {clients.map((client) => (
-                      <TableRow key={client.id}>
-                        <TableCell className='flex items-center gap-2 text-sm'>
-                          <IconUsers className='text-muted-foreground h-4 w-4' />
-                          {client.name}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={client.subscription_plan}
-                            onValueChange={(value) =>
-                              handlePlanChange(
-                                client.id,
-                                value as 'basic' | 'pro'
-                              )
-                            }
-                          >
-                            <SelectTrigger className='w-32'>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value='basic'>Basic</SelectItem>
-                              <SelectItem value='pro'>Pro</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className='text-muted-foreground text-sm'>
-                          {client.created_at
-                            ? format(new Date(client.created_at), 'PP')
-                            : '—'}
-                        </TableCell>
-                      </TableRow>
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
                     ))}
-                  </TableBody>
-                </Table>
+                  </SelectContent>
+                </Select>
+                <div className='text-muted-foreground text-sm'>
+                  {codesTotal} code{codesTotal === 1 ? '' : 's'}
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
-            <div>
-              <CardTitle>Codes Per Month</CardTitle>
-              <CardDescription>
-                Recent creation trend (last 12 months)
-              </CardDescription>
-            </div>
-            <Button variant='outline' size='sm' onClick={loadMetrics}>
-              Refresh
-            </Button>
-          </CardHeader>
-          <CardContent className='h-80'>
-            {metricsLoading ? (
-              <div className='text-muted-foreground flex h-full items-center justify-center gap-2'>
-                <IconLoader2 className='h-4 w-4 animate-spin' />
-                Loading chart...
-              </div>
-            ) : (
-              <ResponsiveContainer width='100%' height='100%'>
-                <LineChart data={metrics?.codes_per_month || []}>
-                  <CartesianGrid strokeDasharray='3 3' />
-                  <XAxis dataKey='month' tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line
-                    type='monotone'
-                    dataKey='count'
-                    stroke='hsl(var(--primary))'
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
-            <div>
-              <CardTitle>Recent Scans</CardTitle>
-              <CardDescription>
-                Showing the latest 10 scans you performed
-              </CardDescription>
-            </div>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={refreshScans}
-              disabled={scansLoading}
-            >
-              {scansLoading ? (
-                <>
-                  <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />{' '}
-                  Refreshing
-                </>
+            </CardHeader>
+            <CardContent>
+              {codesLoading ? (
+                <div className='text-muted-foreground flex items-center gap-2'>
+                  <IconLoader2 className='h-4 w-4 animate-spin' />
+                  Loading codes...
+                </div>
+              ) : codes.length === 0 ? (
+                <p className='text-muted-foreground text-sm'>No codes found.</p>
               ) : (
-                'Refresh'
-              )}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {scansError && (
-              <div className='border-destructive/50 bg-destructive/10 text-destructive mb-4 rounded-md border p-3 text-sm'>
-                {scansError.message}
-              </div>
-            )}
-            {scansLoading ? (
-              <div className='text-muted-foreground flex items-center gap-2'>
-                <IconLoader2 className='h-4 w-4 animate-spin' />
-                Loading scans...
-              </div>
-            ) : scans.length === 0 ? (
-              <p className='text-muted-foreground text-sm'>No scans yet.</p>
-            ) : (
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code ID</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payload</TableHead>
-                      <TableHead>Scanned At</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {scans.slice(0, 10).map((scan) => (
-                      <TableRow key={scan.id}>
-                        <TableCell className='font-mono text-sm'>
-                          {scan.code?.id || scan.code_id}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant='outline'>
-                            {scan.status
-                              ? CODE_STATUS_LABELS[scan.status as CodeStatus] ||
-                                scan.status
-                              : scan.code?.status
-                                ? CODE_STATUS_LABELS[
-                                    scan.code.status as CodeStatus
-                                  ] || scan.code.status
-                                : 'pending'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className='text-muted-foreground text-xs'>
-                          <code>{scan.raw_payload.slice(0, 40)}</code>
-                        </TableCell>
-                        <TableCell className='text-muted-foreground text-sm'>
-                          {format(new Date(scan.scanned_at), 'PP p')}
-                        </TableCell>
+                <div className='overflow-x-auto'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code ID</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Year</TableHead>
+                        <TableHead>Created</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {codes.map((code) => (
+                        <TableRow key={code.id}>
+                          <TableCell>
+                            <code className='font-mono text-sm'>{code.id}</code>
+                          </TableCell>
+                          <TableCell className='text-sm'>
+                            {code.owner_user_id
+                              ? clientNameMap.get(code.owner_user_id) || '—'
+                              : 'Unassigned'}
+                          </TableCell>
+                          <TableCell className='text-sm'>{code.size}</TableCell>
+                          <TableCell>
+                            <Badge variant='outline'>
+                              {code.status
+                                ? CODE_STATUS_LABELS[code.status] || code.status
+                                : 'pending'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className='text-sm'>{code.year}</TableCell>
+                          <TableCell className='text-muted-foreground text-sm'>
+                            {code.created_at
+                              ? format(new Date(code.created_at), 'PP')
+                              : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className='flex items-center justify-between'>
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={codesPage === 0 || codesLoading}
+                onClick={() => setCodesPage((p) => Math.max(p - 1, 0))}
+              >
+                Previous
+              </Button>
+              <div className='text-muted-foreground text-sm'>
+                Page {codesPage + 1} of{' '}
+                {Math.max(1, Math.ceil(codesTotal / PAGE_SIZE))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={!hasNextPage || codesLoading}
+                onClick={() => setCodesPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+
+        {showClients && (
+          <Card>
+            <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+              <div>
+                <CardTitle>Clients &amp; Subscription</CardTitle>
+                <CardDescription>
+                  Promote clients to pro for deeper metrics.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {clientsLoading ? (
+                <div className='text-muted-foreground flex items-center gap-2'>
+                  <IconLoader2 className='h-4 w-4 animate-spin' />
+                  Loading clients...
+                </div>
+              ) : clients.length === 0 ? (
+                <p className='text-muted-foreground text-sm'>No clients yet.</p>
+              ) : (
+                <div className='overflow-x-auto'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Plan</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {clients.map((client) => (
+                        <TableRow key={client.id}>
+                          <TableCell className='flex items-center gap-2 text-sm'>
+                            <IconUsers className='text-muted-foreground h-4 w-4' />
+                            {client.name}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={client.subscription_plan}
+                              onValueChange={(value) =>
+                                handlePlanChange(
+                                  client.id,
+                                  value as 'basic' | 'pro'
+                                )
+                              }
+                            >
+                              <SelectTrigger className='w-32'>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value='basic'>Basic</SelectItem>
+                                <SelectItem value='pro'>Pro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className='text-muted-foreground text-sm'>
+                            {client.created_at
+                              ? format(new Date(client.created_at), 'PP')
+                              : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showMetrics && (
+          <>
+            <Card>
+              <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+                <div>
+                  <CardTitle>Codes Per Month</CardTitle>
+                  <CardDescription>
+                    Recent creation trend (last 12 months)
+                  </CardDescription>
+                </div>
+                <Button variant='outline' size='sm' onClick={loadMetrics}>
+                  Refresh
+                </Button>
+              </CardHeader>
+              <CardContent className='h-80'>
+                {metricsLoading ? (
+                  <div className='text-muted-foreground flex h-full items-center justify-center gap-2'>
+                    <IconLoader2 className='h-4 w-4 animate-spin' />
+                    Loading chart...
+                  </div>
+                ) : (
+                  <ResponsiveContainer width='100%' height='100%'>
+                    <LineChart data={metrics?.codes_per_month || []}>
+                      <CartesianGrid strokeDasharray='3 3' />
+                      <XAxis dataKey='month' tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Line
+                        type='monotone'
+                        dataKey='count'
+                        stroke='hsl(var(--primary))'
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+                <div>
+                  <CardTitle>Recent Scans</CardTitle>
+                  <CardDescription>
+                    Showing the latest 10 scans you performed
+                  </CardDescription>
+                </div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={refreshScans}
+                  disabled={scansLoading}
+                >
+                  {scansLoading ? (
+                    <>
+                      <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />{' '}
+                      Refreshing
+                    </>
+                  ) : (
+                    'Refresh'
+                  )}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {scansError && (
+                  <div className='border-destructive/50 bg-destructive/10 text-destructive mb-4 rounded-md border p-3 text-sm'>
+                    {scansError.message}
+                  </div>
+                )}
+                {scansLoading ? (
+                  <div className='text-muted-foreground flex items-center gap-2'>
+                    <IconLoader2 className='h-4 w-4 animate-spin' />
+                    Loading scans...
+                  </div>
+                ) : scans.length === 0 ? (
+                  <p className='text-muted-foreground text-sm'>No scans yet.</p>
+                ) : (
+                  <div className='overflow-x-auto'>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Code ID</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Payload</TableHead>
+                          <TableHead>Scanned At</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {scans.slice(0, 10).map((scan) => (
+                          <TableRow key={scan.id}>
+                            <TableCell className='font-mono text-sm'>
+                              {scan.code?.id || scan.code_id}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant='outline'>
+                                {scan.status
+                                  ? CODE_STATUS_LABELS[
+                                      scan.status as CodeStatus
+                                    ] || scan.status
+                                  : scan.code?.status
+                                    ? CODE_STATUS_LABELS[
+                                        scan.code.status as CodeStatus
+                                      ] || scan.code.status
+                                    : 'pending'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className='text-muted-foreground text-xs'>
+                              <code>{scan.raw_payload.slice(0, 40)}</code>
+                            </TableCell>
+                            <TableCell className='text-muted-foreground text-sm'>
+                              {format(new Date(scan.scanned_at), 'PP p')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
-      <Dialog
-        open={activationDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            resetActivationFlow();
-          } else {
-            setActivationDialogOpen(true);
-          }
-        }}
-      >
-        <DialogContent>
-          {activationStep === 'client' ? (
-            <>
+      {showScanner && (
+        <>
+          <Dialog
+            open={activationDialogOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                resetActivationFlow();
+              } else {
+                setActivationDialogOpen(true);
+              }
+            }}
+          >
+            <DialogContent>
+              {activationStep === 'client' ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Step 1: Select client</DialogTitle>
+                    <DialogDescription>
+                      Choose the client this QR code will be activated under.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className='space-y-3'>
+                    {clientsLoading ? (
+                      <div className='text-muted-foreground flex items-center gap-2'>
+                        <IconLoader2 className='h-4 w-4 animate-spin' />
+                        Loading clients...
+                      </div>
+                    ) : (
+                      <Command>
+                        <CommandInput placeholder='Search clients...' />
+                        <CommandList>
+                          <CommandEmpty>No clients found.</CommandEmpty>
+                          <CommandGroup>
+                            {clients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={`${client.name} ${client.email ?? ''}`.trim()}
+                                onSelect={() => {
+                                  setActivationClientId(client.id);
+                                  setActiveScanClientId(client.id);
+                                }}
+                              >
+                                <div className='flex flex-col'>
+                                  <span className='text-sm'>{client.name}</span>
+                                  <span className='text-muted-foreground text-xs'>
+                                    {client.email || '—'}
+                                  </span>
+                                </div>
+                                {client.id === activationClientId && (
+                                  <Badge
+                                    className='ml-auto'
+                                    variant='secondary'
+                                  >
+                                    Selected
+                                  </Badge>
+                                )}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant='outline'
+                      onClick={() => resetActivationFlow()}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => setActivationStep('status')}
+                      disabled={!activationClientId}
+                    >
+                      Next
+                    </Button>
+                  </DialogFooter>
+                </>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Step 2: Inventory status</DialogTitle>
+                    <DialogDescription>
+                      Select up to two statuses and confirm the quantity.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className='space-y-4'>
+                    <div className='bg-muted/30 rounded-md border p-3'>
+                      <p className='text-muted-foreground text-xs'>Client</p>
+                      <p className='text-sm font-medium'>
+                        {activationClientId
+                          ? clientNameMap.get(activationClientId) ||
+                            'Selected client'
+                          : 'Select client'}
+                      </p>
+                    </div>
+                    <div className='grid gap-2 md:grid-cols-2'>
+                      {INVENTORY_STATUSES.map((status) => (
+                        <label
+                          key={status}
+                          className='flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm'
+                        >
+                          <Checkbox
+                            checked={selectedInventoryStatuses.includes(status)}
+                            onCheckedChange={() =>
+                              toggleInventoryStatus(status)
+                            }
+                          />
+                          <span>{status}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className='text-muted-foreground text-xs'>
+                      Pick one or two options. Use “None” for no inventory
+                      status.
+                    </p>
+                    <div className='grid gap-2'>
+                      <Label htmlFor='activation-quantity'>Quantity</Label>
+                      <Input
+                        id='activation-quantity'
+                        type='number'
+                        min={1}
+                        value={activationQuantity}
+                        onChange={(event) => {
+                          const next = Number(event.target.value);
+                          if (Number.isFinite(next) && next > 0) {
+                            setActivationQuantity(next);
+                          } else {
+                            setActivationQuantity(1);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant='outline'
+                      onClick={() => setActivationStep('client')}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleActivationSubmit}
+                      disabled={
+                        isRecording ||
+                        !activationClientId ||
+                        selectedInventoryStatuses.length === 0
+                      }
+                    >
+                      {isRecording && (
+                        <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
+                      )}
+                      Save
+                    </Button>
+                  </DialogFooter>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+            <DialogContent>
               <DialogHeader>
-                <DialogTitle>Step 1: Select client</DialogTitle>
+                <DialogTitle>Update Status</DialogTitle>
                 <DialogDescription>
-                  Choose the client this QR code will be activated under.
+                  Adjust the status for {lastScanned?.code?.id ?? 'this code'}.
                 </DialogDescription>
               </DialogHeader>
               <div className='space-y-3'>
-                {clientsLoading ? (
-                  <div className='text-muted-foreground flex items-center gap-2'>
-                    <IconLoader2 className='h-4 w-4 animate-spin' />
-                    Loading clients...
-                  </div>
-                ) : (
-                  <Command>
-                    <CommandInput placeholder='Search clients...' />
-                    <CommandList>
-                      <CommandEmpty>No clients found.</CommandEmpty>
-                      <CommandGroup>
-                        {clients.map((client) => (
-                          <CommandItem
-                            key={client.id}
-                            value={`${client.name} ${client.email ?? ''}`.trim()}
-                            onSelect={() => {
-                              setActivationClientId(client.id);
-                              setActiveScanClientId(client.id);
-                            }}
-                          >
-                            <div className='flex flex-col'>
-                              <span className='text-sm'>{client.name}</span>
-                              <span className='text-muted-foreground text-xs'>
-                                {client.email || '—'}
-                              </span>
-                            </div>
-                            {client.id === activationClientId && (
-                              <Badge className='ml-auto' variant='secondary'>
-                                Selected
-                              </Badge>
-                            )}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                )}
-              </div>
-              <DialogFooter>
-                <Button variant='outline' onClick={() => resetActivationFlow()}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => setActivationStep('status')}
-                  disabled={!activationClientId}
+                <div className='flex items-center justify-between'>
+                  <span className='text-muted-foreground text-sm'>Current</span>
+                  <Badge variant='outline'>
+                    {lastScanned?.code?.status
+                      ? CODE_STATUS_LABELS[
+                          lastScanned.code.status as CodeStatus
+                        ] || lastScanned.code.status
+                      : 'pending'}
+                  </Badge>
+                </div>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={(value) =>
+                    setSelectedStatus(value as CodeStatus)
+                  }
                 >
-                  Next
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>Step 2: Inventory status</DialogTitle>
-                <DialogDescription>
-                  Select up to two statuses and confirm the quantity.
-                </DialogDescription>
-              </DialogHeader>
-              <div className='space-y-4'>
-                <div className='bg-muted/30 rounded-md border p-3'>
-                  <p className='text-muted-foreground text-xs'>Client</p>
-                  <p className='text-sm font-medium'>
-                    {activationClientId
-                      ? clientNameMap.get(activationClientId) ||
-                        'Selected client'
-                      : 'Select client'}
-                  </p>
-                </div>
-                <div className='grid gap-2 md:grid-cols-2'>
-                  {INVENTORY_STATUSES.map((status) => (
-                    <label
-                      key={status}
-                      className='flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm'
-                    >
-                      <Checkbox
-                        checked={selectedInventoryStatuses.includes(status)}
-                        onCheckedChange={() => toggleInventoryStatus(status)}
-                      />
-                      <span>{status}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className='text-muted-foreground text-xs'>
-                  Pick one or two options. Use “None” for no inventory status.
-                </p>
-                <div className='grid gap-2'>
-                  <Label htmlFor='activation-quantity'>Quantity</Label>
-                  <Input
-                    id='activation-quantity'
-                    type='number'
-                    min={1}
-                    value={activationQuantity}
-                    onChange={(event) => {
-                      const next = Number(event.target.value);
-                      if (Number.isFinite(next) && next > 0) {
-                        setActivationQuantity(next);
-                      } else {
-                        setActivationQuantity(1);
-                      }
-                    }}
-                  />
-                </div>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select status' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CODE_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {CODE_STATUS_LABELS[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <DialogFooter>
                 <Button
                   variant='outline'
-                  onClick={() => setActivationStep('client')}
+                  onClick={() => setStatusDialogOpen(false)}
                 >
-                  Back
+                  Cancel
                 </Button>
-                <Button
-                  onClick={handleActivationSubmit}
-                  disabled={
-                    isRecording ||
-                    !activationClientId ||
-                    selectedInventoryStatuses.length === 0
-                  }
-                >
-                  {isRecording && (
+                <Button onClick={handleStatusUpdate} disabled={statusUpdating}>
+                  {statusUpdating && (
                     <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
                   )}
                   Save
                 </Button>
               </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Status</DialogTitle>
-            <DialogDescription>
-              Adjust the status for {lastScanned?.code?.id ?? 'this code'}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className='space-y-3'>
-            <div className='flex items-center justify-between'>
-              <span className='text-muted-foreground text-sm'>Current</span>
-              <Badge variant='outline'>
-                {lastScanned?.code?.status
-                  ? CODE_STATUS_LABELS[lastScanned.code.status as CodeStatus] ||
-                    lastScanned.code.status
-                  : 'pending'}
-              </Badge>
-            </div>
-            <Select
-              value={selectedStatus}
-              onValueChange={(value) => setSelectedStatus(value as CodeStatus)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Select status' />
-              </SelectTrigger>
-              <SelectContent>
-                {CODE_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {CODE_STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setStatusDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleStatusUpdate} disabled={statusUpdating}>
-              {statusUpdating && (
-                <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
-              )}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </PageContainer>
   );
 }

@@ -37,22 +37,29 @@ function buildNavItems(role: UserRole): NavItem[] {
   if (role === 'company') {
     return [
       {
-        title: 'Company Dashboard',
-        url: '/dashboard/company',
+        title: 'Metrics',
+        url: '/dashboard/company/metrics',
         icon: 'dashboard',
         shortcut: ['d', 'c'],
         items: []
       },
       {
         title: 'Scanner',
-        url: '/dashboard/company#scanner',
+        url: '/dashboard/company/scanner',
         icon: 'scan',
         shortcut: ['q', 's'],
         items: []
       },
       {
+        title: 'Codes',
+        url: '/dashboard/company/codes',
+        icon: 'post',
+        shortcut: ['c', 'd'],
+        items: []
+      },
+      {
         title: 'Clients',
-        url: '/dashboard/company#clients',
+        url: '/dashboard/company/clients',
         icon: 'user',
         shortcut: ['c', 'l'],
         items: []
@@ -64,22 +71,15 @@ function buildNavItems(role: UserRole): NavItem[] {
   if (role === 'client') {
     return [
       {
-        title: 'Client Dashboard',
-        url: '/dashboard/client',
+        title: 'Metrics',
+        url: '/dashboard/client/metrics',
         icon: 'dashboard',
         shortcut: ['d', 'c'],
         items: []
       },
       {
-        title: 'Metrics',
-        url: '/dashboard/client#metrics',
-        icon: 'dashboard',
-        shortcut: ['m', 't'],
-        items: []
-      },
-      {
         title: 'Codes',
-        url: '/dashboard/client#codes',
+        url: '/dashboard/client/codes',
         icon: 'post',
         shortcut: ['c', 'd'],
         items: []

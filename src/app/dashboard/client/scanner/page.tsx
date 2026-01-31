@@ -13,8 +13,8 @@ export default async function ClientScannerPage() {
   const { role } = await getUserRole(user);
 
   if (role === 'company') {
-    return redirect('/dashboard/company');
+    return redirect('/dashboard/company/metrics');
   }
 
-  return redirect('/dashboard/client');
+  return redirect('/dashboard/client/metrics');
 }
