@@ -338,37 +338,6 @@ export default function CompanyDashboard({
     };
   }, []);
 
-  useEffect(() => {
-    if (!showScanner) return;
-    let isActive = true;
-
-    const selectCamera = async () => {
-      if (!navigator?.mediaDevices?.enumerateDevices) return;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        if (!isActive) return;
-        const videoDevices = devices.filter(
-          (device) => device.kind === 'videoinput'
-        );
-        if (videoDevices.length <= 1) {
-          setHasSingleCamera(true);
-          setFacingMode('user');
-          return;
-        }
-        setHasSingleCamera(false);
-        setFacingMode('environment');
-      } catch (error) {
-        console.warn('Failed to detect cameras', error);
-      }
-    };
-
-    selectCamera();
-
-    return () => {
-      isActive = false;
-    };
-  }, [showScanner]);
-
   const handlePlanChange = async (clientId: string, plan: 'basic' | 'pro') => {
     try {
       const res = await fetch(`/api/clients/${clientId}`, {
@@ -666,6 +635,37 @@ export default function CompanyDashboard({
   const showCodes = view === 'codes';
   const showClients = view === 'clients';
   const activityTimeline = metrics?.activity_timeline ?? [];
+
+  useEffect(() => {
+    if (!showScanner) return;
+    let isActive = true;
+
+    const selectCamera = async () => {
+      if (!navigator?.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (!isActive) return;
+        const videoDevices = devices.filter(
+          (device) => device.kind === 'videoinput'
+        );
+        if (videoDevices.length <= 1) {
+          setHasSingleCamera(true);
+          setFacingMode('user');
+          return;
+        }
+        setHasSingleCamera(false);
+        setFacingMode('environment');
+      } catch (error) {
+        console.warn('Failed to detect cameras', error);
+      }
+    };
+
+    selectCamera();
+
+    return () => {
+      isActive = false;
+    };
+  }, [showScanner]);
 
   useEffect(() => {
     if (!showMetrics) return;
