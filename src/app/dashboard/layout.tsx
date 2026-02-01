@@ -58,6 +58,13 @@ function buildNavItems(role: UserRole): NavItem[] {
         items: []
       },
       {
+        title: 'Generate Codes',
+        url: '/dashboard/company/generate-codes',
+        icon: 'add',
+        shortcut: ['g', 'c'],
+        items: []
+      },
+      {
         title: 'Clients',
         url: '/dashboard/company/clients',
         icon: 'user',
