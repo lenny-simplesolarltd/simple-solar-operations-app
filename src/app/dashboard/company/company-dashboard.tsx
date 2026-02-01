@@ -724,7 +724,7 @@ export default function CompanyDashboard({
   return (
     <PageContainer>
       <div className='space-y-8'>
-        <div className='flex items-center justify-between'>
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div>
             <h1 className='text-3xl font-bold tracking-tight'>
               {viewCopy.title}
@@ -1200,14 +1200,14 @@ export default function CompanyDashboard({
 
         {showCodes && (
           <Card>
-            <CardHeader className='flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+            <CardHeader className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
               <div>
                 <CardTitle>Codes by Client</CardTitle>
                 <CardDescription>
                   Filter codes by client and monitor their status.
                 </CardDescription>
               </div>
-              <div className='flex flex-col gap-3 md:flex-row md:items-center'>
+              <div className='flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center'>
                 <Select
                   value={codesClientFilter}
                   onValueChange={(value) => {
@@ -1215,7 +1215,7 @@ export default function CompanyDashboard({
                     setCodesClientFilter(value);
                   }}
                 >
-                  <SelectTrigger className='w-[220px]'>
+                  <SelectTrigger className='w-full md:w-[220px]'>
                     <SelectValue placeholder='Filter by client' />
                   </SelectTrigger>
                   <SelectContent>

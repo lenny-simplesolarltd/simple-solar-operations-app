@@ -54,14 +54,14 @@ export function ThemeSelector() {
   const { activeTheme, setActiveTheme } = useThemeConfig();
 
   return (
-    <div className='flex items-center gap-2'>
+    <div className='flex max-w-full items-center gap-2'>
       <Label htmlFor='theme-selector' className='sr-only'>
         Theme
       </Label>
       <Select value={activeTheme} onValueChange={setActiveTheme}>
         <SelectTrigger
           id='theme-selector'
-          className='justify-start *:data-[slot=select-value]:w-12'
+          className='w-[140px] max-w-[45vw] min-w-0 justify-start *:data-[slot=select-value]:w-12 *:data-[slot=select-value]:truncate sm:w-[180px]'
         >
           <span className='text-muted-foreground hidden sm:block'>
             Select a theme:
