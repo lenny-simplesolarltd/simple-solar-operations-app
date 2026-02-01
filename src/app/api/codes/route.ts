@@ -1,3 +1,7 @@
+import {
+  INVENTORY_STATUSES,
+  type InventoryStatus
+} from '@/constants/inventory-statuses';
 import { CODE_STATUSES, type CodeStatus } from '@/constants/statuses';
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
 import { getClientContextForUser, getUserRole } from '@/lib/userRoles';
@@ -18,7 +22,7 @@ export async function GET(request: NextRequest) {
     const supabase = createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const clientIdParam = searchParams.get('clientId');
-    const statusParam = searchParams.get('status') as CodeStatus | null;
+    const statusParam = searchParams.get('status');
     const limit = Math.min(
       parseInt(searchParams.get('limit') || '25', 10),
       100
@@ -44,12 +48,26 @@ export async function GET(request: NextRequest) {
       )
       .order('created_at', { ascending: false });
 
+    const toInventorySlug = (value: string) =>
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    const inventoryStatusParam: InventoryStatus | null = statusParam
+      ? INVENTORY_STATUSES.find(
+          (status) =>
+            status === statusParam || toInventorySlug(status) === statusParam
+        ) || null
+      : null;
+
     if (roleResult.role === 'company') {
       if (clientIdParam) {
         query = query.eq('owner_user_id', clientIdParam);
       }
-      if (statusParam && CODE_STATUSES.includes(statusParam)) {
+      if (statusParam && CODE_STATUSES.includes(statusParam as CodeStatus)) {
         query = query.eq('status', statusParam);
+      } else if (inventoryStatusParam) {
+        query = query.eq('status_primary', inventoryStatusParam);
       }
     } else if (roleResult.role === 'client') {
       const clientContext =
@@ -63,8 +81,10 @@ export async function GET(request: NextRequest) {
       }
 
       query = query.eq('owner_user_id', clientContext.clientId);
-      if (statusParam && CODE_STATUSES.includes(statusParam)) {
+      if (statusParam && CODE_STATUSES.includes(statusParam as CodeStatus)) {
         query = query.eq('status', statusParam);
+      } else if (inventoryStatusParam) {
+        query = query.eq('status_primary', inventoryStatusParam);
       }
     }
 

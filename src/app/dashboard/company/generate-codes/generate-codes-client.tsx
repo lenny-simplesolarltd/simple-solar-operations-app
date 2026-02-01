@@ -289,7 +289,7 @@ export default function GenerateCodesClient() {
 
   return (
     <PageContainer>
-      <div className='space-y-8'>
+      <div className='w-full min-w-0 space-y-8'>
         <Card>
           <CardHeader>
             <CardTitle>Generate QR Codes</CardTitle>
@@ -372,47 +372,49 @@ export default function GenerateCodesClient() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table className='min-w-[720px]'>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>URL</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {codes.map((code) => (
-                    <TableRow key={code.id}>
-                      <TableCell className='font-mono text-sm'>
-                        {code.id}
-                      </TableCell>
-                      <TableCell className='text-sm'>{code.size}</TableCell>
-                      <TableCell className='text-sm'>{code.year}</TableCell>
-                      <TableCell className='text-sm'>
-                        <a
-                          className='text-primary hover:underline'
-                          href={code.url}
-                          target='_blank'
-                          rel='noreferrer'
-                        >
-                          {code.url}
-                        </a>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={() => handleCopy(code.url)}
-                        >
-                          Copy
-                        </Button>
-                      </TableCell>
+              <div className='overflow-x-auto'>
+                <Table className='min-w-[720px]'>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Year</TableHead>
+                      <TableHead>URL</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {codes.map((code) => (
+                      <TableRow key={code.id}>
+                        <TableCell className='font-mono text-sm'>
+                          {code.id}
+                        </TableCell>
+                        <TableCell className='text-sm'>{code.size}</TableCell>
+                        <TableCell className='text-sm'>{code.year}</TableCell>
+                        <TableCell className='text-sm'>
+                          <a
+                            className='text-primary hover:underline'
+                            href={code.url}
+                            target='_blank'
+                            rel='noreferrer'
+                          >
+                            {code.url}
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            onClick={() => handleCopy(code.url)}
+                          >
+                            Copy
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         )}

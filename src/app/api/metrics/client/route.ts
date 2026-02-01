@@ -24,6 +24,45 @@ type ActivityEvent =
       status?: string | null;
       quantity_collected: number;
     };
+type LastActivity = {
+  date: string;
+  status: string;
+  count: number;
+};
+type RecentActivity = {
+  date: string;
+  status: string;
+  count: number;
+};
+type MonthSummary = {
+  thisMonthCollected: number;
+  lastMonthCollected: number;
+  delta: number;
+  percentChange: number | null;
+};
+type ClientMetricsResponse = {
+  subscription_plan: 'basic' | 'pro';
+  total_codes: number;
+  total_collected: number;
+  codes_by_status: StatusCounts;
+  codes_by_inventory_status: InventoryStatusCounts;
+  totals_by_status: {
+    workflow: StatusCounts;
+    inventory: InventoryStatusCounts;
+  };
+  lastActivity: LastActivity | null;
+  recentActivity: RecentActivity[];
+  monthSummary: MonthSummary;
+  codes_per_month?: { month: string; count: number }[];
+  codes_by_size?: SizeBucket[];
+  top_sizes?: SizeBucket[];
+  pickups_completed_week?: number;
+  pickups_completed_month?: number;
+  scans_this_week?: number;
+  scans_this_month?: number;
+  scan_volume_by_day?: { date: string; count: number }[];
+  activity_timeline?: ActivityEvent[];
+};
 
 export async function GET() {
   try {
@@ -114,7 +153,107 @@ export async function GET() {
     );
     const topSizes = codesBySize.slice(0, 3);
 
-    const response: any = {
+    const now = new Date();
+    const startOfThisMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+    );
+    const startOfLastMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)
+    );
+    const startOfNextMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)
+    );
+
+    const { data: recentScanRows, error: recentScanError } = await supabase
+      .from('scan_events')
+      .select(
+        `
+        scanned_at,
+        status,
+        codes!inner (
+          owner_user_id,
+          status
+        )
+      `
+      )
+      .eq('codes.owner_user_id', clientContext.clientId)
+      .order('scanned_at', { ascending: false })
+      .limit(30);
+
+    if (recentScanError) {
+      console.error('Failed to fetch recent scan activity', recentScanError);
+    }
+
+    const resolveScanStatus = (row: {
+      status?: string | null;
+      codes?: { status?: string | null } | { status?: string | null }[] | null;
+    }) => {
+      if (row.status) return row.status;
+      if (Array.isArray(row.codes)) {
+        return row.codes[0]?.status || 'pending';
+      }
+      return row.codes?.status || 'pending';
+    };
+
+    const lastScan = recentScanRows?.[0];
+    const lastActivity: LastActivity | null = lastScan?.scanned_at
+      ? {
+          date: lastScan.scanned_at,
+          status: resolveScanStatus(lastScan),
+          count: 1
+        }
+      : null;
+
+    const recentActivityMap = new Map<string, RecentActivity>();
+    (recentScanRows || []).forEach((row) => {
+      if (!row.scanned_at) return;
+      const dateKey = new Date(row.scanned_at).toISOString().split('T')[0];
+      const status = resolveScanStatus(row);
+      const key = `${dateKey}-${status}`;
+      const existing = recentActivityMap.get(key) || {
+        date: dateKey,
+        status,
+        count: 0
+      };
+      existing.count += 1;
+      recentActivityMap.set(key, existing);
+    });
+
+    const recentActivity = Array.from(recentActivityMap.values()).sort(
+      (a, b) => b.date.localeCompare(a.date) || a.status.localeCompare(b.status)
+    );
+
+    const { data: monthScanRows, error: monthScanError } = await supabase
+      .from('scan_events')
+      .select('scanned_at, codes!inner(owner_user_id)')
+      .eq('codes.owner_user_id', clientContext.clientId)
+      .gte('scanned_at', startOfLastMonth.toISOString())
+      .lt('scanned_at', startOfNextMonth.toISOString());
+
+    if (monthScanError) {
+      console.error('Failed to fetch month scan activity', monthScanError);
+    }
+
+    let thisMonthCollected = 0;
+    let lastMonthCollected = 0;
+
+    (monthScanRows || []).forEach((row) => {
+      if (!row.scanned_at) return;
+      const scannedAt = new Date(row.scanned_at);
+      if (scannedAt >= startOfThisMonth) {
+        thisMonthCollected += 1;
+      } else {
+        lastMonthCollected += 1;
+      }
+    });
+
+    const delta = thisMonthCollected - lastMonthCollected;
+    const percentChange =
+      lastMonthCollected > 0
+        ? Number(((delta / lastMonthCollected) * 100).toFixed(1))
+        : null;
+
+    const response: ClientMetricsResponse = {
       subscription_plan: clientContext.subscription_plan,
       total_codes: codeRows?.length ?? 0,
       total_collected: totalCollected,
@@ -123,11 +262,18 @@ export async function GET() {
       totals_by_status: {
         workflow: codesByStatus,
         inventory: codesByInventoryStatus
+      },
+      lastActivity,
+      recentActivity,
+      monthSummary: {
+        thisMonthCollected,
+        lastMonthCollected,
+        delta,
+        percentChange
       }
     };
 
     if (clientContext.subscription_plan === 'pro') {
-      const now = new Date();
       const startOfMonth = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
       );

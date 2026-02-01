@@ -259,7 +259,7 @@ export function ContributionGraph({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className='overflow-x-auto'>
+      <div className='w-full max-w-full min-w-0 overflow-x-auto'>
         <table className='border-separate border-spacing-1 text-xs'>
           <caption className='sr-only'>Contribution Graph for {year}</caption>
           <thead>

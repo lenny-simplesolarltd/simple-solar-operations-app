@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { format } from 'date-fns';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import {
   CartesianGrid,
@@ -34,7 +34,8 @@ import {
 } from '@/components/ui/table';
 import { INVENTORY_STATUSES } from '@/constants/inventory-statuses';
 import { CODE_STATUS_LABELS, type CodeStatus } from '@/constants/statuses';
-import { IconLoader2 } from '@tabler/icons-react';
+import { IconLoader2, IconLock } from '@tabler/icons-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type ClientInfo = {
   client_id: string;
@@ -56,6 +57,18 @@ type ClientMetrics = {
   scans_this_week?: number;
   scans_this_month?: number;
   scan_volume_by_day?: { date: string; count: number }[];
+  lastActivity?: {
+    date: string;
+    status: string;
+    count: number;
+  } | null;
+  recentActivity?: { date: string; status: string; count: number }[];
+  monthSummary?: {
+    thisMonthCollected: number;
+    lastMonthCollected: number;
+    delta: number;
+    percentChange: number | null;
+  };
   activity_timeline?: {
     type: 'scan' | 'pickup';
     occurred_at: string;
@@ -97,6 +110,8 @@ export default function ClientDashboard({
 }: {
   view?: ClientDashboardView;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [client, setClient] = useState<ClientInfo | null>(null);
   const [metrics, setMetrics] = useState<ClientMetrics | null>(null);
   const [codes, setCodes] = useState<ClientCode[]>([]);
@@ -104,6 +119,7 @@ export default function ClientDashboard({
   const [page, setPage] = useState(0);
   const [loadingCodes, setLoadingCodes] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(true);
+  const statusFilter = searchParams.get('status') || '';
 
   const isPro = client?.subscription_plan === 'pro';
 
@@ -149,7 +165,11 @@ export default function ClientDashboard({
   }, []);
 
   const loadCodes = useCallback(
-    async (pageNumber = 0, options?: { silent?: boolean }) => {
+    async (
+      pageNumber = 0,
+      options?: { silent?: boolean },
+      statusValue: string = statusFilter
+    ) => {
       if (!options?.silent) {
         setLoadingCodes(true);
       }
@@ -157,6 +177,9 @@ export default function ClientDashboard({
         const params = new URLSearchParams();
         params.set('limit', PAGE_SIZE.toString());
         params.set('offset', (pageNumber * PAGE_SIZE).toString());
+        if (statusValue) {
+          params.set('status', statusValue);
+        }
 
         const res = await fetch(`/api/codes?${params.toString()}`);
         if (!res.ok) {
@@ -178,7 +201,38 @@ export default function ClientDashboard({
         }
       }
     },
+    [statusFilter]
+  );
+
+  const viewCopy = VIEW_COPY[view];
+  const showMetrics = view === 'metrics';
+  const showCodes = view === 'codes';
+  const statusSlugMap = useMemo(
+    () =>
+      INVENTORY_STATUSES.reduce<Record<string, string>>((acc, status) => {
+        const slug = status
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+        acc[status] = slug;
+        return acc;
+      }, {}),
     []
+  );
+  const statusLabelFromSlug = useMemo(() => {
+    const entry = Object.entries(statusSlugMap).find(
+      ([, slug]) => slug === statusFilter
+    );
+    return entry?.[0] || statusFilter.replace(/_/g, ' ');
+  }, [statusFilter, statusSlugMap]);
+
+  const handleStatusFilter = useCallback(
+    (status: string) => {
+      const slug = statusSlugMap[status];
+      if (!slug) return;
+      router.push(`/dashboard/client/codes?status=${encodeURIComponent(slug)}`);
+    },
+    [router, statusSlugMap]
   );
 
   useEffect(() => {
@@ -187,13 +241,15 @@ export default function ClientDashboard({
   }, [loadClient, loadMetrics]);
 
   useEffect(() => {
-    loadCodes(page);
-  }, [loadCodes, page]);
+    setPage(0);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (!showCodes) return;
+    loadCodes(page, undefined, statusFilter);
+  }, [loadCodes, page, showCodes, statusFilter]);
 
   const hasNextPage = (page + 1) * PAGE_SIZE < codesTotal;
-  const viewCopy = VIEW_COPY[view];
-  const showMetrics = view === 'metrics';
-  const showCodes = view === 'codes';
 
   useEffect(() => {
     if (!showMetrics) return;
@@ -207,15 +263,15 @@ export default function ClientDashboard({
   useEffect(() => {
     if (!showCodes) return;
     const intervalId = setInterval(() => {
-      loadCodes(page, { silent: true });
+      loadCodes(page, { silent: true }, statusFilter);
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [loadCodes, page, showCodes]);
+  }, [loadCodes, page, showCodes, statusFilter]);
 
   return (
     <PageContainer>
-      <div className='space-y-8'>
+      <div className='w-full min-w-0 space-y-8'>
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div>
             <h1 className='text-3xl font-bold tracking-tight'>
@@ -256,6 +312,22 @@ export default function ClientDashboard({
               </Button>
             </CardHeader>
             <CardContent>
+              {metrics?.lastActivity && (
+                <div className='bg-muted/30 mb-4 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-xs sm:text-sm'>
+                  <span className='font-semibold'>Last activity:</span>
+                  <span>
+                    {CODE_STATUS_LABELS[
+                      metrics.lastActivity.status as CodeStatus
+                    ] || metrics.lastActivity.status}
+                  </span>
+                  <span className='text-muted-foreground'>
+                    •{' '}
+                    {formatDistanceToNow(new Date(metrics.lastActivity.date), {
+                      addSuffix: true
+                    })}
+                  </span>
+                </div>
+              )}
               <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5'>
                 <Card className='border-muted'>
                   <CardHeader>
@@ -304,22 +376,85 @@ export default function ClientDashboard({
                   </CardHeader>
                 </Card>
               </div>
+              {metrics?.monthSummary && (
+                <div className='text-muted-foreground mt-4 space-y-1 text-xs sm:text-sm'>
+                  <p>
+                    This month: {metrics.monthSummary.thisMonthCollected}{' '}
+                    collected
+                  </p>
+                  <p>
+                    Last month: {metrics.monthSummary.lastMonthCollected}{' '}
+                    {metrics.monthSummary.percentChange === null
+                      ? '(n/a)'
+                      : `(${metrics.monthSummary.delta >= 0 ? '+' : ''}${metrics.monthSummary.percentChange}%)`}
+                  </p>
+                </div>
+              )}
               <div className='mt-6'>
                 <h4 className='text-sm font-semibold'>Inventory status</h4>
                 <div className='mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4'>
-                  {INVENTORY_STATUSES.map((status) => (
-                    <Card key={status} className='border-muted'>
-                      <CardHeader>
-                        <CardDescription>{status}</CardDescription>
-                        <CardTitle>
-                          {loadingMeta
-                            ? '—'
-                            : (metrics?.codes_by_inventory_status?.[status] ??
-                              0)}
-                        </CardTitle>
-                      </CardHeader>
-                    </Card>
-                  ))}
+                  {INVENTORY_STATUSES.map((status) => {
+                    const slug = statusSlugMap[status];
+                    const isActive = statusFilter === slug;
+                    return (
+                      <Card
+                        key={status}
+                        className={`border-muted hover:bg-muted/40 cursor-pointer transition-colors ${
+                          isActive ? 'ring-primary/40 ring-1' : ''
+                        }`}
+                        role='button'
+                        tabIndex={0}
+                        onClick={() => handleStatusFilter(status)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleStatusFilter(status);
+                          }
+                        }}
+                      >
+                        <CardHeader>
+                          <CardDescription>{status}</CardDescription>
+                          <CardTitle>
+                            {loadingMeta
+                              ? '—'
+                              : (metrics?.codes_by_inventory_status?.[status] ??
+                                0)}
+                          </CardTitle>
+                        </CardHeader>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className='mt-6 rounded-md border p-4'>
+                <div className='flex items-center justify-between'>
+                  <h4 className='text-sm font-semibold'>Recent activity</h4>
+                  <span className='text-muted-foreground text-xs'>
+                    Last scans
+                  </span>
+                </div>
+                <div className='mt-3 space-y-2'>
+                  {(metrics?.recentActivity || []).length > 0 ? (
+                    (metrics?.recentActivity || []).slice(0, 8).map((entry) => (
+                      <div
+                        className='flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm'
+                        key={`${entry.date}-${entry.status}`}
+                      >
+                        <span className='text-muted-foreground'>
+                          {format(new Date(entry.date), 'PP')}
+                        </span>
+                        <span>
+                          {CODE_STATUS_LABELS[entry.status as CodeStatus] ||
+                            entry.status}
+                        </span>
+                        <span className='font-semibold'>{entry.count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className='text-muted-foreground text-sm'>
+                      No activity yet — scans will appear here.
+                    </p>
+                  )}
                 </div>
               </div>
               {isPro && metrics?.codes_per_month && (
@@ -343,10 +478,30 @@ export default function ClientDashboard({
                 </div>
               )}
               {!isPro && (
-                <p className='text-muted-foreground mt-4 text-sm'>
-                  Upgrade to pro to unlock monthly charts, size breakdowns, and
-                  pickups.
-                </p>
+                <>
+                  <div className='mt-6 grid grid-cols-1 gap-3 md:grid-cols-3'>
+                    {[
+                      'Monthly trend chart (Pro)',
+                      'Size breakdown (Pro)',
+                      'Pickups per week (Pro)'
+                    ].map((label) => (
+                      <Card
+                        className='border-muted bg-muted/30 text-muted-foreground opacity-70'
+                        key={label}
+                      >
+                        <CardHeader>
+                          <CardDescription className='flex items-center gap-2'>
+                            <IconLock className='h-4 w-4' />
+                            {label}
+                          </CardDescription>
+                          <p className='text-xs'>
+                            Upgrade to Pro to unlock this view.
+                          </p>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </>
               )}
               {isPro && metrics?.codes_by_size && (
                 <div className='mt-6 grid grid-cols-2 gap-2 md:grid-cols-4'>
@@ -511,8 +666,15 @@ export default function ClientDashboard({
                     : 'Includes creation timestamps plus core fields.'}
                 </CardDescription>
               </div>
-              <div className='text-muted-foreground text-sm'>
-                {codesTotal} code{codesTotal === 1 ? '' : 's'}
+              <div className='text-muted-foreground flex flex-wrap items-center gap-2 text-sm'>
+                <span>
+                  {codesTotal} code{codesTotal === 1 ? '' : 's'}
+                </span>
+                {statusFilter && (
+                  <Badge variant='outline' className='text-xs capitalize'>
+                    Filtered: {statusLabelFromSlug || statusFilter}
+                  </Badge>
+                )}
               </div>
             </CardHeader>
             <CardContent>
