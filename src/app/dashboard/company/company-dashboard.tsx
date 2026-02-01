@@ -73,6 +73,7 @@ import type { ScanEventWithCode } from '@/lib/supabaseClient';
 import {
   IconAlertCircle,
   IconCamera,
+  IconDownload,
   IconLoader2,
   IconScan,
   IconUsers
@@ -642,6 +643,106 @@ export default function CompanyDashboard({
   const showCodes = view === 'codes';
   const showClients = view === 'clients';
   const activityTimeline = metrics?.activity_timeline ?? [];
+
+  const getBaseUrl = useCallback(() => {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '');
+    if (envUrl) return envUrl;
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return '';
+  }, []);
+
+  const buildCodeUrl = useCallback(
+    (codeId: string) => `${getBaseUrl()}/code/${codeId}`,
+    [getBaseUrl]
+  );
+
+  const handleDownloadCsv = useCallback(async () => {
+    const escape = (value: string | number) =>
+      `"${String(value).replace(/"/g, '""')}"`;
+    const limit = 100;
+    let offset = 0;
+    let allRows: CodeRow[] = [];
+
+    try {
+      while (true) {
+        const params = new URLSearchParams();
+        params.set('limit', limit.toString());
+        params.set('offset', offset.toString());
+        if (codesClientFilter && codesClientFilter !== 'all') {
+          params.set('clientId', codesClientFilter);
+        }
+
+        const res = await fetch(`/api/codes?${params.toString()}`);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to load codes');
+        }
+
+        const payload = await res.json();
+        const pageRows: CodeRow[] = payload.codes || [];
+        allRows = allRows.concat(pageRows);
+
+        if (pageRows.length < limit) {
+          break;
+        }
+        offset += limit;
+      }
+
+      const header = ['code', 'client', 'size', 'year', 'status', 'url'];
+      const rows = allRows.map((code) =>
+        [
+          code.id,
+          code.owner_user_id
+            ? clientNameMap.get(code.owner_user_id) || code.owner_user_id
+            : 'Unassigned',
+          code.size,
+          code.year,
+          code.status || 'pending',
+          buildCodeUrl(code.id)
+        ]
+          .map(escape)
+          .join(',')
+      );
+      const csv = [header.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `company-codes-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to download CSV'
+      );
+    }
+  }, [buildCodeUrl, clientNameMap, codesClientFilter]);
+
+  const handleDownloadQr = useCallback(
+    async (codeId: string) => {
+      try {
+        const qrcode = await import('qrcode');
+        const url = buildCodeUrl(codeId);
+        const dataUrl = await qrcode.toDataURL(url, {
+          margin: 1,
+          width: 300
+        });
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `qr-${codeId}.png`;
+        link.click();
+      } catch (error) {
+        console.error(error);
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to download QR'
+        );
+      }
+    },
+    [buildCodeUrl]
+  );
 
   useEffect(() => {
     if (!showScanner) return;
@@ -1227,8 +1328,19 @@ export default function CompanyDashboard({
                     ))}
                   </SelectContent>
                 </Select>
-                <div className='text-muted-foreground text-sm'>
-                  {codesTotal} code{codesTotal === 1 ? '' : 's'}
+                <div className='flex items-center gap-3'>
+                  <div className='text-muted-foreground text-sm'>
+                    {codesTotal} code{codesTotal === 1 ? '' : 's'}
+                  </div>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={handleDownloadCsv}
+                    disabled={codesTotal === 0}
+                  >
+                    <IconDownload className='mr-2 h-4 w-4' />
+                    Download CSV
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -1257,6 +1369,7 @@ export default function CompanyDashboard({
                         <TableHead className='hidden md:table-cell'>
                           Created
                         </TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1287,6 +1400,16 @@ export default function CompanyDashboard({
                             {code.created_at
                               ? format(new Date(code.created_at), 'PP')
                               : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => handleDownloadQr(code.id)}
+                            >
+                              <IconDownload className='mr-2 h-4 w-4' />
+                              <span className='hidden sm:inline'>Download</span>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
