@@ -406,11 +406,11 @@ export default function CompanyDashboard({
     ) => {
       setCodeUpdateState((prev) => ({ ...prev, [codeId]: true }));
 
-      let previousRow: CodeRow | undefined;
+      let rollbackRow: CodeRow | null = null;
       setCodes((prev) =>
         prev.map((row) => {
           if (row.id !== codeId) return row;
-          previousRow = row;
+          rollbackRow = row;
           return { ...row, ...updates };
         })
       );
@@ -449,9 +449,9 @@ export default function CompanyDashboard({
         ]);
         toast.success('Code updated');
       } catch (error) {
-        if (previousRow) {
+        if (rollbackRow) {
           setCodes((prev) =>
-            prev.map((row) => (row.id === codeId ? previousRow : row))
+            prev.map((row) => (row.id === codeId ? rollbackRow! : row))
           );
         }
         console.error(error);
