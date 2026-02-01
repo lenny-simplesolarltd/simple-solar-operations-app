@@ -398,7 +398,11 @@ export default function CompanyDashboard({
   const handleCodeUpdate = useCallback(
     async (
       codeId: string,
-      updates: { owner_user_id?: string | null; size?: string; status?: string }
+      updates: {
+        owner_user_id?: string | null;
+        size?: string;
+        status?: CodeStatus;
+      }
     ) => {
       setCodeUpdateState((prev) => ({ ...prev, [codeId]: true }));
 
@@ -1633,7 +1637,9 @@ export default function CompanyDashboard({
                                 <Select
                                   value={code.status || 'pending'}
                                   onValueChange={(value) =>
-                                    handleCodeUpdate(code.id, { status: value })
+                                    handleCodeUpdate(code.id, {
+                                      status: value as CodeStatus
+                                    })
                                   }
                                   disabled={isRowUpdating}
                                 >
