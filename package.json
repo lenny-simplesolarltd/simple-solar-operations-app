@@ -82,6 +82,7 @@
     "nextjs-toploader": "^3.7.15",
     "nuqs": "^2.4.1",
     "postcss": "8.4.49",
+    "jszip": "^3.10.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-day-picker": "^8.10.1",

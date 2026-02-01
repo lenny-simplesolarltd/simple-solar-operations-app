@@ -658,38 +658,44 @@ export default function CompanyDashboard({
     [getBaseUrl]
   );
 
-  const handleDownloadCsv = useCallback(async () => {
-    const escape = (value: string | number) =>
-      `"${String(value).replace(/"/g, '""')}"`;
+  const fetchAllCodes = useCallback(async () => {
     const limit = 100;
     let offset = 0;
     let allRows: CodeRow[] = [];
 
-    try {
-      while (true) {
-        const params = new URLSearchParams();
-        params.set('limit', limit.toString());
-        params.set('offset', offset.toString());
-        if (codesClientFilter && codesClientFilter !== 'all') {
-          params.set('clientId', codesClientFilter);
-        }
-
-        const res = await fetch(`/api/codes?${params.toString()}`);
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to load codes');
-        }
-
-        const payload = await res.json();
-        const pageRows: CodeRow[] = payload.codes || [];
-        allRows = allRows.concat(pageRows);
-
-        if (pageRows.length < limit) {
-          break;
-        }
-        offset += limit;
+    while (true) {
+      const params = new URLSearchParams();
+      params.set('limit', limit.toString());
+      params.set('offset', offset.toString());
+      if (codesClientFilter && codesClientFilter !== 'all') {
+        params.set('clientId', codesClientFilter);
       }
 
+      const res = await fetch(`/api/codes?${params.toString()}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to load codes');
+      }
+
+      const payload = await res.json();
+      const pageRows: CodeRow[] = payload.codes || [];
+      allRows = allRows.concat(pageRows);
+
+      if (pageRows.length < limit) {
+        break;
+      }
+      offset += limit;
+    }
+
+    return allRows;
+  }, [codesClientFilter]);
+
+  const handleDownloadCsv = useCallback(async () => {
+    const escape = (value: string | number) =>
+      `"${String(value).replace(/"/g, '""')}"`;
+
+    try {
+      const allRows = await fetchAllCodes();
       const header = ['code', 'client', 'size', 'year', 'status', 'url'];
       const rows = allRows.map((code) =>
         [
@@ -719,7 +725,60 @@ export default function CompanyDashboard({
         error instanceof Error ? error.message : 'Failed to download CSV'
       );
     }
-  }, [buildCodeUrl, clientNameMap, codesClientFilter]);
+  }, [buildCodeUrl, clientNameMap, fetchAllCodes]);
+
+  const handleDownloadZip = useCallback(async () => {
+    try {
+      const allRows = await fetchAllCodes();
+      if (allRows.length === 0) return;
+      const qrcode = await import('qrcode');
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      const escape = (value: string | number) =>
+        `"${String(value).replace(/"/g, '""')}"`;
+      const header = ['code', 'client', 'size', 'year', 'status', 'url'];
+      const rows = allRows.map((code) =>
+        [
+          code.id,
+          code.owner_user_id
+            ? clientNameMap.get(code.owner_user_id) || code.owner_user_id
+            : 'Unassigned',
+          code.size,
+          code.year,
+          code.status || 'pending',
+          buildCodeUrl(code.id)
+        ]
+          .map(escape)
+          .join(',')
+      );
+      zip.file('codes.csv', [header.join(','), ...rows].join('\n'));
+
+      await Promise.all(
+        allRows.map(async (code) => {
+          const url = buildCodeUrl(code.id);
+          const dataUrl = await qrcode.toDataURL(url, {
+            margin: 1,
+            width: 300
+          });
+          const base64 = dataUrl.split(',')[1] || '';
+          zip.file(`qr-${code.id}.png`, base64, { base64: true });
+        })
+      );
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `company-codes-${new Date().toISOString().slice(0, 10)}.zip`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to download ZIP'
+      );
+    }
+  }, [buildCodeUrl, clientNameMap, fetchAllCodes]);
 
   const handleDownloadQr = useCallback(
     async (codeId: string) => {
@@ -1328,7 +1387,7 @@ export default function CompanyDashboard({
                     ))}
                   </SelectContent>
                 </Select>
-                <div className='flex items-center gap-3'>
+                <div className='flex flex-wrap items-center gap-3'>
                   <div className='text-muted-foreground text-sm'>
                     {codesTotal} code{codesTotal === 1 ? '' : 's'}
                   </div>
@@ -1340,6 +1399,15 @@ export default function CompanyDashboard({
                   >
                     <IconDownload className='mr-2 h-4 w-4' />
                     Download CSV
+                  </Button>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={handleDownloadZip}
+                    disabled={codesTotal === 0}
+                  >
+                    <IconDownload className='mr-2 h-4 w-4' />
+                    Download ZIP
                   </Button>
                 </div>
               </div>
@@ -1404,11 +1472,11 @@ export default function CompanyDashboard({
                           <TableCell>
                             <Button
                               variant='outline'
-                              size='sm'
+                              size='icon'
                               onClick={() => handleDownloadQr(code.id)}
+                              aria-label={`Download QR for ${code.id}`}
                             >
-                              <IconDownload className='mr-2 h-4 w-4' />
-                              <span className='hidden sm:inline'>Download</span>
+                              <IconDownload className='h-4 w-4' />
                             </Button>
                           </TableCell>
                         </TableRow>

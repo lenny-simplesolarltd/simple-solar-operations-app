@@ -44,6 +44,7 @@ export default function GenerateCodesClient() {
   const [size, setSize] = useState('unspecified');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codes, setCodes] = useState<GeneratedCode[]>([]);
 
@@ -106,6 +107,48 @@ export default function GenerateCodesClient() {
     link.download = `qr-codes-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadZip = async () => {
+    if (codes.length === 0) return;
+    setIsZipping(true);
+    try {
+      const qrcode = await import('qrcode');
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      const escape = (value: string | number) =>
+        `"${String(value).replace(/"/g, '""')}"`;
+      const header = ['code', 'size', 'year', 'url'];
+      const rows = codes.map((code) =>
+        [code.id, code.size, code.year, code.url].map(escape).join(',')
+      );
+      zip.file('codes.csv', [header.join(','), ...rows].join('\n'));
+
+      await Promise.all(
+        codes.map(async (code) => {
+          const image = await qrcode.toDataURL(code.url, {
+            margin: 1,
+            width: 300
+          });
+          const base64 = image.split(',')[1] || '';
+          zip.file(`qr-${code.id}.png`, base64, { base64: true });
+        })
+      );
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `qr-codes-${new Date().toISOString().slice(0, 10)}.zip`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to download ZIP';
+      toast.error(message);
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   const handlePrintSheet = async () => {
@@ -309,6 +352,14 @@ export default function GenerateCodesClient() {
               <div className='flex flex-wrap gap-2'>
                 <Button variant='outline' size='sm' onClick={handleDownloadCsv}>
                   Download CSV
+                </Button>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={handleDownloadZip}
+                  disabled={isZipping}
+                >
+                  {isZipping ? 'Preparing...' : 'Download ZIP'}
                 </Button>
                 <Button
                   variant='outline'
