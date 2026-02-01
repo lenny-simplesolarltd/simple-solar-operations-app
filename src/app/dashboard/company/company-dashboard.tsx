@@ -76,6 +76,7 @@ import {
   IconDownload,
   IconLoader2,
   IconScan,
+  IconTrash,
   IconUsers
 } from '@tabler/icons-react';
 
@@ -85,6 +86,10 @@ type Client = {
   email?: string | null;
   subscription_plan: 'basic' | 'pro';
   created_at?: string;
+  total_codes?: number;
+  active_codes?: number;
+  total_scans?: number;
+  last_scanned_at?: string | null;
 };
 
 type CompanyMetrics = {
@@ -135,12 +140,15 @@ type CodeRow = {
   quantity?: number;
   owner_user_id?: string | null;
   created_at?: string;
+  scan_count?: number;
+  last_scanned_at?: string | null;
 };
 
 type CompanyDashboardView = 'metrics' | 'scanner' | 'codes' | 'clients';
 
 const PAGE_SIZE = 10;
 const POLL_INTERVAL_MS = 30000;
+const SIZE_OPTIONS = ['unspecified', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 const VIEW_COPY: Record<
   CompanyDashboardView,
@@ -192,6 +200,9 @@ export default function CompanyDashboard({
   const [codes, setCodes] = useState<CodeRow[]>([]);
   const [codesTotal, setCodesTotal] = useState(0);
   const [codesLoading, setCodesLoading] = useState(false);
+  const [codeUpdateState, setCodeUpdateState] = useState<
+    Record<string, boolean>
+  >({});
   const [metrics, setMetrics] = useState<CompanyMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [lastScanned, setLastScanned] = useState<ScanEventWithCode | null>(
@@ -200,6 +211,11 @@ export default function CompanyDashboard({
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<CodeStatus>('pending');
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetCodeId, setDeleteTargetCodeId] = useState<string | null>(
+    null
+  );
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>('unspecified');
@@ -378,6 +394,72 @@ export default function CompanyDashboard({
       );
     }
   };
+
+  const handleCodeUpdate = useCallback(
+    async (
+      codeId: string,
+      updates: { owner_user_id?: string | null; size?: string; status?: string }
+    ) => {
+      setCodeUpdateState((prev) => ({ ...prev, [codeId]: true }));
+
+      let previousRow: CodeRow | undefined;
+      setCodes((prev) =>
+        prev.map((row) => {
+          if (row.id !== codeId) return row;
+          previousRow = row;
+          return { ...row, ...updates };
+        })
+      );
+
+      try {
+        const res = await fetch(`/api/codes/${codeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to update code');
+        }
+
+        const payload = await res.json();
+        const updatedCode = payload.code as CodeRow;
+
+        setCodes((prev) =>
+          prev.map((row) =>
+            row.id === codeId
+              ? {
+                  ...row,
+                  ...updatedCode,
+                  scan_count: row.scan_count,
+                  last_scanned_at: row.last_scanned_at
+                }
+              : row
+          )
+        );
+
+        await Promise.all([
+          loadCodes(codesPage, codesClientFilter, { silent: true }),
+          loadMetrics({ silent: true })
+        ]);
+        toast.success('Code updated');
+      } catch (error) {
+        if (previousRow) {
+          setCodes((prev) =>
+            prev.map((row) => (row.id === codeId ? previousRow : row))
+          );
+        }
+        console.error(error);
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to update code'
+        );
+      } finally {
+        setCodeUpdateState((prev) => ({ ...prev, [codeId]: false }));
+      }
+    },
+    [codesClientFilter, codesPage, loadCodes, loadMetrics]
+  );
 
   const handleStatusUpdate = async () => {
     if (!lastScanned?.code?.id) return;
@@ -802,6 +884,40 @@ export default function CompanyDashboard({
     },
     [buildCodeUrl]
   );
+
+  const handleDeleteCode = useCallback(
+    async (codeId: string) => {
+      try {
+        setDeleteLoading(true);
+        const res = await fetch(`/api/codes/${codeId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to delete code');
+        }
+        toast.success('Code deleted');
+        setDeleteDialogOpen(false);
+        setDeleteTargetCodeId(null);
+        await Promise.all([
+          loadCodes(codesPage, codesClientFilter),
+          loadMetrics(),
+          refreshScans()
+        ]);
+      } catch (error) {
+        console.error(error);
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to delete code'
+        );
+      } finally {
+        setDeleteLoading(false);
+      }
+    },
+    [codesClientFilter, codesPage, loadCodes, loadMetrics, refreshScans]
+  );
+
+  const openDeleteDialog = useCallback((codeId: string) => {
+    setDeleteTargetCodeId(codeId);
+    setDeleteDialogOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!showScanner) return;
@@ -1360,37 +1476,39 @@ export default function CompanyDashboard({
 
         {showCodes && (
           <Card>
-            <CardHeader className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+            <CardHeader className='flex flex-col gap-3'>
               <div>
                 <CardTitle>Codes by Client</CardTitle>
                 <CardDescription>
                   Filter codes by client and monitor their status.
                 </CardDescription>
               </div>
-              <div className='flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center'>
-                <Select
-                  value={codesClientFilter}
-                  onValueChange={(value) => {
-                    setCodesPage(0);
-                    setCodesClientFilter(value);
-                  }}
-                >
-                  <SelectTrigger className='w-full md:w-[220px]'>
-                    <SelectValue placeholder='Filter by client' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='all'>All clients</SelectItem>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className='flex flex-wrap items-center gap-3'>
-                  <div className='text-muted-foreground text-sm'>
+              <div className='flex w-full flex-col gap-3 md:flex-row md:items-end'>
+                <div className='flex w-full flex-col gap-3 md:flex-row md:items-end'>
+                  <Select
+                    value={codesClientFilter}
+                    onValueChange={(value) => {
+                      setCodesPage(0);
+                      setCodesClientFilter(value);
+                    }}
+                  >
+                    <SelectTrigger className='w-full md:w-[240px]'>
+                      <SelectValue placeholder='Filter by client' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='all'>All clients</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className='text-muted-foreground text-sm md:ml-2'>
                     {codesTotal} code{codesTotal === 1 ? '' : 's'}
                   </div>
+                </div>
+                <div className='flex items-center gap-2 md:ml-auto md:flex-nowrap'>
                   <Button
                     variant='outline'
                     size='sm'
@@ -1398,7 +1516,7 @@ export default function CompanyDashboard({
                     disabled={codesTotal === 0}
                   >
                     <IconDownload className='mr-2 h-4 w-4' />
-                    Download CSV
+                    CSV
                   </Button>
                   <Button
                     variant='outline'
@@ -1407,7 +1525,7 @@ export default function CompanyDashboard({
                     disabled={codesTotal === 0}
                   >
                     <IconDownload className='mr-2 h-4 w-4' />
-                    Download ZIP
+                    ZIP
                   </Button>
                 </div>
               </div>
@@ -1421,68 +1539,162 @@ export default function CompanyDashboard({
               ) : codes.length === 0 ? (
                 <p className='text-muted-foreground text-sm'>No codes found.</p>
               ) : (
-                <div className='overflow-x-auto'>
-                  <Table className='min-w-[720px]'>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Code ID</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead className='hidden sm:table-cell'>
-                          Size
-                        </TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className='hidden md:table-cell'>
-                          Year
-                        </TableHead>
-                        <TableHead className='hidden md:table-cell'>
-                          Created
-                        </TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {codes.map((code) => (
-                        <TableRow key={code.id}>
-                          <TableCell>
-                            <code className='font-mono text-sm'>{code.id}</code>
-                          </TableCell>
-                          <TableCell className='text-sm'>
-                            {code.owner_user_id
-                              ? clientNameMap.get(code.owner_user_id) || '—'
-                              : 'Unassigned'}
-                          </TableCell>
-                          <TableCell className='hidden text-sm sm:table-cell'>
-                            {code.size}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant='outline'>
-                              {code.status
-                                ? CODE_STATUS_LABELS[code.status] || code.status
-                                : 'pending'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className='hidden text-sm md:table-cell'>
-                            {code.year}
-                          </TableCell>
-                          <TableCell className='text-muted-foreground hidden text-sm md:table-cell'>
-                            {code.created_at
-                              ? format(new Date(code.created_at), 'PP')
-                              : '—'}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant='outline'
-                              size='icon'
-                              onClick={() => handleDownloadQr(code.id)}
-                              aria-label={`Download QR for ${code.id}`}
-                            >
-                              <IconDownload className='h-4 w-4' />
-                            </Button>
-                          </TableCell>
+                <div className='-mx-6 overflow-x-auto'>
+                  <div className='min-w-[960px] px-6'>
+                    <Table className='w-full'>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Code ID</TableHead>
+                          <TableHead>Client</TableHead>
+                          <TableHead className='hidden sm:table-cell'>
+                            Size
+                          </TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className='hidden md:table-cell'>
+                            Year
+                          </TableHead>
+                          <TableHead className='hidden md:table-cell'>
+                            Created
+                          </TableHead>
+                          <TableHead className='hidden md:table-cell'>
+                            Total Scans
+                          </TableHead>
+                          <TableHead className='hidden lg:table-cell'>
+                            Last Scan
+                          </TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {codes.map((code) => {
+                          const isRowUpdating = Boolean(
+                            codeUpdateState[code.id]
+                          );
+
+                          return (
+                            <TableRow key={code.id}>
+                              <TableCell>
+                                <code className='font-mono text-sm'>
+                                  {code.id}
+                                </code>
+                              </TableCell>
+                              <TableCell className='text-sm'>
+                                <Select
+                                  value={code.owner_user_id ?? 'unassigned'}
+                                  onValueChange={(value) =>
+                                    handleCodeUpdate(code.id, {
+                                      owner_user_id:
+                                        value === 'unassigned' ? null : value
+                                    })
+                                  }
+                                  disabled={isRowUpdating || clientsLoading}
+                                >
+                                  <SelectTrigger className='h-8 w-[180px] max-w-[220px]'>
+                                    <SelectValue placeholder='Assign client' />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value='unassigned'>
+                                      Unassigned
+                                    </SelectItem>
+                                    {clients.map((client) => (
+                                      <SelectItem
+                                        key={client.id}
+                                        value={client.id}
+                                      >
+                                        {client.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className='hidden text-sm sm:table-cell'>
+                                <Select
+                                  value={code.size || 'unspecified'}
+                                  onValueChange={(value) =>
+                                    handleCodeUpdate(code.id, { size: value })
+                                  }
+                                  disabled={isRowUpdating}
+                                >
+                                  <SelectTrigger className='h-8 w-[110px]'>
+                                    <SelectValue placeholder='Size' />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {SIZE_OPTIONS.map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {option === 'unspecified'
+                                          ? 'Unspecified'
+                                          : option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={code.status || 'pending'}
+                                  onValueChange={(value) =>
+                                    handleCodeUpdate(code.id, { status: value })
+                                  }
+                                  disabled={isRowUpdating}
+                                >
+                                  <SelectTrigger className='h-8 w-[170px]'>
+                                    <SelectValue placeholder='Status' />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CODE_STATUSES.map((status) => (
+                                      <SelectItem key={status} value={status}>
+                                        {CODE_STATUS_LABELS[status]}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className='hidden text-sm md:table-cell'>
+                                {code.year}
+                              </TableCell>
+                              <TableCell className='text-muted-foreground hidden text-sm md:table-cell'>
+                                {code.created_at
+                                  ? format(new Date(code.created_at), 'PP')
+                                  : '—'}
+                              </TableCell>
+                              <TableCell className='hidden text-sm md:table-cell'>
+                                {code.scan_count ?? 0}
+                              </TableCell>
+                              <TableCell className='text-muted-foreground hidden text-xs lg:table-cell'>
+                                {code.last_scanned_at
+                                  ? format(
+                                      new Date(code.last_scanned_at),
+                                      'PP p'
+                                    )
+                                  : '—'}
+                              </TableCell>
+                              <TableCell>
+                                <div className='flex items-center gap-2'>
+                                  <Button
+                                    variant='outline'
+                                    size='icon'
+                                    onClick={() => handleDownloadQr(code.id)}
+                                    aria-label={`Download QR for ${code.id}`}
+                                  >
+                                    <IconDownload className='h-4 w-4' />
+                                  </Button>
+                                  <Button
+                                    variant='outline'
+                                    size='icon'
+                                    onClick={() => openDeleteDialog(code.id)}
+                                    aria-label={`Delete code ${code.id}`}
+                                    className='text-destructive hover:text-destructive'
+                                  >
+                                    <IconTrash className='h-4 w-4' />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1530,52 +1742,96 @@ export default function CompanyDashboard({
               ) : clients.length === 0 ? (
                 <p className='text-muted-foreground text-sm'>No clients yet.</p>
               ) : (
-                <div className='overflow-x-auto'>
-                  <Table className='min-w-[520px]'>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Client</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead className='hidden sm:table-cell'>
-                          Created
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {clients.map((client) => (
-                        <TableRow key={client.id}>
-                          <TableCell className='flex items-center gap-2 text-sm'>
-                            <IconUsers className='text-muted-foreground h-4 w-4' />
-                            {client.name}
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={client.subscription_plan}
-                              onValueChange={(value) =>
-                                handlePlanChange(
-                                  client.id,
-                                  value as 'basic' | 'pro'
-                                )
-                              }
-                            >
-                              <SelectTrigger className='w-32'>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value='basic'>Basic</SelectItem>
-                                <SelectItem value='pro'>Pro</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className='text-muted-foreground hidden text-sm sm:table-cell'>
-                            {client.created_at
-                              ? format(new Date(client.created_at), 'PP')
-                              : '—'}
-                          </TableCell>
+                <div className='-mx-6 overflow-x-auto'>
+                  <div className='min-w-[900px] px-6'>
+                    <Table className='w-full'>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Client</TableHead>
+                          <TableHead className='hidden sm:table-cell'>
+                            Contact Email
+                          </TableHead>
+                          <TableHead className='hidden sm:table-cell'>
+                            Total Codes
+                          </TableHead>
+                          <TableHead className='hidden md:table-cell'>
+                            Active Codes
+                          </TableHead>
+                          <TableHead className='hidden md:table-cell'>
+                            Total Scans
+                          </TableHead>
+                          <TableHead className='hidden lg:table-cell'>
+                            Last Scan
+                          </TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead className='hidden xl:table-cell'>
+                            Created
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {clients.map((client) => (
+                          <TableRow key={client.id}>
+                            <TableCell className='text-sm'>
+                              <div className='flex flex-col'>
+                                <span className='flex items-center gap-2'>
+                                  <IconUsers className='text-muted-foreground h-4 w-4' />
+                                  {client.name}
+                                </span>
+                                <span className='text-muted-foreground text-xs sm:hidden'>
+                                  {client.email || '—'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className='text-muted-foreground hidden text-sm sm:table-cell'>
+                              {client.email || '—'}
+                            </TableCell>
+                            <TableCell className='hidden text-sm sm:table-cell'>
+                              {client.total_codes ?? 0}
+                            </TableCell>
+                            <TableCell className='hidden text-sm md:table-cell'>
+                              {client.active_codes ?? 0}
+                            </TableCell>
+                            <TableCell className='hidden text-sm md:table-cell'>
+                              {client.total_scans ?? 0}
+                            </TableCell>
+                            <TableCell className='text-muted-foreground hidden text-xs lg:table-cell'>
+                              {client.last_scanned_at
+                                ? format(
+                                    new Date(client.last_scanned_at),
+                                    'PP p'
+                                  )
+                                : '—'}
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={client.subscription_plan}
+                                onValueChange={(value) =>
+                                  handlePlanChange(
+                                    client.id,
+                                    value as 'basic' | 'pro'
+                                  )
+                                }
+                              >
+                                <SelectTrigger className='w-32'>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value='basic'>Basic</SelectItem>
+                                  <SelectItem value='pro'>Pro</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className='text-muted-foreground hidden text-sm xl:table-cell'>
+                              {client.created_at
+                                ? format(new Date(client.created_at), 'PP')
+                                : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1612,7 +1868,15 @@ export default function CompanyDashboard({
                       <CartesianGrid strokeDasharray='3 3' />
                       <XAxis dataKey='month' tick={{ fontSize: 12 }} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                      <Tooltip />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          color: 'hsl(var(--foreground))'
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        itemStyle={{ color: 'hsl(var(--foreground))' }}
+                      />
                       <Line
                         type='monotone'
                         dataKey='count'
@@ -1951,6 +2215,59 @@ export default function CompanyDashboard({
           </Dialog>
         </>
       )}
+
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteDialogOpen(false);
+            setDeleteTargetCodeId(null);
+          } else {
+            setDeleteDialogOpen(true);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete code</DialogTitle>
+            <DialogDescription>
+              {deleteTargetCodeId
+                ? `Delete code ${deleteTargetCodeId}? This cannot be undone.`
+                : 'This cannot be undone.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteTargetCodeId(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                if (deleteTargetCodeId) {
+                  handleDeleteCode(deleteTargetCodeId);
+                }
+              }}
+              disabled={!deleteTargetCodeId || deleteLoading}
+            >
+              {deleteLoading ? (
+                <>
+                  <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const clientIdParam = searchParams.get('clientId');
     const statusParam = searchParams.get('status') as CodeStatus | null;
-    const limit = Math.min(parseInt(searchParams.get('limit') || '25', 10), 100);
+    const limit = Math.min(
+      parseInt(searchParams.get('limit') || '25', 10),
+      100
+    );
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     let query = supabase
@@ -53,7 +56,10 @@ export async function GET(request: NextRequest) {
         roleResult.client || (await getClientContextForUser(userId));
 
       if (!clientContext) {
-        return NextResponse.json({ error: 'Client mapping not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Client mapping not found' },
+          { status: 404 }
+        );
       }
 
       query = query.eq('owner_user_id', clientContext.clientId);
@@ -75,8 +81,55 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    let codes = data || [];
+
+    if (roleResult.role === 'company' && codes.length > 0) {
+      const codeIds = codes.map((code) => code.id);
+      const { data: scanRows, error: scanError } = await supabase
+        .from('scan_events')
+        .select('code_id, scanned_at')
+        .in('code_id', codeIds);
+
+      if (scanError) {
+        console.error('Failed to fetch scan stats', scanError);
+      } else {
+        const scanMap = new Map<
+          string,
+          { count: number; last_scanned_at: string | null }
+        >();
+
+        (scanRows || []).forEach((row) => {
+          if (!row.code_id) return;
+          const existing = scanMap.get(row.code_id) || {
+            count: 0,
+            last_scanned_at: null
+          };
+          existing.count += 1;
+          if (row.scanned_at) {
+            const current = existing.last_scanned_at
+              ? new Date(existing.last_scanned_at).getTime()
+              : 0;
+            const next = new Date(row.scanned_at).getTime();
+            if (next > current) {
+              existing.last_scanned_at = row.scanned_at;
+            }
+          }
+          scanMap.set(row.code_id, existing);
+        });
+
+        codes = codes.map((code) => {
+          const stats = scanMap.get(code.id);
+          return {
+            ...code,
+            scan_count: stats?.count ?? 0,
+            last_scanned_at: stats?.last_scanned_at ?? null
+          };
+        });
+      }
+    }
+
     return NextResponse.json({
-      codes: data || [],
+      codes,
       total: count ?? 0
     });
   } catch (error) {
