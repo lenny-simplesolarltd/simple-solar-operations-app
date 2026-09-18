@@ -184,6 +184,13 @@ export const navGroups: NavGroup[] = [
         icon: 'user',
         shortcut: ['u', 'u'],
         access: 'admin'
+      },
+      {
+        title: 'System health',
+        url: '/dashboard/system',
+        icon: 'system',
+        shortcut: ['s', 'h'],
+        access: 'officeManager'
       }
     ]
   }

@@ -203,6 +203,7 @@ export default async function DashboardPage() {
     {
       label: 'Integrations to review',
       value: ops.outbox_needs_review,
+      href: '/dashboard/system',
       tone: 'warning'
     }
   ];
