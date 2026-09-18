@@ -22,7 +22,7 @@ import { fmt } from '../../lib/format';
 import { stepBlocker } from '../../lib/steps';
 import { type CustomerDraft } from '../../lib/validation';
 import { Card } from '../ui/card';
-import { BackButton, NavNote, NavRow, NextButton } from '../ui/nav-row';
+import { BackButton, NextButton, StepFooter } from '../ui/nav-row';
 import { ParamChip } from '../ui/param-chip';
 import { TogglePair } from '../ui/toggle-pair';
 import { type DesignStepProps } from './types';
@@ -35,6 +35,29 @@ const SHAPE_OPTIONS: { value: ShapeMode; label: string }[] = [
 ];
 
 type SetField = (field: SlopeNumericField, value: NumInput) => void;
+
+const positive = (v: NumInput) => {
+  const n = toNum(v);
+  return isFinite(n) && n > 0;
+};
+const rectReady = (slope: Slope) => positive(slope.xM) && positive(slope.yM);
+const complexReady = (slope: Slope) =>
+  positive(slope.maxPanelsP7) || positive(slope.maxPanelsMClass);
+
+/** Where an elevation stands, for the badge in its header. */
+function elevationState(slope: Slope): {
+  tone: 'ok' | 'todo' | 'idle';
+  text: string;
+} {
+  if (slope.shapeMode === 'calc')
+    return { tone: 'idle', text: 'Calculator — send the result to Rectangle' };
+  if (slope.confirmed) return { tone: 'ok', text: 'Confirmed' };
+  const ready =
+    slope.shapeMode === 'complex' ? complexReady(slope) : rectReady(slope);
+  return ready
+    ? { tone: 'todo', text: 'Ready to confirm' }
+    : { tone: 'todo', text: 'Measurements needed' };
+}
 
 function SharedFields({ slope, set }: { slope: Slope; set: SetField }) {
   return (
@@ -106,6 +129,9 @@ function ConfirmFooter({
             />
           </svg>
           <span>Values confirmed</span>
+          <span className='confirmed-note'>
+            Changing a measurement asks you to confirm again
+          </span>
         </div>
       ) : (
         <button
@@ -129,11 +155,9 @@ function RectBody({
   set: SetField;
   onConfirm: () => void;
 }) {
-  const x = toNum(slope.xM);
-  const y = toNum(slope.yM);
-  const ready = isFinite(x) && x > 0 && isFinite(y) && y > 0;
+  const ready = rectReady(slope);
   return (
-    <>
+    <div className='elev-grid'>
       <div className='roof-diagram-wrap'>
         {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size reference diagram; no optimisation needed */}
         <img
@@ -144,35 +168,37 @@ function RectBody({
           alt='Diagram showing X along the eave and Y up the roof slope to the ridge'
         />
       </div>
-      <p className='hint' style={{ margin: '0 0 10px' }}>
-        X and Y match the diagram above.
-      </p>
-      <div className='param-chips'>
-        <ParamChip
-          label='X (m)'
-          edge='x-field'
-          value={slope.xM}
-          step={0.1}
-          min={0}
-          onValueChange={(v) => set('xM', v)}
+      <div className='elev-fields'>
+        <p className='hint' style={{ margin: '0 0 10px' }}>
+          X runs along the eave, Y up the slope to the ridge, as in the diagram.
+        </p>
+        <div className='param-chips'>
+          <ParamChip
+            label='X (m)'
+            edge='x-field'
+            value={slope.xM}
+            step={0.1}
+            min={0}
+            onValueChange={(v) => set('xM', v)}
+          />
+          <ParamChip
+            label='Y (m)'
+            edge='y-field'
+            value={slope.yM}
+            step={0.1}
+            min={0}
+            onValueChange={(v) => set('yM', v)}
+          />
+          <SharedFields slope={slope} set={set} />
+        </div>
+        <ConfirmFooter
+          ready={ready}
+          confirmed={slope.confirmed}
+          incompleteText='Enter X and Y above to continue.'
+          onConfirm={onConfirm}
         />
-        <ParamChip
-          label='Y (m)'
-          edge='y-field'
-          value={slope.yM}
-          step={0.1}
-          min={0}
-          onValueChange={(v) => set('yM', v)}
-        />
-        <SharedFields slope={slope} set={set} />
       </div>
-      <ConfirmFooter
-        ready={ready}
-        confirmed={slope.confirmed}
-        incompleteText='Enter X and Y above to continue.'
-        onConfirm={onConfirm}
-      />
-    </>
+    </div>
   );
 }
 
@@ -185,9 +211,7 @@ function ComplexBody({
   set: SetField;
   onConfirm: () => void;
 }) {
-  const p7 = toNum(slope.maxPanelsP7);
-  const mc = toNum(slope.maxPanelsMClass);
-  const ready = (isFinite(p7) && p7 > 0) || (isFinite(mc) && mc > 0);
+  const ready = complexReady(slope);
   // Only one of the two counts is needed, so each stops being required once
   // the other has a value.
   const eitherFilled =
@@ -240,7 +264,7 @@ function CalcBody({
 }) {
   const hyp = calcHypotenuse(slope);
   return (
-    <>
+    <div className='elev-grid'>
       <div className='roof-diagram-wrap'>
         {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size reference diagram; no optimisation needed */}
         <img
@@ -251,50 +275,53 @@ function CalcBody({
           alt='Diagram showing the adjacent length X, pitch angle theta, and the hypotenuse of the roof slope'
         />
       </div>
-      <p className='hint' style={{ margin: '0 0 10px' }}>
-        A quick helper — work out the sloped rafter length from the pitch and
-        the horizontal run, then send it straight to the Rectangle tab’s Y
-        dimension.
-      </p>
-      <div className='param-chips'>
-        <ParamChip
-          label='Pitch (°) — θ'
-          value={slope.pitchDeg}
-          step={1}
-          min={0}
-          onValueChange={(v) => set('pitchDeg', v)}
-        />
-        <ParamChip
-          label='Adjacent (m) — X'
-          value={slope.calcAdjacentM}
-          step={0.1}
-          min={0}
-          onValueChange={(v) => set('calcAdjacentM', v)}
-        />
-      </div>
-      <div className='calc-result-wrap' aria-live='polite'>
-        {hyp !== null ? (
-          <div className='calc-result'>
-            <div className='calc-result-label'>Calculated Roof Slope</div>
-            <div className='calc-result-value display'>
-              {fmt(hyp, 2)}
-              <span className='unit'> m</span>
+      <div className='elev-fields'>
+        <p className='hint' style={{ margin: '0 0 10px' }}>
+          A quick helper — work out the sloped rafter length from the pitch and
+          the horizontal run, then send it straight to the Rectangle tab’s Y
+          dimension.
+        </p>
+        <div className='param-chips'>
+          <ParamChip
+            label='Pitch (°) — θ'
+            value={slope.pitchDeg}
+            step={1}
+            min={0}
+            onValueChange={(v) => set('pitchDeg', v)}
+          />
+          <ParamChip
+            label='Adjacent (m) — X'
+            value={slope.calcAdjacentM}
+            step={0.1}
+            min={0}
+            onValueChange={(v) => set('calcAdjacentM', v)}
+          />
+        </div>
+        <div className='calc-result-wrap' aria-live='polite'>
+          {hyp !== null ? (
+            <div className='calc-result'>
+              <div className='calc-result-label'>Calculated Roof Slope</div>
+              <div className='calc-result-value display'>
+                {fmt(hyp, 2)}
+                <span className='unit'> m</span>
+              </div>
+              <button
+                type='button'
+                className='btn btn-primary use-calc-btn'
+                onClick={onUse}
+              >
+                Use Calculated Value
+              </button>
             </div>
-            <button
-              type='button'
-              className='btn btn-primary use-calc-btn'
-              onClick={onUse}
-            >
-              Use Calculated Value
-            </button>
-          </div>
-        ) : (
-          <div className='status-line incomplete'>
-            Enter the pitch and the adjacent length to calculate the roof slope.
-          </div>
-        )}
+          ) : (
+            <div className='status-line incomplete'>
+              Enter the pitch and the adjacent length to calculate the roof
+              slope.
+            </div>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -314,7 +341,8 @@ export function ElevationsStep({
         hint='Choose Rectangle, Complex, or Slope Calculator for each elevation, then confirm it with "Use these values" before moving on.'
       />
       <div className='slopes'>
-        {design.slopes.map((slope) => {
+        {design.slopes.map((slope, index) => {
+          const state = elevationState(slope);
           const set: SetField = (field, value) =>
             update((d) => setSlopeValue(d, slope.id, field, value));
           const confirm = () => update((d) => confirmSlope(d, slope.id));
@@ -328,6 +356,10 @@ export function ElevationsStep({
               )}
             >
               <div className='slope-head'>
+                <span className='slope-index'>
+                  {index + 1}
+                  <span className='sr-only'> of {design.slopes.length}</span>
+                </span>
                 <input
                   className='slope-label display'
                   type='text'
@@ -338,9 +370,13 @@ export function ElevationsStep({
                     update((d) => renameSlope(d, slope.id, e.target.value))
                   }
                 />
+                <span className={cx('state-badge', state.tone)}>
+                  {state.text}
+                </span>
                 <button
                   type='button'
                   className='remove-btn'
+                  aria-label={`Remove ${slope.label}`}
                   onClick={() => update((d) => removeSlope(d, slope.id))}
                 >
                   Remove
@@ -381,7 +417,7 @@ export function ElevationsStep({
       >
         + Add roof slope
       </button>
-      <NavRow>
+      <StepFooter note={blocker}>
         <BackButton onClick={() => nav.go('parameters')} />
         <NextButton
           disabled={blocker !== null}
@@ -389,8 +425,7 @@ export function ElevationsStep({
         >
           {toObstructions ? 'Next: obstructions →' : 'Next: panels →'}
         </NextButton>
-      </NavRow>
-      <NavNote message={blocker} />
+      </StepFooter>
     </section>
   );
 }

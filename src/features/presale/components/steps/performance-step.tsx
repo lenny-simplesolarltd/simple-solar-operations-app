@@ -8,7 +8,7 @@ import {
 import { fmt, money } from '../../lib/format';
 import { WarnBanner } from '../ui/banner';
 import { Card } from '../ui/card';
-import { BackButton, NavRow, NextButton } from '../ui/nav-row';
+import { BackButton, NextButton, StepFooter } from '../ui/nav-row';
 import { StatStrip } from '../ui/stat-strip';
 import { TotalsRow } from '../ui/totals-row';
 import { type StepNav } from './types';
@@ -38,6 +38,40 @@ function PerformanceNote({ perf }: { perf: Performance | null }) {
   return null;
 }
 
+/** Where the generation goes: the one picture that explains the income figures. */
+function EnergySplit({ perf }: { perf: Performance }) {
+  const total = perf.generationUsedKwh + perf.generationExportKwh;
+  if (!(total > 0)) return null;
+  const usedPct = Math.round((perf.generationUsedKwh / total) * 100);
+  return (
+    <figure className='energy-split'>
+      <figcaption>Where the generation goes</figcaption>
+      <div
+        className='energy-bar'
+        role='img'
+        aria-label={`${usedPct}% used in the property, ${100 - usedPct}% exported`}
+      >
+        <span className='used' style={{ width: `${usedPct}%` }} />
+        <span className='exported' />
+      </div>
+      <div className='energy-legend'>
+        <span>
+          <i className='used' /> Used in the property ·{' '}
+          <strong className='num'>{fmt(perf.generationUsedKwh, 0)} kWh</strong>{' '}
+          ({usedPct}%)
+        </span>
+        <span>
+          <i className='exported' /> Exported ·{' '}
+          <strong className='num'>
+            {fmt(perf.generationExportKwh, 0)} kWh
+          </strong>{' '}
+          ({100 - usedPct}%)
+        </span>
+      </div>
+    </figure>
+  );
+}
+
 export function PerformanceStep({
   perf,
   nav
@@ -47,7 +81,7 @@ export function PerformanceStep({
 }) {
   const roi = perf && perf.roiPct != null ? `${fmt(perf.roiPct, 2)}%` : '—';
   return (
-    <section aria-label='Performance'>
+    <section aria-label='Performance' className='perf-step'>
       <StatStrip
         tiles={[
           {
@@ -71,6 +105,8 @@ export function PerformanceStep({
       >
         {perf ? (
           <>
+            <EnergySplit perf={perf} />
+            <h3 className='sub-head'>Energy</h3>
             <TotalsRow
               label='Annual Generation from the Solar (kWh)'
               value={fmt(perf.annualGenerationKwh, 0)}
@@ -80,12 +116,13 @@ export function PerformanceStep({
               value={fmt(perf.generationUsedKwh, 0)}
             />
             <TotalsRow
-              label='Electricity Savings (£)'
-              value={money(perf.electricitySavings)}
-            />
-            <TotalsRow
               label='Generation for Exporting (kWh)'
               value={fmt(perf.generationExportKwh, 0)}
+            />
+            <h3 className='sub-head'>Money</h3>
+            <TotalsRow
+              label='Electricity Savings (£)'
+              value={money(perf.electricitySavings)}
             />
             <TotalsRow label='SEG Income (£)' value={money(perf.segIncome)} />
             <TotalsRow
@@ -117,12 +154,12 @@ export function PerformanceStep({
         )}
       </Card>
 
-      <NavRow>
+      <StepFooter>
         <BackButton onClick={() => nav.go('price')}>← Back to price</BackButton>
         <NextButton onClick={() => nav.go('sale')}>
-          Next: sale &amp; submit →
+          Next: review &amp; submit →
         </NextButton>
-      </NavRow>
+      </StepFooter>
     </section>
   );
 }

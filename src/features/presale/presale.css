@@ -583,11 +583,22 @@
   min-height: 2.6em;
   line-height: 1.3;
 }
+/* Still to fill in: a calm highlight, so "every highlighted field" stays true
+   without the form opening in an error state. */
 .presale-root input:required:invalid,
-.presale-root select:required:invalid,
+.presale-root select:required:invalid {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--field-line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper-raised));
+}
+/* Actually wrong: the surveyor left it invalid, or the server rejected it. */
+.presale-root input:required:user-invalid,
+.presale-root select:required:user-invalid,
+.presale-root input.field-error:is(input, [class]),
+.presale-root select.field-error:is(select, [class]),
+.presale-root textarea.field-error,
 .presale-root .field-error {
   border-color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 4%, var(--paper-raised));
+  background: color-mix(in srgb, var(--warn) 5%, var(--paper-raised));
 }
 .presale-root .slope-card.confirmed input:invalid {
   border-color: var(--field-line);
@@ -907,14 +918,14 @@
   font-weight: 500;
 }
 .presale-root .dim-tick.dim-major {
-  stroke: var(--accent);
+  stroke: var(--ink);
 }
 .presale-root .dim-line.dim-major {
-  stroke: var(--accent);
+  stroke: var(--ink);
   stroke-width: 1.6;
 }
 .presale-root .dim-label.dim-major {
-  fill: var(--accent);
+  fill: var(--ink);
   font-weight: 700;
 }
 .presale-root .empty-fit {

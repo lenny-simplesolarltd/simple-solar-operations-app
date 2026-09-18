@@ -4,7 +4,7 @@ import { jobHasObstructableSlopes, panelOptions } from '../../designer/calc';
 import { type PanelId } from '../../designer/catalogue';
 import { fmt } from '../../lib/format';
 import { Card } from '../ui/card';
-import { BackButton, NavRow } from '../ui/nav-row';
+import { BackButton, NextButton, StepFooter } from '../ui/nav-row';
 import { type DesignStepProps } from './types';
 import { cx } from '../ui/cx';
 
@@ -20,7 +20,7 @@ export function PanelsStep({
     <section aria-label='Panels'>
       <Card
         title='Choose panel type'
-        hint='Totals across every slope, already net of any marked obstructions, using the parameters from earlier steps. Highest output is marked "best" — tap any card to see the layout.'
+        hint='Totals across every slope, already net of any marked obstructions, using the parameters from earlier steps. Highest output is marked "best". Choosing a panel opens its layout.'
       />
       <div className='panel-cards'>
         {options.map(({ panel, totals, best, selected, hint }) => (
@@ -60,6 +60,11 @@ export function PanelsStep({
                   .join(' · ')}
               </div>
             ) : null}
+            <div className='pc-action'>
+              {selected
+                ? 'Selected · view layout →'
+                : 'Choose and view layout →'}
+            </div>
             {hint ? (
               <div className='pc-hint'>
                 Trim {hint.param} by {hint.mm}mm on {hint.slopeLabel} → +
@@ -71,7 +76,11 @@ export function PanelsStep({
           </button>
         ))}
       </div>
-      <NavRow>
+      <StepFooter
+        note={
+          design.selectedPanelId ? null : 'Choose a panel type to continue.'
+        }
+      >
         {/* If Obstructions was skipped on the way here, Back skips it too. */}
         <BackButton
           onClick={() =>
@@ -80,7 +89,13 @@ export function PanelsStep({
             )
           }
         />
-      </NavRow>
+        {/* Coming back with a panel already chosen: no need to re-pick it. */}
+        {design.selectedPanelId ? (
+          <NextButton onClick={() => nav.go('layout')}>
+            Next: layout →
+          </NextButton>
+        ) : null}
+      </StepFooter>
     </section>
   );
 }

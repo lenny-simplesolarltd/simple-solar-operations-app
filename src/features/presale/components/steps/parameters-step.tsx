@@ -14,7 +14,7 @@ import {
 import { stepBlocker } from '../../lib/steps';
 import { type CustomerDraft } from '../../lib/validation';
 import { Card, FieldLabel } from '../ui/card';
-import { NavNote, NavRow, NextButton, BackButton } from '../ui/nav-row';
+import { BackButton, NextButton, StepFooter } from '../ui/nav-row';
 import { NumberInput } from '../ui/number-input';
 import { type DesignStepProps } from './types';
 
@@ -59,8 +59,11 @@ export function ParametersStep({
   const ridgeLow = (isFinite(ridge) ? ridge : 0) < RIDGE_MIN_WARN_MM;
 
   return (
-    <section aria-label='Parameters'>
-      <Card title='Roof parameters'>
+    <section aria-label='Parameters' className='step-cols'>
+      <Card
+        title='Roof parameters'
+        hint='Clearances kept free of panels on every elevation.'
+      >
         <div className='param-grid'>
           {ROOF_FIELDS.map((f) => (
             <label key={f.key}>
@@ -187,7 +190,7 @@ export function ParametersStep({
         </div>
       </Card>
 
-      <NavRow>
+      <StepFooter note={blocker}>
         <BackButton onClick={() => nav.go('customer')} />
         <NextButton
           disabled={blocker !== null}
@@ -195,8 +198,7 @@ export function ParametersStep({
         >
           Next: elevations →
         </NextButton>
-      </NavRow>
-      <NavNote message={blocker} />
+      </StepFooter>
     </section>
   );
 }

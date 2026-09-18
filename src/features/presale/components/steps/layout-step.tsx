@@ -25,7 +25,7 @@ import {
 import { fmt } from '../../lib/format';
 import { ComplexLayoutSvg } from '../svg/complex-layout-svg';
 import { RoofGridSvg } from '../svg/roof-grid-svg';
-import { BackButton, NavRow, NextButton } from '../ui/nav-row';
+import { BackButton, NextButton, StepFooter } from '../ui/nav-row';
 import { StatStrip } from '../ui/stat-strip';
 import { TogglePair } from '../ui/toggle-pair';
 import { ObstructionList } from './obstructions-step';
@@ -106,76 +106,78 @@ function RectLayoutCard({
       <div className='result-head'>
         <h3 className='display'>{slope.label}</h3>
       </div>
-      <div className='result-body'>
-        <TogglePair
-          options={ORIENTATIONS}
-          value={slope.orientation || 'auto'}
-          ariaLabel={`Panel orientation on ${slope.label}`}
-          style={{ marginBottom: 12 }}
-          onChange={(orientation) =>
-            update((d) => patchSlope(d, slope.id, { orientation }))
-          }
-        />
-        {!hasH && !hasV ? (
-          <p className='grid-hint' style={{ marginTop: 0, marginBottom: 12 }}>
-            No spare room to shift on this slope — panels already fill the
-            available space edge to edge.
-          </p>
-        ) : null}
-        {hasH ? (
-          <ShiftRow
-            label='Shift array ←→'
-            ariaLabel={`Shift array left or right on ${slope.label}`}
-            value={slope.shiftBias || 0}
-            onChange={(shiftBias) =>
-              update((d) => patchSlope(d, slope.id, { shiftBias }))
+      <div className='result-body layout-grid'>
+        <div className='layout-controls'>
+          <TogglePair
+            options={ORIENTATIONS}
+            value={slope.orientation || 'auto'}
+            ariaLabel={`Panel orientation on ${slope.label}`}
+            style={{ marginBottom: 12 }}
+            onChange={(orientation) =>
+              update((d) => patchSlope(d, slope.id, { orientation }))
             }
           />
-        ) : null}
-        {hasV ? (
-          <ShiftRow
-            label='Shift array ↕ (ridge/eave)'
-            ariaLabel={`Shift array towards the ridge or the eave on ${slope.label}`}
-            value={slope.shiftBiasV || 0}
-            onChange={(shiftBiasV) =>
-              update((d) => patchSlope(d, slope.id, { shiftBiasV }))
-            }
-          />
-        ) : null}
-        <div className='fit-summary'>
-          <Readout k='Layout' v={`${fit.cols} × ${fit.rows}`} />
-          <Readout k='Fit' v={String(fit.count)} />
-          <Readout k='Excluded' v={String(r.excluded)} />
-          <Readout k='Net' v={String(r.net)} net />
-        </div>
-        {fit.count <= 0 ? (
-          <p className='empty-fit'>
-            Nothing fits with the current dimensions / clearances — check your
-            numbers.
-          </p>
-        ) : (
-          <div className='grid-wrap'>
-            <RoofGridSvg
-              geom={geom}
-              fit={fit}
-              autoExcluded={r.autoExcluded}
-              manualExcluded={r.manualExcluded}
-              obstructions={obstructionsFor(design, slope.id)}
-              onTogglePanel={(idx) =>
-                update((d) => toggleExclusion(d, slope.id, panel.id, idx))
+          {!hasH && !hasV ? (
+            <p className='grid-hint' style={{ marginTop: 0, marginBottom: 12 }}>
+              No spare room to shift on this slope — panels already fill the
+              available space edge to edge.
+            </p>
+          ) : null}
+          {hasH ? (
+            <ShiftRow
+              label='Shift array ←→'
+              ariaLabel={`Shift array left or right on ${slope.label}`}
+              value={slope.shiftBias || 0}
+              onChange={(shiftBias) =>
+                update((d) => patchSlope(d, slope.id, { shiftBias }))
               }
             />
-            <p className='grid-hint'>
-              Ridge at top, gutter at bottom. Small labels are the real gap on
-              each side once centring is applied; bold labels are the overall
-              slope dimensions. Tap a panel to knock it out for a chimney, vent
-              or hip — or just to see the price come off. Panels hatched red
-              overlap a marked obstruction — add or remove obstructions from the
-              Obstructions step.
-            </p>
+          ) : null}
+          {hasV ? (
+            <ShiftRow
+              label='Shift array ↕ (ridge/eave)'
+              ariaLabel={`Shift array towards the ridge or the eave on ${slope.label}`}
+              value={slope.shiftBiasV || 0}
+              onChange={(shiftBiasV) =>
+                update((d) => patchSlope(d, slope.id, { shiftBiasV }))
+              }
+            />
+          ) : null}
+          <div className='fit-summary'>
+            <Readout k='Layout' v={`${fit.cols} × ${fit.rows}`} />
+            <Readout k='Fit' v={String(fit.count)} />
+            <Readout k='Excluded' v={String(r.excluded)} />
+            <Readout k='Net' v={String(r.net)} net />
           </div>
-        )}
-        <ObstructionList obstructions={obstructionsFor(design, slope.id)} />
+          <ObstructionList obstructions={obstructionsFor(design, slope.id)} />
+        </div>
+        <div className='layout-canvas'>
+          {fit.count <= 0 ? (
+            <p className='empty-fit'>
+              Nothing fits with the current dimensions / clearances — check your
+              numbers.
+            </p>
+          ) : (
+            <div className='grid-wrap'>
+              <RoofGridSvg
+                geom={geom}
+                fit={fit}
+                autoExcluded={r.autoExcluded}
+                manualExcluded={r.manualExcluded}
+                obstructions={obstructionsFor(design, slope.id)}
+                onTogglePanel={(idx) =>
+                  update((d) => toggleExclusion(d, slope.id, panel.id, idx))
+                }
+              />
+              <p className='grid-hint'>
+                Tap a panel to leave it out; tap again to put it back. Panels
+                hatched red overlap a marked obstruction — change those on the
+                Obstructions step. Ridge at top, gutter at bottom; small labels
+                are the real gap on each side, bold labels the slope dimensions.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -334,12 +336,12 @@ export function LayoutStep({
           </p>
         )}
       </div>
-      <NavRow>
+      <StepFooter>
         <BackButton onClick={() => nav.go('panels')}>
           ← Back to panels
         </BackButton>
         <NextButton onClick={() => nav.go('price')}>Next: price →</NextButton>
-      </NavRow>
+      </StepFooter>
     </section>
   );
 }

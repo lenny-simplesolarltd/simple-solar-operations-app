@@ -10,7 +10,7 @@ export function Card({
   children?: ReactNode;
 }) {
   return (
-    <div className='card'>
+    <div className={children ? 'card' : 'card card-intro'}>
       {title ? <h2>{title}</h2> : null}
       {hint ? <p className='hint'>{hint}</p> : null}
       {children}

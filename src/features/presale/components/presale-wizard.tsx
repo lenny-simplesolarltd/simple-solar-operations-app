@@ -11,12 +11,33 @@ import {
 } from 'react';
 
 import '../presale.css';
+import '../presale-workspace.css';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from '@/components/ui/sheet';
 
 import { type JobSoldResult, type PresaleWizardProps } from '../contract';
 import {
   computePerformance,
   computePricing,
-  ensureComplexLayouts
+  ensureComplexLayouts,
+  jobHasObstructableSlopes
 } from '../designer/calc';
 import { panelById, type PanelId } from '../designer/catalogue';
 import { selectPanel } from '../designer/mutations';
@@ -25,11 +46,20 @@ import { presaleFontVariables } from '../fonts';
 import {
   clearDraft,
   createDraft,
+  draftKey,
   loadDraft,
   saveDraft,
   type PresaleDraft
 } from '../lib/draft';
-import { firstBlocker, stepIndex, type StepKey } from '../lib/steps';
+import { fmt, money } from '../lib/format';
+import {
+  STEP_KEYS,
+  STEP_LABELS,
+  firstBlocker,
+  stepBlocker,
+  stepIndex,
+  type StepKey
+} from '../lib/steps';
 import {
   buildSubmission,
   fieldLeaf,
@@ -48,11 +78,10 @@ import { PerformanceStep } from './steps/performance-step';
 import { PriceStep } from './steps/price-step';
 import { SaleStep } from './steps/sale-step';
 import { type StepNav } from './steps/types';
-import { Stepper } from './stepper';
+import { Stepper, type StepStatus } from './stepper';
+import { SystemSummary } from './system-summary';
 import { WarnBanner } from './ui/banner';
 import { cx } from './ui/cx';
-
-const NEW_JOB_CONFIRM_MS = 4000;
 
 const subscribeNever = () => () => {};
 
@@ -65,24 +94,56 @@ function useIsClient(): boolean {
   );
 }
 
+const CLOCK = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit'
+});
+
+type SaveState = { at: number; stored: boolean } | null;
+
+/** A tiny store for "when did the draft last reach localStorage". */
+function createSaveStore() {
+  let value: SaveState = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (next: SaveState) => {
+      value = next;
+      listeners.forEach((l) => l());
+    },
+    subscribe: (l: () => void) => {
+      listeners.add(l);
+      return () => {
+        listeners.delete(l);
+      };
+    }
+  };
+}
+
 function Shell({
   children,
+  context,
+  status,
   headerAction
 }: {
   children: ReactNode;
+  /** Who / where this presale is for, once known. */
+  context?: string;
+  status?: ReactNode;
   headerAction?: ReactNode;
 }) {
   return (
     <div className={cx('presale-root', presaleFontVariables)}>
-      <div className='app'>
-        <header className='site-head'>
-          <div>
+      <div className='app ws'>
+        <header className='site-head ws-head'>
+          <div className='ws-head-main'>
             <h2 className='page-title'>New presale</h2>
-            <p className='page-sub'>
-              System designer. Your draft saves on this device as you go.
-            </p>
+            <p className='page-sub'>{context || 'New customer'}</p>
           </div>
-          {headerAction}
+          <div className='ws-head-side'>
+            {status}
+            {headerAction}
+          </div>
         </header>
         {children}
       </div>
@@ -109,39 +170,48 @@ export function PresaleWizard(props: PresaleWizardProps) {
   return <WizardEditor key={props.currentUser.personId} {...props} />;
 }
 
-function NewJobButton({ onConfirm }: { onConfirm: () => void }) {
-  const [confirming, setConfirming] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    []
-  );
-
-  const onClick = () => {
-    if (timer.current) clearTimeout(timer.current);
-    if (!confirming) {
-      setConfirming(true);
-      timer.current = setTimeout(
-        () => setConfirming(false),
-        NEW_JOB_CONFIRM_MS
-      );
-      return;
-    }
-    setConfirming(false);
-    onConfirm();
-  };
-
+/** Discarding a draft is the one destructive action here, so it asks once, properly. */
+function StartOverButton({ onConfirm }: { onConfirm: () => void }) {
   return (
-    <button
-      type='button'
-      className={cx('newjob-btn', confirming && 'confirming')}
-      onClick={onClick}
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button type='button' className='newjob-btn'>
+          Start over
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Start a new presale?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This clears the draft saved on this device, including the customer
+            and the roof design. It cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep this draft</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>
+            Clear and start new
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function DraftStatus({ state }: { state: SaveState }) {
+  if (!state) return null;
+  return state.stored ? (
+    <span
+      className='draft-status'
+      title='The draft is kept in this browser only, not on the server.'
     >
-      {confirming ? 'Tap again to clear' : 'New job'}
-    </button>
+      <span className='draft-dot' aria-hidden='true' />
+      Draft saved on this device · {CLOCK.format(state.at)}
+    </span>
+  ) : (
+    <span className='draft-status unsaved' role='status'>
+      Draft not saved — this browser is blocking storage
+    </span>
   );
 }
 
@@ -168,11 +238,28 @@ function WizardEditor({
   const inFlight = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const lastStep = useRef<StepKey>(draft.step);
+  const [stepsOpen, setStepsOpen] = useState(false);
+  const [saveStore] = useState(createSaveStore);
+  const saveState = useSyncExternalStore(
+    saveStore.subscribe,
+    saveStore.get,
+    () => null
+  );
 
   // Autosave. Skipped once the job is sold: that draft is spent.
   useEffect(() => {
-    if (!sold) saveDraft(personId, draft);
-  }, [draft, personId, sold]);
+    if (sold) return;
+    saveDraft(personId, draft);
+    // saveDraft swallows storage failures, so look before telling the
+    // surveyor their work is safe.
+    let stored = false;
+    try {
+      stored = window.localStorage.getItem(draftKey(personId)) !== null;
+    } catch {
+      stored = false;
+    }
+    saveStore.set({ at: Date.now(), stored });
+  }, [draft, personId, sold, saveStore]);
 
   // Each step starts at the top, whatever element happens to be scrolling.
   useEffect(() => {
@@ -290,11 +377,29 @@ function WizardEditor({
     }
   };
 
+  const customerName =
+    `${draft.customer.firstName} ${draft.customer.lastName}`.trim();
+  const context = [customerName, draft.customer.postcode.trim()]
+    .filter(Boolean)
+    .join(' · ');
+
   if (sold) {
     return (
       <div ref={rootRef}>
-        <Shell>
-          <JobSoldScreen result={sold} onStartAnother={startFresh} />
+        <Shell context={context}>
+          <JobSoldScreen
+            result={sold}
+            onStartAnother={startFresh}
+            summary={{
+              systemKwp: pricing ? pricing.totalKwp : null,
+              netPanels: pricing ? pricing.totalNetPanels : null,
+              panelName: pricing
+                ? `${pricing.panel.name} ${pricing.panel.variant}`
+                : null,
+              agreedPricePence: resolved.agreedPricePence,
+              financeRoute: resolved.financeRoute
+            }}
+          />
         </Shell>
       </div>
     );
@@ -308,116 +413,226 @@ function WizardEditor({
   // Layout needs a panel; without one (e.g. an old draft) fall back to Panels.
   const step: StepKey =
     draft.step === 'layout' && !panel ? 'panels' : draft.step;
+  const currentIndex = stepIndex(step);
+
+  // What the step list says about each step. Read straight from the same gate
+  // rules that enable / disable Next - nothing is decided here.
+  const statuses: Partial<Record<StepKey, StepStatus>> = {};
+  STEP_KEYS.forEach((key, i) => {
+    if (key === step) statuses[key] = 'current';
+    else if (submitError && submitError.step === key)
+      statuses[key] = 'attention';
+    else if (i > draft.maxStep) statuses[key] = 'todo';
+    else if (key === 'obstructions' && !jobHasObstructableSlopes(design))
+      statuses[key] = 'skipped';
+    else if (key === 'layout' && !panel) statuses[key] = 'attention';
+    else if (stepBlocker(key, draft)) statuses[key] = 'attention';
+    else statuses[key] = key === 'sale' ? 'todo' : 'complete';
+  });
+
+  const headline = pricing
+    ? `${pricing.totalNetPanels} panels · ${fmt(pricing.totalKwp, 2)} kWp · ${money(pricing.total)}`
+    : null;
+
+  const selectStep = (target: StepKey) => {
+    setStepsOpen(false);
+    onStepperSelect(target);
+  };
+
+  // Enter in a text / number box continues, exactly as pressing Next would.
+  // Never on the final step: a sale is not submitted by a stray keypress.
+  const onWorkspaceKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Enter' || step === 'sale') return;
+    const target = e.target as HTMLElement;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (!['text', 'number', 'email', 'tel'].includes(target.type)) return;
+    if (target.classList.contains('slope-label')) return;
+    const next = e.currentTarget.querySelector<HTMLButtonElement>(
+      '.step-footer .btn-primary'
+    );
+    if (!next || next.disabled) return;
+    e.preventDefault();
+    target.blur();
+    next.click();
+  };
+
+  const stepList = (
+    <Stepper
+      current={step}
+      maxStep={draft.maxStep}
+      statuses={statuses}
+      onSelect={selectStep}
+    />
+  );
+  const summary = (
+    <SystemSummary design={design} pricing={pricing} resolved={resolved} />
+  );
 
   return (
     <div ref={rootRef}>
       <Shell
+        context={context}
+        status={<DraftStatus state={saveState} />}
         headerAction={
-          submitting ? null : <NewJobButton onConfirm={startFresh} />
+          submitting ? null : <StartOverButton onConfirm={startFresh} />
         }
       >
         {/* Frozen while a submit is in flight, so what was sent is what is on screen. */}
-        <div inert={submitting}>
-          <Stepper
-            current={step}
-            maxStep={draft.maxStep}
-            onSelect={onStepperSelect}
-          />
+        <div className='ws-body' inert={submitting}>
+          <aside className='ws-rail' aria-label='Presale steps and system'>
+            {stepList}
+            {summary}
+          </aside>
 
-          {stepError ? (
-            <div style={{ marginBottom: 14 }}>
-              <WarnBanner>{stepError}</WarnBanner>
+          <div className='ws-main' onKeyDown={onWorkspaceKeyDown}>
+            {/* Narrow screens: the rail collapses into this bar and a sheet. */}
+            <div className='ws-progress'>
+              <button
+                type='button'
+                className='ws-progress-btn'
+                aria-haspopup='dialog'
+                onClick={() => setStepsOpen(true)}
+              >
+                <span className='ws-progress-where'>
+                  <span className='ws-progress-count'>
+                    Step {currentIndex + 1} of {STEP_KEYS.length}
+                  </span>
+                  <strong>{STEP_LABELS[step]}</strong>
+                </span>
+                <span className='ws-progress-all'>All steps</span>
+              </button>
+              <div className='ws-progress-bar' aria-hidden='true'>
+                {STEP_KEYS.map((key) => (
+                  <span key={key} data-status={statuses[key]} />
+                ))}
+              </div>
+              {headline ? (
+                <p className='ws-progress-sum num'>{headline}</p>
+              ) : null}
             </div>
-          ) : null}
 
-          {step === 'customer' ? (
-            <CustomerStep
-              customer={draft.customer}
-              design={design}
-              nav={nav}
-              errorField={errorField}
-              onChange={(patch) => {
-                setSubmitError(null);
-                setDraft((d) => ({
-                  ...d,
-                  customer: { ...d.customer, ...patch }
-                }));
-              }}
-            />
-          ) : null}
-          {step === 'parameters' ? (
-            <ParametersStep
-              design={design}
-              update={updateDesign}
-              nav={nav}
-              customer={draft.customer}
-            />
-          ) : null}
-          {step === 'elevations' ? (
-            <ElevationsStep
-              design={design}
-              update={updateDesign}
-              nav={nav}
-              customer={draft.customer}
-            />
-          ) : null}
-          {step === 'obstructions' ? (
-            <ObstructionsStep design={design} update={updateDesign} nav={nav} />
-          ) : null}
-          {step === 'panels' ? (
-            <PanelsStep
-              design={design}
-              nav={nav}
-              onSelectPanel={onSelectPanel}
-            />
-          ) : null}
-          {step === 'layout' && panel ? (
-            <LayoutStep
-              design={design}
-              update={updateDesign}
-              nav={nav}
-              panel={panel}
-            />
-          ) : null}
-          {step === 'price' ? (
-            <PriceStep
-              design={design}
-              update={updateDesign}
-              nav={nav}
-              pricing={pricing}
-              customer={draft.customer}
-            />
-          ) : null}
-          {step === 'performance' ? (
-            <PerformanceStep perf={performance} nav={nav} />
-          ) : null}
-          {step === 'sale' ? (
-            <SaleStep
-              draft={draft}
-              pricing={pricing}
-              resolved={resolved}
-              ctx={ctx}
-              currentUserName={currentUser.displayName}
-              submitting={submitting}
-              error={
-                submitError && submitError.step === 'sale'
-                  ? submitError.message
-                  : null
-              }
-              errorField={errorField}
-              nav={nav}
-              onSubmit={onSubmit}
-              onSaleChange={(patch) => {
-                setSubmitError(null);
-                setDraft((d) => ({ ...d, sale: { ...d.sale, ...patch } }));
-              }}
-              onScopeChange={(patch) => {
-                setSubmitError(null);
-                setDraft((d) => ({ ...d, scope: { ...d.scope, ...patch } }));
-              }}
-            />
-          ) : null}
+            <div className='ws-step-head'>
+              <span className='ws-step-count'>
+                Step {currentIndex + 1} of {STEP_KEYS.length}
+              </span>
+              <h1 className='ws-step-title'>{STEP_LABELS[step]}</h1>
+            </div>
+
+            {stepError ? (
+              <div style={{ marginBottom: 14 }}>
+                <WarnBanner>{stepError}</WarnBanner>
+              </div>
+            ) : null}
+
+            {step === 'customer' ? (
+              <CustomerStep
+                customer={draft.customer}
+                design={design}
+                nav={nav}
+                errorField={errorField}
+                onChange={(patch) => {
+                  setSubmitError(null);
+                  setDraft((d) => ({
+                    ...d,
+                    customer: { ...d.customer, ...patch }
+                  }));
+                }}
+              />
+            ) : null}
+            {step === 'parameters' ? (
+              <ParametersStep
+                design={design}
+                update={updateDesign}
+                nav={nav}
+                customer={draft.customer}
+              />
+            ) : null}
+            {step === 'elevations' ? (
+              <ElevationsStep
+                design={design}
+                update={updateDesign}
+                nav={nav}
+                customer={draft.customer}
+              />
+            ) : null}
+            {step === 'obstructions' ? (
+              <ObstructionsStep
+                design={design}
+                update={updateDesign}
+                nav={nav}
+              />
+            ) : null}
+            {step === 'panels' ? (
+              <PanelsStep
+                design={design}
+                nav={nav}
+                onSelectPanel={onSelectPanel}
+              />
+            ) : null}
+            {step === 'layout' && panel ? (
+              <LayoutStep
+                design={design}
+                update={updateDesign}
+                nav={nav}
+                panel={panel}
+              />
+            ) : null}
+            {step === 'price' ? (
+              <PriceStep
+                design={design}
+                update={updateDesign}
+                nav={nav}
+                pricing={pricing}
+                customer={draft.customer}
+              />
+            ) : null}
+            {step === 'performance' ? (
+              <PerformanceStep perf={performance} nav={nav} />
+            ) : null}
+            {step === 'sale' ? (
+              <SaleStep
+                draft={draft}
+                pricing={pricing}
+                resolved={resolved}
+                ctx={ctx}
+                currentUserName={currentUser.displayName}
+                submitting={submitting}
+                error={
+                  submitError && submitError.step === 'sale'
+                    ? submitError.message
+                    : null
+                }
+                errorField={errorField}
+                nav={nav}
+                onSubmit={onSubmit}
+                onSaleChange={(patch) => {
+                  setSubmitError(null);
+                  setDraft((d) => ({ ...d, sale: { ...d.sale, ...patch } }));
+                }}
+                onScopeChange={(patch) => {
+                  setSubmitError(null);
+                  setDraft((d) => ({ ...d, scope: { ...d.scope, ...patch } }));
+                }}
+              />
+            ) : null}
+          </div>
         </div>
+
+        <Sheet open={stepsOpen} onOpenChange={setStepsOpen}>
+          <SheetContent side='bottom' className='max-h-[88dvh] overflow-y-auto'>
+            <SheetHeader>
+              <SheetTitle>Presale steps</SheetTitle>
+              <SheetDescription>
+                Go back to any step you have reached. Nothing you entered is
+                lost.
+              </SheetDescription>
+            </SheetHeader>
+            <div className='presale-root presale-sheet'>
+              {stepList}
+              {summary}
+            </div>
+          </SheetContent>
+        </Sheet>
       </Shell>
     </div>
   );

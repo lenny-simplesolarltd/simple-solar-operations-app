@@ -30,7 +30,7 @@ export const STEP_LABELS: Record<StepKey, string> = {
   layout: 'Layout',
   price: 'Price',
   performance: 'Performance',
-  sale: 'Sale & submit'
+  sale: 'Review & submit'
 };
 
 export function stepIndex(step: StepKey): number {

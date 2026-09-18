@@ -11,7 +11,7 @@ import {
 } from '../../lib/validation';
 import { type DesignState } from '../../designer/types';
 import { Card } from '../ui/card';
-import { NavNote, NavRow, NextButton } from '../ui/nav-row';
+import { NextButton, StepFooter } from '../ui/nav-row';
 import { TextField } from '../ui/text-field';
 import { type StepNav } from './types';
 
@@ -61,10 +61,10 @@ export function CustomerStep({
   };
 
   return (
-    <section aria-label='Customer'>
+    <section aria-label='Customer' className='step-cols'>
       <Card
         title='Customer'
-        hint='Who the system is for and where it is going. A phone number or an email address is needed so the office can reach them.'
+        hint='A phone number or an email address is needed so the office can reach them.'
       >
         <div className='field-grid'>
           <TextField
@@ -87,6 +87,42 @@ export function CustomerStep({
             error={errorFor('lastName')}
             onChange={(v) => onChange({ lastName: v })}
           />
+          <TextField
+            className='span2'
+            label='Email'
+            type='email'
+            inputMode='email'
+            autoCapitalize='none'
+            required={!hasContact}
+            markRequired={!customer.phone.trim()}
+            value={customer.email}
+            autoComplete='off'
+            maxLength={254}
+            error={errorFor('email')}
+            onChange={(v) => onChange({ email: v })}
+            onBlur={() => {
+              touch('email');
+              onChange({ email: customer.email.trim().toLowerCase() });
+            }}
+          />
+          <TextField
+            label='Phone'
+            type='tel'
+            inputMode='tel'
+            required={!hasContact}
+            markRequired={!customer.email.trim()}
+            value={customer.phone}
+            autoComplete='off'
+            maxLength={30}
+            error={errorFor('phone')}
+            onChange={(v) => onChange({ phone: v })}
+            onBlur={() => onChange({ phone: customer.phone.trim() })}
+          />
+        </div>
+      </Card>
+
+      <Card title='Installation address' hint='Where the system is going.'>
+        <div className='field-grid'>
           <TextField
             className='span2'
             label='Address line 1'
@@ -137,52 +173,14 @@ export function CustomerStep({
         </div>
       </Card>
 
-      <Card title='Contact' hint='At least one of these is required.'>
-        <div className='field-grid'>
-          <TextField
-            className='span2'
-            label='Phone'
-            type='tel'
-            inputMode='tel'
-            required={!hasContact}
-            markRequired={!customer.email.trim()}
-            value={customer.phone}
-            autoComplete='off'
-            maxLength={30}
-            error={errorFor('phone')}
-            onChange={(v) => onChange({ phone: v })}
-            onBlur={() => onChange({ phone: customer.phone.trim() })}
-          />
-          <TextField
-            className='span2'
-            label='Email'
-            type='email'
-            inputMode='email'
-            autoCapitalize='none'
-            required={!hasContact}
-            markRequired={!customer.phone.trim()}
-            value={customer.email}
-            autoComplete='off'
-            maxLength={254}
-            error={errorFor('email')}
-            onChange={(v) => onChange({ email: v })}
-            onBlur={() => {
-              touch('email');
-              onChange({ email: customer.email.trim().toLowerCase() });
-            }}
-          />
-        </div>
-      </Card>
-
-      <NavRow>
+      <StepFooter note={blocker}>
         <NextButton
           disabled={blocker !== null}
           onClick={() => nav.go('parameters')}
         >
           Next: parameters →
         </NextButton>
-      </NavRow>
-      <NavNote message={blocker} />
+      </StepFooter>
     </section>
   );
 }

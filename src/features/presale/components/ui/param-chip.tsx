@@ -20,7 +20,10 @@ export interface ParamChipProps {
   required?: boolean;
 }
 
-/** Labelled number chip with big − / + buttons, sized for a thumb on a roof. */
+/**
+ * Labelled number control with − / + either side of the value. The buttons are
+ * out of the tab order: Tab moves value to value, and the arrow keys nudge.
+ */
 export function ParamChip({
   label,
   value,
@@ -57,6 +60,7 @@ export function ParamChip({
         <button
           type='button'
           className='step-btn'
+          tabIndex={-1}
           aria-label={`Decrease ${label}`}
           onClick={() => nudge(-1)}
         >
@@ -65,6 +69,7 @@ export function ParamChip({
         <button
           type='button'
           className='step-btn'
+          tabIndex={-1}
           aria-label={`Increase ${label}`}
           onClick={() => nudge(1)}
         >

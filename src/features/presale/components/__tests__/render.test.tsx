@@ -65,7 +65,7 @@ describe('stepper', () => {
     expect(out).toMatch(
       /class="step current reachable"[^>]*><span class="n">3<\/span>Elevations/
     );
-    expect(out).toMatch(/<span class="n">9<\/span>Sale & submit/);
+    expect(out).toMatch(/<span class="n">9<\/span>Review & submit/);
   });
 });
 
@@ -344,7 +344,7 @@ describe('designer steps', () => {
     expect(out).toContain(
       'more than the customer’s stated annual consumption (4,000 kWh)'
     );
-    expect(out).toContain('Next: sale & submit →');
+    expect(out).toContain('Next: review & submit →');
     expect(
       html(
         <PerformanceStep
@@ -412,7 +412,7 @@ describe('sale step', () => {
     expect(out).toMatch(/class="active" aria-pressed="true">No finance/);
     expect(out).toContain('Jo Bloggs');
     expect(out).toContain('7.60 kWp');
-    expect(out).toContain('>Submit sale<');
+    expect(out).toContain('>Submit job sold<');
   });
 
   it('gives the office a salesperson list', () => {

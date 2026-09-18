@@ -7,7 +7,7 @@ import { addObstruction, removeObstruction } from '../../designer/mutations';
 import { numOr0, type Obstruction } from '../../designer/types';
 import { ObstructionSvg } from '../svg/obstruction-svg';
 import { Card } from '../ui/card';
-import { BackButton, NavRow, NextButton } from '../ui/nav-row';
+import { BackButton, NextButton, StepFooter } from '../ui/nav-row';
 import { type DesignStepProps } from './types';
 import { cx } from '../ui/cx';
 
@@ -57,7 +57,7 @@ export function ObstructionsStep({ design, update, nav }: DesignStepProps) {
     <section aria-label='Obstructions'>
       <Card
         title='Mark obstructions'
-        hint='Chimneys, vents, hips — anything that blocks a panel. Mark them now, before choosing a panel type, so the fit and price already account for them. Obstructions are only added or removed here — the Layout step shows them but cannot change them, so come back to this step to adjust.'
+        hint='Chimneys, vents, hips — anything that blocks a panel. Mark them now so the panel fit and price already account for them. Nothing to mark? Just continue. Obstructions are only added or removed here — the Layout step shows them but cannot change them.'
       />
       <div>
         {design.slopes.length === 0 ? (
@@ -98,7 +98,14 @@ export function ObstructionsStep({ design, update, nav }: DesignStepProps) {
               className='result-card obstruction-card card'
             >
               <div className='result-head'>
-                <h3 className='display'>{slope.label}</h3>
+                <h3 className='display'>
+                  {slope.label}
+                  <span className='head-meta'>
+                    {list.length
+                      ? `${list.length} obstruction${list.length > 1 ? 's' : ''} marked`
+                      : 'None marked'}
+                  </span>
+                </h3>
                 <button
                   type='button'
                   className={cx('obs-btn', marking && 'active')}
@@ -109,7 +116,14 @@ export function ObstructionsStep({ design, update, nav }: DesignStepProps) {
                 </button>
               </div>
               <div className='result-body'>
-                <div className='grid-wrap'>
+                <div className={cx('grid-wrap', marking && 'is-marking')}>
+                  {marking ? (
+                    <p className='grid-hint obs-hint' role='status'>
+                      Drawing on {slope.label}: drag a box where the obstruction
+                      sits, measured from the bottom-left corner of this roof
+                      face. Release to set it.
+                    </p>
+                  ) : null}
                   <ObstructionSvg
                     geom={geom}
                     clearances={clearances}
@@ -121,10 +135,9 @@ export function ObstructionsStep({ design, update, nav }: DesignStepProps) {
                     }}
                     onDelete={remove}
                   />
-                  <p className={cx('grid-hint', marking && 'obs-hint')}>
-                    {marking
-                      ? 'Drag on the drawing to draw the obstruction box, matching your own measurements from the bottom-left corner of this roof face — release to set it.'
-                      : 'Ridge at top, gutter at bottom. Dashed line shows the usable area once clearances are applied. Mark any chimney, vent or hip here so the panel fit and price already account for it.'}
+                  <p className='grid-hint'>
+                    Ridge at top, gutter at bottom. The dashed line is the
+                    usable area once clearances are applied.
                   </p>
                 </div>
                 <ObstructionList obstructions={list} onRemove={remove} />
@@ -133,10 +146,10 @@ export function ObstructionsStep({ design, update, nav }: DesignStepProps) {
           );
         })}
       </div>
-      <NavRow>
+      <StepFooter>
         <BackButton onClick={() => nav.go('elevations')} />
         <NextButton onClick={() => nav.go('panels')}>Next: panels →</NextButton>
-      </NavRow>
+      </StepFooter>
     </section>
   );
 }

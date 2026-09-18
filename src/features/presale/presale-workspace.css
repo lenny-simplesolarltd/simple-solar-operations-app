@@ -1,0 +1,1167 @@
+/*
+ * Presale workspace layer.
+ *
+ * presale.css carries the System Designer prototype's component styles. This
+ * file turns that single mobile column into a staff workspace: a header with
+ * job context and draft status, a rail with the step list and a live system
+ * summary, a wide working area, and one predictable action bar.
+ *
+ * Breakpoints are container queries, not viewport ones: the workspace reacts
+ * to the room it actually has, whether the app sidebar is open or collapsed.
+ *   presale  >= 880px  rail beside the working area
+ *   wsmain   >= 700px+ two-column step layouts
+ *
+ * Colour comes only from the tokens presale.css maps onto the app theme.
+ * Yellow marks the current step and the primary action; selection uses ink.
+ */
+
+.presale-root {
+  container-type: inline-size;
+  container-name: presale;
+}
+
+.presale-root .app.ws {
+  max-width: 1240px;
+  padding: 18px 16px 0;
+}
+
+/* ---------- header: what am I working on, and is it safe ---------- */
+
+.presale-root .ws-head {
+  align-items: flex-start;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 2px 0 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.presale-root .ws-head-main {
+  min-width: 0;
+}
+.presale-root .page-title {
+  font-size: 22px;
+}
+.presale-root .page-sub {
+  margin-top: 2px;
+  font-size: 13.5px;
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.presale-root .ws-head-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-left: auto;
+}
+.presale-root .draft-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.presale-root .draft-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--good);
+}
+.presale-root .draft-status.unsaved {
+  color: var(--warn);
+  font-weight: 600;
+}
+.presale-root .newjob-btn {
+  margin: 0;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  background: var(--paper-raised);
+}
+.presale-root .newjob-btn:hover {
+  border-color: var(--ink-soft);
+}
+
+/* ---------- body: rail + working area ---------- */
+
+.presale-root .ws-rail {
+  display: none;
+}
+.presale-root .ws-main {
+  container-type: inline-size;
+  container-name: wsmain;
+  min-width: 0;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.presale-root .ws-step-head {
+  display: none;
+}
+
+@container presale (min-width: 880px) {
+  .presale-root .app.ws {
+    padding: 22px 24px 0;
+  }
+  .presale-root .ws-body {
+    display: grid;
+    grid-template-columns: 228px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .presale-root .ws-rail {
+    display: block;
+    position: sticky;
+    top: 72px; /* clears the app header */
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+    padding-bottom: 16px;
+  }
+  .presale-root .ws-main {
+    max-width: none;
+    margin: 0;
+  }
+  .presale-root .ws-progress {
+    display: none;
+  }
+  .presale-root .ws-step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .presale-root .ws-step-title {
+    font-size: 19px;
+    font-weight: 700;
+    order: -1;
+  }
+  .presale-root .ws-step-count {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  /* The rail already shows size and price on wide screens. */
+  .presale-root .price-step > .stat-strip {
+    display: none;
+  }
+}
+
+/* ---------- step list (rail, and the "All steps" sheet) ---------- */
+
+.presale-root .stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+.presale-root .step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: normal;
+  color: var(--ink-soft);
+}
+.presale-root .step .n {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.presale-root .step .step-state {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* A tick or the highlight already says these; keep the words for screen readers. */
+.presale-root .step[data-status='complete'] .step-state,
+.presale-root .step[data-status='current'] .step-state,
+.presale-root .step:disabled .step-state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.presale-root .step.reachable:not(.current):hover {
+  background: color-mix(in srgb, var(--ink-soft) 9%, transparent);
+  border-color: transparent;
+}
+.presale-root .step:disabled {
+  opacity: 0.55;
+}
+.presale-root .step.current,
+.presale-root .step.done:not(.current) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink);
+}
+.presale-root .step.current {
+  background: color-mix(in srgb, var(--accent) 24%, var(--paper-raised));
+  font-weight: 700;
+}
+.presale-root .step.current .n {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.presale-root .step[data-status='complete'] {
+  color: var(--ink);
+}
+.presale-root .step[data-status='complete'] .n {
+  background: var(--good-soft);
+  border-color: color-mix(in srgb, var(--good) 45%, transparent);
+  font-size: 0;
+}
+.presale-root .step[data-status='complete'] .n::after {
+  content: '✓';
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--good);
+}
+.presale-root .step[data-status='attention'] {
+  color: var(--ink);
+}
+.presale-root .step[data-status='attention'] .n {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.presale-root .step[data-status='attention'] .step-state {
+  color: var(--warn);
+}
+.presale-root .step[data-status='skipped'] .n {
+  border-style: dashed;
+}
+
+/* ---------- live system summary ---------- */
+
+.presale-root .sys-summary {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-raised);
+}
+.presale-root .sys-title {
+  margin-bottom: 10px;
+  font-family: var(--ps-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.presale-root .sys-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.presale-root .sys-big {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.presale-root .sys-unit {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.presale-root .sum-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.presale-root .sum-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+.presale-root .sum-line dt {
+  color: var(--ink-soft);
+  flex: none;
+}
+.presale-root .sum-line dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.presale-root .sys-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.presale-root .sys-price.agreed {
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: none;
+}
+.presale-root .sys-price-k {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.presale-root .sys-price-v {
+  font-size: 15px;
+  font-weight: 700;
+}
+.presale-root .sys-empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ---------- narrow screens: progress bar + sheet ---------- */
+
+.presale-root .ws-progress {
+  position: sticky;
+  top: 56px; /* under the app header */
+  z-index: 6;
+  margin: -4px -16px 14px;
+  padding: 4px 16px 10px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.presale-root .ws-progress-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.presale-root .ws-progress-where {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.presale-root .ws-progress-where strong {
+  font-size: 17px;
+  line-height: 1.2;
+}
+.presale-root .ws-progress-count {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.presale-root .ws-progress-all {
+  flex: none;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.presale-root .ws-progress-bar {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 3px;
+  margin-top: 4px;
+}
+.presale-root .ws-progress-bar span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.presale-root .ws-progress-bar span[data-status='complete'] {
+  background: var(--good);
+}
+.presale-root .ws-progress-bar span[data-status='current'] {
+  background: var(--accent);
+}
+.presale-root .ws-progress-bar span[data-status='attention'] {
+  background: var(--warn);
+}
+.presale-root .ws-progress-sum {
+  margin: 7px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.presale-root.presale-sheet {
+  min-height: 0;
+  padding: 0 16px 20px;
+  background: transparent;
+}
+.presale-root.presale-sheet .step {
+  min-height: 46px;
+}
+
+/* ---------- one action bar, always in the same place ---------- */
+
+.presale-root .step-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  margin: 18px -16px 0;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+.presale-root .step-footer .nav-row {
+  margin: 0;
+  align-items: center;
+}
+/* Guidance on what is still needed, not an error. */
+.presale-root .step-footer .nav-note {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--warning);
+}
+.presale-root .step-footer .btn {
+  min-height: 46px;
+  padding: 10px 18px;
+  font-size: 14.5px;
+}
+/* Narrow: Back stays compact so the Next label never has to wrap. */
+.presale-root .step-footer .btn-secondary {
+  flex: 0 0 auto;
+  min-width: 104px;
+}
+@container wsmain (min-width: 560px) {
+  .presale-root .step-footer {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+  .presale-root .step-footer .nav-note {
+    text-align: right;
+  }
+  .presale-root .step-footer .btn {
+    flex: 0 0 auto;
+    min-width: 150px;
+    min-height: 42px;
+  }
+  .presale-root .step-footer .btn-primary {
+    min-width: 230px;
+    margin-left: auto;
+  }
+}
+.presale-root a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* ---------- cards, fields, segmented controls ---------- */
+
+.presale-root .card h2 {
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
+.presale-root .card.card-intro {
+  margin-bottom: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+/* The step title already names the step; the intro keeps only its guidance. */
+.presale-root .card.card-intro h2 {
+  display: none;
+}
+.presale-root .card.card-intro p.hint {
+  max-width: 78ch;
+  margin: 0;
+  font-size: 13px;
+}
+.presale-root input[type='number'],
+.presale-root input[type='text'],
+.presale-root input[type='email'],
+.presale-root input[type='tel'],
+.presale-root select {
+  min-height: 40px;
+}
+@media (pointer: coarse) {
+  /* 16px stops iOS zooming the page when a field takes focus. */
+  .presale-root input[type='number'],
+  .presale-root input[type='text'],
+  .presale-root input[type='email'],
+  .presale-root input[type='tel'],
+  .presale-root textarea,
+  .presale-root select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+.presale-root .toggle-pair button {
+  min-height: 38px;
+  padding: 8px 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--paper-raised);
+}
+.presale-root .toggle-pair.three button {
+  font-size: 12px;
+}
+.presale-root .toggle-pair button.active {
+  background: var(--ink);
+  color: var(--paper-raised);
+  font-weight: 600;
+}
+.presale-root .link-btn {
+  min-height: 24px;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.presale-root .remove-btn {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+@container wsmain (min-width: 700px) {
+  .presale-root .step-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .presale-root .step-cols > .card {
+    margin: 0;
+  }
+  /* Parameters: the tall Job card takes the right column. */
+  .presale-root .step-cols > .card:nth-of-type(2):not(:last-of-type) {
+    grid-row: span 2;
+  }
+  .presale-root .step-cols > .step-footer {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
+}
+.presale-root .step-cols .param-grid {
+  grid-template-columns: 1fr 1fr;
+}
+.presale-root .price-config .param-grid {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
+
+/* ---------- number control: − value + as one unit ---------- */
+
+.presale-root .param-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  gap: 12px 12px;
+  align-items: end;
+}
+.presale-root .param-chip,
+.presale-root .param-chip.x-field,
+.presale-root .param-chip.y-field {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  grid-template-areas: 'label label label' 'minus value plus';
+  gap: 5px 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+.presale-root .param-chip label,
+.presale-root .param-chip .stepper-btns {
+  display: contents;
+}
+.presale-root .param-chip label span {
+  grid-area: label;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+/* X and Y carry the diagram's colours. */
+.presale-root .param-chip.x-field label span::before,
+.presale-root .param-chip.y-field label span::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: var(--warn);
+}
+.presale-root .param-chip.y-field label span::before {
+  background: var(--good);
+}
+.presale-root .param-chip input {
+  grid-area: value;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 6px 4px;
+  border-radius: 0;
+  text-align: center;
+  font-weight: 600;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.presale-root .param-chip input::-webkit-outer-spin-button,
+.presale-root .param-chip input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.presale-root .param-chip .step-btn {
+  width: auto;
+  height: 40px;
+  border-color: var(--field-line);
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+  background: var(--paper);
+  font-size: 18px;
+  font-weight: 500;
+}
+.presale-root .param-chip .step-btn:first-child {
+  grid-area: minus;
+}
+.presale-root .param-chip .step-btn:last-child {
+  grid-area: plus;
+  border-radius: 0 8px 8px 0;
+  border-right: 1px solid var(--field-line);
+  border-left: none;
+}
+.presale-root .param-chip .step-btn:hover {
+  background: color-mix(in srgb, var(--ink-soft) 12%, var(--paper));
+  border-color: var(--field-line);
+  color: var(--ink);
+}
+.presale-root .param-chip .step-btn:active {
+  background: color-mix(in srgb, var(--ink-soft) 22%, var(--paper));
+}
+@media (pointer: coarse) {
+  .presale-root .param-chip,
+  .presale-root .param-chip.x-field,
+  .presale-root .param-chip.y-field {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+  }
+  .presale-root .param-chip input,
+  .presale-root .param-chip .step-btn {
+    height: 46px;
+  }
+}
+
+/* ---------- elevations ---------- */
+
+.presale-root .slope-head {
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  background: var(--paper-raised);
+}
+.presale-root .slope-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper-raised);
+  font-size: 12px;
+  font-weight: 700;
+}
+.presale-root .slope-label {
+  min-width: 140px;
+  min-height: 0;
+  font-size: 16px;
+}
+.presale-root .slope-card.confirmed {
+  border-color: color-mix(in srgb, var(--good) 45%, var(--line));
+}
+.presale-root .state-badge {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.presale-root .state-badge.ok {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.presale-root .state-badge.todo {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.presale-root .state-badge.idle {
+  background: color-mix(in srgb, var(--ink-soft) 12%, transparent);
+  color: var(--ink-soft);
+  white-space: normal;
+}
+.presale-root .roof-ref-diagram {
+  max-height: 190px;
+  object-fit: contain;
+}
+@container wsmain (min-width: 700px) {
+  .presale-root .elev-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 290px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .presale-root .elev-grid .roof-diagram-wrap {
+    margin: 0;
+  }
+  .presale-root .roof-ref-diagram {
+    max-height: 250px;
+  }
+}
+.presale-root .confirmed-badge {
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+.presale-root .confirmed-note {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 400;
+}
+.presale-root .add-btn {
+  border-width: 1.5px;
+  padding: 11px;
+  font-size: 13.5px;
+}
+.presale-root .status-line.incomplete {
+  background: var(--warning-soft);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  color: var(--warning);
+}
+
+/* ---------- drawings: obstructions and layout ---------- */
+
+.presale-root .result-head {
+  background: var(--paper-raised);
+}
+.presale-root .result-head h3 {
+  font-size: 16px;
+}
+.presale-root .head-meta {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--ps-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.presale-root .obs-btn {
+  min-height: 38px;
+  padding: 8px 16px;
+  border-color: var(--ink);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.presale-root .obs-btn:hover {
+  background: color-mix(in srgb, var(--ink-soft) 10%, transparent);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.presale-root .grid-wrap.is-marking {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 16%, transparent);
+}
+/* Edge labels may sit a few pixels outside the viewBox; let them show. */
+.presale-root .grid-svg {
+  overflow: visible;
+}
+.presale-root .grid-wrap {
+  padding: 14px 18px;
+}
+.presale-root .stat-strip {
+  position: static;
+}
+.presale-root .stat-tile {
+  padding: 10px clamp(7px, 2.4cqi, 12px);
+}
+.presale-root .stat-tile .stat-label {
+  white-space: normal;
+  line-height: 1.25;
+}
+.presale-root .stat-tile .stat-value {
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.presale-root .stat-tile.accent {
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper-raised));
+}
+.presale-root .stat-tile.accent .stat-value {
+  font-size: clamp(15px, 4.4cqi, 19px);
+  font-weight: 700;
+  color: var(--ink);
+}
+.presale-root .fit-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.presale-root .shift-row {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.presale-root .shift-row > span {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+@container wsmain (min-width: 760px) {
+  .presale-root .layout-grid {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+}
+
+/* ---------- panels ---------- */
+
+.presale-root .panel-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.presale-root .panel-card {
+  padding: 18px;
+}
+.presale-root .panel-card:hover {
+  border-color: var(--ink-soft);
+}
+.presale-root .panel-card.selected {
+  border-color: var(--ink);
+  background: var(--paper-raised);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.presale-root .pc-name {
+  font-size: 16px;
+}
+.presale-root .pc-figure .fv {
+  font-size: 24px;
+}
+.presale-root .pc-action {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- price ---------- */
+
+@container wsmain (min-width: 820px) {
+  .presale-root .price-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 18px;
+    align-items: start;
+  }
+  .presale-root .price-total {
+    position: sticky;
+    top: 72px;
+  }
+}
+.presale-root .totals-group summary {
+  position: relative;
+  padding-left: 18px;
+  list-style: none;
+  cursor: pointer;
+}
+.presale-root .totals-group summary::-webkit-details-marker {
+  display: none;
+}
+.presale-root .totals-group summary::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-soft);
+  border-bottom: 1.5px solid var(--ink-soft);
+  transform: translateY(-60%) rotate(-45deg);
+}
+.presale-root .totals-group[open] summary::before {
+  transform: translateY(-75%) rotate(45deg);
+}
+.presale-root .totals-group summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.presale-root .totals-lines {
+  padding-left: 18px;
+}
+.presale-root .totals-lines .totals-row {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.presale-root .totals-lines .totals-row:last-child {
+  border-bottom: 1px dashed var(--line);
+}
+.presale-root .totals-row.grand {
+  font-size: 18px;
+  border-top-color: var(--ink);
+}
+.presale-root .deposit-title {
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.presale-root .card p.hint.totals-foot {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+}
+
+/* ---------- performance ---------- */
+
+.presale-root .perf-step .stat-tile {
+  padding: 14px;
+}
+.presale-root .perf-step .stat-tile .stat-value {
+  font-size: clamp(14px, 4.2cqi, 19px);
+  color: var(--ink);
+}
+.presale-root .perf-step .stat-tile.accent .stat-value {
+  font-size: clamp(16px, 5cqi, 24px);
+}
+.presale-root .perf-step > .card {
+  max-width: 760px;
+}
+.presale-root .energy-split {
+  margin: 0 0 6px;
+}
+.presale-root .energy-split figcaption,
+.presale-root .sub-head {
+  margin: 0 0 6px;
+  font-family: var(--ps-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.presale-root .sub-head {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+.presale-root .energy-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+.presale-root .energy-bar .used,
+.presale-root .energy-legend i.used {
+  background: var(--ink);
+}
+.presale-root .energy-bar .exported,
+.presale-root .energy-legend i.exported {
+  flex: 1;
+  background: var(--accent);
+}
+.presale-root .energy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.presale-root .energy-legend i {
+  display: inline-block;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 2px;
+}
+.presale-root .energy-legend strong {
+  color: var(--ink);
+}
+
+/* ---------- review & submit ---------- */
+
+@container wsmain (min-width: 860px) {
+  .presale-root .sale-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    gap: 18px;
+    align-items: start;
+  }
+  .presale-root .sale-review {
+    position: sticky;
+    top: 72px;
+  }
+}
+.presale-root .price-side strong {
+  font-size: 18px;
+}
+.presale-root .review-section + .review-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.presale-root .review-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.presale-root .review-head h3 {
+  font-family: var(--ps-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.presale-root .review-section .review-row {
+  padding: 3px 0;
+  border-bottom: none;
+  font-size: 13px;
+}
+.presale-root .review-row.agreed .v {
+  font-size: 16px;
+  font-weight: 700;
+}
+.presale-root .submit-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  border-radius: 10px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 13px;
+}
+.presale-root .submit-check .link-btn {
+  color: var(--ink);
+}
+.presale-root .submit-panel {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper-raised);
+}
+.presale-root .submit-what strong {
+  display: block;
+  font-size: 15px;
+}
+.presale-root .submit-what span,
+.presale-root .submit-panel p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.presale-root .submit-what span {
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+/* ---------- job sold ---------- */
+
+.presale-root .sold-screen {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+.presale-root .sold-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin: 0 0 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--line);
+}
+.presale-root .sold-fact {
+  padding: 12px 14px;
+  background: var(--paper-raised);
+}
+.presale-root .sold-fact dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.presale-root .sold-fact dd {
+  margin: 3px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.presale-root .sold-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.presale-root .sold-actions .btn {
+  flex: 1 1 180px;
+  min-height: 46px;
+  padding: 10px 18px;
+}
