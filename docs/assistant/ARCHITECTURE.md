@@ -69,7 +69,10 @@ The pending action is an HMAC-SHA256-signed payload (`server/pending-actions.ts`
 | Old proposals | 10 minute expiry |
 | Lost permission | permission re-checked at confirmation |
 
-The store is in-memory today and **fails closed** (an id this process did not issue is rejected).
+The store is in-memory by default and **fails closed** (an id this process did not issue is rejected).
+**Production refuses to propose or confirm any change through a non-durable store**
+(`canHandleMutations`). The database-backed store is written (`pending-actions-db.ts`,
+`ASSISTANT_PENDING_ACTIONS=database`) and waits only for the reviewed BD-07 migration.
 A database-backed store is BD-07. There are **no available mutation tools yet**, because the backend
 exposes no assistant-safe mutation (see BACKEND_DEPENDENCIES.md); the mechanism is exercised by tests
 with a test-only tool.

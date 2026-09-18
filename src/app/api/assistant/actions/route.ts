@@ -4,7 +4,7 @@ import {
 } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { resolvePendingAction } from '@/features/assistant/server/confirm';
-import { getPendingActionService } from '@/features/assistant/server/pending-actions';
+import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { createToolRegistry } from '@/features/assistant/server/tools';
 
 export const runtime = 'nodejs';
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     decision: parsed.data.decision,
     token: parsed.data.token,
     registry: createToolRegistry(),
-    pendingActions: getPendingActionService()
+    pendingActions: resolvePendingActions()
   });
   return Response.json(result, { status: result.ok ? 200 : 409 });
 }
