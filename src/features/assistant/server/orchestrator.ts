@@ -111,6 +111,7 @@ export async function runAssistantTurn(
 
   const turnMessages: ModelMessage[] = [{ role: 'user', text: input.message }];
   let toolCallCount = 0;
+  let servedBy: string | undefined;
   let stopReason: Extract<
     AssistantStreamEvent,
     { type: 'turn_end' }
@@ -142,6 +143,7 @@ export async function runAssistantTurn(
           }
         }
       );
+      servedBy = turn.servedBy ?? servedBy;
       // Providers that do not stream still get their text shown.
       if (!streamed && turn.text) emit({ type: 'text_delta', text: turn.text });
 
@@ -234,6 +236,7 @@ export async function runAssistantTurn(
   emit({
     type: 'turn_end',
     stopReason,
+    ...(process.env.NODE_ENV !== 'production' && servedBy && { servedBy }),
     // providerRaw stays on the server: the browser only ever holds the neutral transcript.
     transcript: turnMessages.map(toTranscriptMessage)
   });

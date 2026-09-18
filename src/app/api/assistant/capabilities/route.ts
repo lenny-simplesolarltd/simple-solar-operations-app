@@ -32,7 +32,17 @@ export async function GET() {
       .map(({ name, kind, summary }) => ({ name, kind, summary })),
     planned: registry
       .planned()
-      .map(({ name, kind, summary }) => ({ name, kind, summary }))
+      .map(({ name, kind, summary }) => ({ name, kind, summary })),
+    // Development diagnostics: which provider/model is really answering.
+    // Identifiers only - never a key - and never sent in production.
+    ...(process.env.NODE_ENV !== 'production' &&
+      provider.ok && {
+        diagnostics: {
+          provider: provider.provider.id,
+          model: provider.provider.model,
+          pendingActions: 'memory'
+        }
+      })
   };
   return Response.json(capabilities, {
     headers: { 'Cache-Control': 'no-store' }

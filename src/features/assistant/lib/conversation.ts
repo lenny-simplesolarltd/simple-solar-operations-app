@@ -51,6 +51,8 @@ export interface ConversationState {
   status: 'idle' | 'working';
   /** The message being answered, kept for Retry. */
   pendingText: string | null;
+  /** Development diagnostics: the concrete model that answered the last turn. */
+  servedBy?: string;
 }
 
 export type ConversationAction =
@@ -264,6 +266,7 @@ function applyEvent(
         status: 'idle',
         pendingText: null,
         items: settle(items),
+        servedBy: event.servedBy ?? state.servedBy,
         transcript: trimTranscript([...state.transcript, ...event.transcript])
       };
 

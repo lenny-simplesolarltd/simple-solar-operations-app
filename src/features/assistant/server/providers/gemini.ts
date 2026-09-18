@@ -43,6 +43,8 @@ interface GeminiChunk {
   candidates?: { content?: GeminiContent; finishReason?: string }[];
   promptFeedback?: { blockReason?: string };
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  /** The concrete model behind an alias such as gemini-flash-latest. */
+  modelVersion?: string;
 }
 
 type RawAssistant = { provider: typeof PROVIDER_ID; content: GeminiContent };
@@ -346,11 +348,13 @@ export class GeminiProvider implements AssistantModelProvider {
     let finishReason: string | undefined;
     let blockReason: string | undefined;
     let usage: GeminiChunk['usageMetadata'];
+    let servedBy: string | undefined;
 
     try {
       for await (const chunk of sseEvents(response.body)) {
         blockReason = chunk.promptFeedback?.blockReason ?? blockReason;
         usage = chunk.usageMetadata ?? usage;
+        servedBy = chunk.modelVersion ?? servedBy;
         const candidate = chunk.candidates?.[0];
         finishReason = candidate?.finishReason ?? finishReason;
         for (const part of candidate?.content?.parts ?? []) {
@@ -412,6 +416,7 @@ export class GeminiProvider implements AssistantModelProvider {
         provider: PROVIDER_ID,
         content: { role: 'model', parts }
       } satisfies RawAssistant,
+      servedBy,
       usage: {
         inputTokens: usage?.promptTokenCount ?? 0,
         outputTokens: usage?.candidatesTokenCount ?? 0

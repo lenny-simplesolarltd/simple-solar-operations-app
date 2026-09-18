@@ -293,9 +293,9 @@ describe('gemini adapter', () => {
     const legacy = resolveProvider({
       ASSISTANT_PROVIDER: 'gemini',
       GEMENI_API_KEY: 'k',
-      ASSISTANT_MODEL: 'gemini-2.5-flash'
+      GEMINI_MODEL: 'gemini-3.6-flash'
     });
-    expect(legacy.ok && legacy.provider.model).toBe('gemini-2.5-flash');
+    expect(legacy.ok && legacy.provider.model).toBe('gemini-3.6-flash');
   });
 
   it('maps the neutral transcript to alternating Gemini turns with object tool responses', () => {
@@ -609,5 +609,52 @@ describe('gemini adapter', () => {
       ).generate(request)
     ).rejects.toMatchObject({ code: 'RATE_LIMITED' });
     expect(limited).toHaveBeenCalledTimes(1);
+  });
+
+  it('never falls back to another provider or to the dev router', () => {
+    // Gemini chosen but unusable: the assistant is OFF, whatever else is configured.
+    const noKey = resolveProvider({
+      ASSISTANT_PROVIDER: 'gemini',
+      ANTHROPIC_API_KEY: 'sk-ant-present',
+      NODE_ENV: 'development'
+    });
+    expect(noKey.ok).toBe(false);
+    if (!noKey.ok) expect(noKey.notice).toMatch(/GEMENI_API_KEY/);
+
+    // And the reverse: Anthropic chosen without its key does not borrow Gemini's.
+    expect(
+      resolveProvider({ ASSISTANT_PROVIDER: 'anthropic', GEMENI_API_KEY: 'k' })
+        .ok
+    ).toBe(false);
+
+    // A Claude model override must not leak into Gemini requests.
+    const mixed = resolveProvider({
+      ASSISTANT_PROVIDER: 'gemini',
+      GEMENI_API_KEY: 'k',
+      ASSISTANT_MODEL: 'claude-opus-5'
+    });
+    expect(mixed.ok && mixed.provider.id).toBe('gemini');
+    expect(mixed.ok && mixed.provider.model).toBe('gemini-flash-latest');
+  });
+
+  it('reports the concrete model behind the alias', async () => {
+    const fetchImpl = async () =>
+      sse([
+        {
+          candidates: [
+            {
+              content: { role: 'model', parts: [{ text: 'Hi.' }] },
+              finishReason: 'STOP'
+            }
+          ],
+          modelVersion: 'gemini-3.8-flash'
+        }
+      ]);
+    const turn = await new GeminiProvider(
+      'k',
+      'gemini-flash-latest',
+      fetchImpl as unknown as typeof fetch
+    ).generate(request);
+    expect(turn.servedBy).toBe('gemini-3.8-flash');
   });
 });

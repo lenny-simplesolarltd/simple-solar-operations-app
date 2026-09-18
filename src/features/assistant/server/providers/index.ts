@@ -18,11 +18,16 @@ const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
  *
  *   ASSISTANT_PROVIDER   'anthropic' | 'gemini' | 'dev-router' (unset = assistant off)
  *   ANTHROPIC_API_KEY    required for 'anthropic'
- *   GEMINI_API_KEY       required for 'gemini'
- *   ASSISTANT_MODEL      optional model override
+ *   GEMENI_API_KEY       required for 'gemini' (this project's spelling;
+ *                        GEMINI_API_KEY is accepted as an alias)
+ *   GEMINI_MODEL         optional Gemini model override
+ *   ASSISTANT_MODEL      optional Anthropic model override
  *
  * Opt-in is explicit: an API key lying around in the environment never turns
- * paid usage on by itself. None of these may ever be NEXT_PUBLIC_*.
+ * usage on by itself. There is NO fallback between providers: if the chosen
+ * provider is not fully configured the assistant is off and says why - it
+ * never quietly answers from a different model or from the dev router.
+ * None of these may ever be NEXT_PUBLIC_*.
  */
 export function resolveProvider(
   env: Record<string, string | undefined> = process.env
@@ -72,21 +77,20 @@ export function resolveProvider(
   }
 
   if (choice === 'gemini') {
-    // GEMENI_API_KEY is the spelling this project's .env already uses; the
-    // correctly spelled name wins when both are set.
-    const apiKey = (env.GEMINI_API_KEY || env.GEMENI_API_KEY)?.trim();
+    // GEMENI_API_KEY is, deliberately, the name this project's environments use.
+    const apiKey = (env.GEMENI_API_KEY || env.GEMINI_API_KEY)?.trim();
     if (!apiKey) {
       return {
         ok: false,
         notice:
-          'The assistant is set to use Gemini but no GEMINI_API_KEY is configured on the server.'
+          'The assistant is set to use Gemini but no GEMENI_API_KEY is configured on the server.'
       };
     }
     return {
       ok: true,
       provider: new GeminiProvider(
         apiKey,
-        env.ASSISTANT_MODEL?.trim() || DEFAULT_GEMINI_MODEL
+        env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
       ),
       developmentMode: false
     };

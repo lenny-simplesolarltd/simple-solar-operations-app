@@ -89,9 +89,14 @@ Server-only configuration (never `NEXT_PUBLIC_*`):
 | --- | --- |
 | `ASSISTANT_PROVIDER` | `anthropic`, `gemini` or `dev-router`. Unset = assistant off, with a staff-readable notice. A key alone never enables usage. |
 | `ANTHROPIC_API_KEY` | required for `anthropic` |
-| `GEMINI_API_KEY` | required for `gemini` (the spelling `GEMENI_API_KEY` is also read) |
-| `ASSISTANT_MODEL` | optional; default `claude-opus-5` for anthropic, `gemini-flash-latest` (Google's moving Flash alias) for gemini |
+| `GEMENI_API_KEY` | required for `gemini`. This spelling is the project's deliberate name; `GEMINI_API_KEY` is accepted as an alias |
+| `GEMINI_MODEL` | optional; default `gemini-flash-latest`, Google's moving alias for the current Flash model (confirmed through the model-listing API) |
+| `ASSISTANT_MODEL` | optional Anthropic model; default `claude-opus-5`. Ignored by Gemini |
 | `ASSISTANT_ACTION_SECRET` | >= 32 chars; signs pending actions. Required in production for proposals; dev falls back to a per-process random key. |
+
+There is no fallback between providers: a chosen provider that is not fully configured leaves the
+assistant off with a notice. Outside production the capabilities endpoint and the drawer footer show
+the active provider, the configured model and the concrete model that served the last reply.
 
 `dev-router` is a keyword router for local development (no language model, no cost). It requests the
 same real tools through the same gates, is labelled in the drawer, and is refused in production.

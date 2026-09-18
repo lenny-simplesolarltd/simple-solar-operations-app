@@ -141,6 +141,8 @@ export type AssistantStreamEvent =
       /** Messages to append to the transcript for this turn (the user message first). */
       transcript: TranscriptMessage[];
       stopReason: 'complete' | 'step_limit' | 'truncated' | 'declined';
+      /** Development diagnostics only: the concrete model that answered. */
+      servedBy?: string;
     }
   | ({ type: 'error' } & AssistantErrorInfo);
 
@@ -164,4 +166,6 @@ export interface AssistantCapabilities {
   notice?: string;
   tools: { name: string; kind: 'read' | 'mutation'; summary: string }[];
   planned: { name: string; kind: 'read' | 'mutation'; summary: string }[];
+  /** Present outside production only. Never contains credentials. */
+  diagnostics?: { provider: string; model: string; pendingActions: string };
 }
