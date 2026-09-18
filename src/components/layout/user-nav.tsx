@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import type { AppUser } from '@/lib/auth';
+import Link from 'next/link';
 import { signOut } from '@/app/auth/actions';
 
 export function UserNav({ user }: { user: AppUser }) {
@@ -37,6 +38,9 @@ export function UserNav({ user }: { user: AppUser }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href='/auth/update-password'>Change password</Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => signOut()}>Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -4,7 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useActionState } from 'react';
-import { signIn, updatePassword, type AuthFormState } from './actions';
+import Link from 'next/link';
+import {
+  requestPasswordReset,
+  signIn,
+  updatePassword,
+  type AuthFormState
+} from './actions';
 
 const initialState: AuthFormState = { error: null };
 
@@ -46,6 +52,14 @@ export function SignInForm() {
       <Button type='submit' className='w-full' disabled={pending}>
         {pending ? 'Signing in…' : 'Sign in'}
       </Button>
+      <p className='text-center text-sm'>
+        <Link
+          className='text-muted-foreground underline'
+          href='/auth/forgot-password'
+        >
+          Forgot your password?
+        </Link>
+      </p>
     </form>
   );
 }
@@ -78,6 +92,40 @@ export function UpdatePasswordForm() {
       <FormError message={state.error} />
       <Button type='submit' className='w-full' disabled={pending}>
         {pending ? 'Saving…' : 'Set password'}
+      </Button>
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [state, action, pending] = useActionState(
+    requestPasswordReset,
+    initialState
+  );
+
+  if (state.notice) {
+    return (
+      <p role='status' className='text-sm'>
+        {state.notice}
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className='space-y-4'>
+      <div className='space-y-2'>
+        <Label htmlFor='email'>Work email</Label>
+        <Input
+          id='email'
+          name='email'
+          type='email'
+          autoComplete='email'
+          required
+        />
+      </div>
+      <FormError message={state.error} />
+      <Button type='submit' className='w-full' disabled={pending}>
+        {pending ? 'Sending…' : 'Email me a reset link'}
       </Button>
     </form>
   );
