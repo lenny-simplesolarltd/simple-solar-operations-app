@@ -3,6 +3,7 @@ import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
+import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import {
   Table,
   TableBody,
@@ -52,6 +53,9 @@ export default async function PresalesPage() {
 
   return (
     <PageContainer>
+      <AssistantPageContext
+        page={{ kind: 'presales', scope: seesAll ? 'all' : 'mine' }}
+      />
       <div className='flex w-full flex-col gap-4'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <Heading

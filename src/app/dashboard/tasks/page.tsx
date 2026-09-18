@@ -1,5 +1,6 @@
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@/components/ui/heading';
+import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { getOpenTasks } from '@/features/jobs/server/queries';
 import { TaskTable } from '@/features/jobs/task-table';
 import { getPermissions } from '@/features/presale/server/queries';
@@ -27,6 +28,13 @@ export default async function TasksPage() {
 
   return (
     <PageContainer>
+      {/* The page has no filters yet; publish them here when it gains some. */}
+      <AssistantPageContext
+        page={{
+          kind: 'tasks',
+          lists: permissions.has('task.read.all') ? ['my', 'team'] : ['my']
+        }}
+      />
       <div className='flex w-full flex-col gap-8'>
         <section className='flex flex-col gap-3'>
           <Heading

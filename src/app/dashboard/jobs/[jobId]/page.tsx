@@ -2,6 +2,7 @@ import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
+import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { FINANCE_LABEL, formatDate, pounds } from '@/features/jobs/format';
 import { getJobDetail } from '@/features/jobs/server/queries';
 import { TaskTable } from '@/features/jobs/task-table';
@@ -58,6 +59,15 @@ export default async function JobPage({
 
   return (
     <PageContainer>
+      <AssistantPageContext
+        page={{
+          kind: 'job',
+          jobId: job.id,
+          jobRef: job.job_ref,
+          customerName: `${customer.first_name} ${customer.last_name}`,
+          workflowStage: job.workflow_stage
+        }}
+      />
       <div className='flex w-full flex-col gap-6'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <Heading

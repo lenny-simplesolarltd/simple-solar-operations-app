@@ -6,6 +6,7 @@ import SearchInput from '../search-input';
 import { UserNav } from './user-nav';
 import { ModeToggle } from './ThemeToggle/theme-toggle';
 import type { AppUser } from '@/lib/auth';
+import { AssistantTrigger } from '@/features/assistant/components/assistant-trigger';
 
 export default function Header({ user }: { user: AppUser }) {
   return (
@@ -22,6 +23,7 @@ export default function Header({ user }: { user: AppUser }) {
         <div className='hidden md:flex'>
           <SearchInput />
         </div>
+        <AssistantTrigger />
         <ModeToggle />
         <UserNav user={user} />
       </div>
