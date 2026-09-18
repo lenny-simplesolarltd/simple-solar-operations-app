@@ -33,6 +33,3 @@ export interface FooterItem {
 export type MainNavItem = NavItemWithOptionalChildren;
 
 export type SidebarNavItem = NavItemWithChildren;
-
-// Re-export scan types for convenience
-export type { ScanEvent, UseScanHistoryReturn } from './scan';

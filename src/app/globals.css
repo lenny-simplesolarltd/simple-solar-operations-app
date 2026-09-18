@@ -156,22 +156,3 @@
   /* Apply the reveal animation */
   animation: reveal 0.4s ease-in-out forwards;
 }
-
-/* QR Scanner scanning line animation */
-@keyframes scan {
-  0% {
-    top: 0;
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    top: 100%;
-    opacity: 0;
-  }
-}
-
-.animate-scan {
-  animation: scan 2s ease-in-out infinite;
-}

@@ -6,8 +6,9 @@ import SearchInput from '../search-input';
 import { UserNav } from './user-nav';
 import { ThemeSelector } from '../theme-selector';
 import { ModeToggle } from './ThemeToggle/theme-toggle';
+import type { AppUser } from '@/lib/auth';
 
-export default function Header() {
+export default function Header({ user }: { user: AppUser }) {
   return (
     <header className='flex min-h-16 shrink-0 flex-col gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:h-16 md:flex-row md:items-center md:justify-between'>
       <div className='flex w-full items-center gap-2 px-4 md:w-auto'>
@@ -20,7 +21,7 @@ export default function Header() {
         <div className='hidden md:flex'>
           <SearchInput />
         </div>
-        <UserNav />
+        <UserNav user={user} />
         <ModeToggle />
         <ThemeSelector />
       </div>

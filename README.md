@@ -1,174 +1,74 @@
-<p align="center">
-<h1 align="center">Admin Dashboard Starter Template with Next.js &amp; Shadcn UI</h1>
+# Simple Solar Operations
 
-<div align="center">Built with the Next.js 16 App Router, Tailwind CSS &amp; Shadcn UI components</div>
+Internal operations application for Simple Solar.
 
-<br />
+This repository has been cleaned down to a minimal application shell. The
+operations workflows, Supabase schema and Supabase Auth have not been built
+yet.
 
-<div align="center">
-  <a href="https://dub.sh/shadcn-dashboard"><strong>View Demo</strong></a>
-</div>
-<br />
-<div align="center">
-  <img src="/public/shadcn-dashboard.png" alt="Shadcn Dashboard Cover" style="max-width: 100%; border-radius: 8px;" />
-</div>
+## Stack
 
-## Overview
+- Next.js 16 (App Router), React 19, TypeScript
+- Tailwind CSS v4, shadcn/ui (Radix)
+- React Hook Form + Zod
+- Supabase (Postgres, Auth, Storage, RLS) - not wired up yet
+- Sentry (optional, enabled when `NEXT_PUBLIC_SENTRY_DSN` is set)
+- Deployed on Vercel
 
-This is an **admin dashboard starter template** built with **Next.js 16, Shadcn UI, and Tailwind CSS**.
+## Routes
 
-It gives you a production-ready **dashboard UI** with authentication, charts, tables, forms, and a feature-based folder structure, perfect for **SaaS apps, internal tools, and admin panels**.
+| Route           | Purpose                                      |
+| --------------- | -------------------------------------------- |
+| `/`             | Redirects to `/dashboard` or `/auth/sign-in` |
+| `/auth/sign-in` | Email + password sign-in (Supabase Auth)     |
+| `/dashboard`    | Temporary authenticated application shell    |
 
-### Tech Stack
+## Authentication and identity
 
-This template uses the following stack:
-
-- Framework - [Next.js 16](https://nextjs.org/16)
-- Language - [TypeScript](https://www.typescriptlang.org)
-- Auth - [Clerk](https://go.clerk.com/ILdYhn7)
-- Error tracking - [Sentry](https://sentry.io/for/nextjs/?utm_source=github&utm_medium=paid-community&utm_campaign=general-fy26q2-nextjs&utm_content=github-banner-project-tryfree)
-- Styling - [Tailwind CSS v4](https://tailwindcss.com)
-- Components - [Shadcn-ui](https://ui.shadcn.com)
-- Schema Validations - [Zod](https://zod.dev)
-- State Management - [Zustand](https://zustand-demo.pmnd.rs)
-- Search params state manager - [Nuqs](https://nuqs.47ng.com/)
-- Tables - [Tanstack Data Tables](https://ui.shadcn.com/docs/components/data-table) • [Dice table](https://www.diceui.com/docs/components/data-table)
-- Forms - [React Hook Form](https://ui.shadcn.com/docs/components/form)
-- Command+k interface - [kbar](https://kbar.vercel.app/)
-- Linting - [ESLint](https://eslint.org)
-- Pre-commit Hooks - [Husky](https://typicode.github.io/husky/)
-- Formatting - [Prettier](https://prettier.io)
-
-_If you are looking for a Tanstack start dashboard template, here is the [repo](https://git.new/tanstack-start-dashboard)._
-
-## Features
-
-- 🧱 Pre-built **admin dashboard layout** (sidebar, header, content area)
-
-- 📊 **Analytics overview** page with cards and charts
-
-- 📋 **Data tables** with server-side search, filter & pagination
-
-- 🔐 **Authentication** & user management via Clerk
-
-- 🧩 **Shadcn UI components** with Tailwind CSS styling
-
-- 🧠 Feature-based folder structure for scalable projects
-
-- ⚙️ Ready for **SaaS dashboards**, internal tools, and client admin panels
-
-## Use Cases
-
-You can use this Next.js + Shadcn UI dashboard starter to build:
-
-- SaaS admin dashboards
-
-- Internal tools & operations panels
-
-- Analytics dashboards
-
-- Client project admin panels
-
-- Boilerplate for new Next.js admin UI projects
-
-## Pages
-
-| Pages                                                                                                                                                                  | Specifications                                                                                                                                                                                                                                                          |
-| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Signup / Signin](https://go.clerk.com/ILdYhn7)                                                                                                                        | Authentication with **Clerk** provides secure authentication and user management with multiple sign-in options including passwordless authentication, social logins, and enterprise SSO - all designed to enhance security while delivering a seamless user experience. |
-| [Dashboard Overview](https://shadcn-dashboard.kiranism.dev/dashboard)                                                                                                  | Cards with Recharts graphs for analytics. Parallel routes in the overview sections feature independent loading, error handling, and isolated component rendering.                                                                                                       |
-| [Product List (Table)](https://shadcn-dashboard.kiranism.dev/dashboard/product)                                                                                        | Tanstack tables with server side searching, filter, pagination by Nuqs which is a Type-safe search params state manager in nextjs                                                                                                                                       |
-| [Create Product Form](https://shadcn-dashboard.kiranism.dev/dashboard/product/new)                                                                                     | A Product Form with shadcn form (react-hook-form + zod).                                                                                                                                                                                                                |
-| [Profile](https://shadcn-dashboard.kiranism.dev/dashboard/profile)                                                                                                     | Clerk's full-featured account management UI that allows users to manage their profile and security settings                                                                                                                                                             |
-| [Kanban Board](https://shadcn-dashboard.kiranism.dev/dashboard/kanban)                                                                                                 | A Drag n Drop task management board with dnd-kit and zustand to persist state locally.                                                                                                                                                                                  |
-| [Not Found](https://shadcn-dashboard.kiranism.dev/dashboard/notfound)                                                                                                  | Not Found Page Added in the root level                                                                                                                                                                                                                                  |
-| [Global Error](https://sentry.io/for/nextjs/?utm_source=github&utm_medium=paid-community&utm_campaign=general-fy26q2-nextjs&utm_content=github-banner-project-tryfree) | A centralized error page that captures and displays errors across the application. Integrated with **Sentry** to log errors, provide detailed reports, and enable replay functionality for better debugging.                                                            |
-
-## Feature based organization
-
-```plaintext
-src/
-├── app/ # Next.js App Router directory
-│ ├── (auth)/ # Auth route group
-│ │ ├── (signin)/
-│ ├── (dashboard)/ # Dashboard route group
-│ │ ├── layout.tsx
-│ │ ├── loading.tsx
-│ │ └── page.tsx
-│ └── api/ # API routes
-│
-├── components/ # Shared components
-│ ├── ui/ # UI components (buttons, inputs, etc.)
-│ └── layout/ # Layout components (header, sidebar, etc.)
-│
-├── features/ # Feature-based modules
-│ ├── feature/
-│ │ ├── components/ # Feature-specific components
-│ │ ├── actions/ # Server actions
-│ │ ├── schemas/ # Form validation schemas
-│ │ └── utils/ # Feature-specific utilities
-│ │
-├── lib/ # Core utilities and configurations
-│ ├── auth/ # Auth configuration
-│ ├── db/ # Database utilities
-│ └── utils/ # Shared utilities
-│
-├── hooks/ # Custom hooks
-│ └── use-debounce.ts
-│
-├── stores/ # Zustand stores
-│ └── dashboard-store.ts
-│
-└── types/ # TypeScript types
-└── index.ts
-```
-
-## Getting Started
-
-> [!NOTE]  
-> This admin dashboard starter uses **Next.js 16 (App Router)** with **React 19** and **Shadcn UI**. Follow these steps to run it locally:
-
-Clone the repo:
+Supabase Auth, invite-only (public sign-up is disabled). `src/lib/auth.ts` is
+the single place the app resolves the current user:
 
 ```
-git clone https://github.com/Kiranism/next-shadcn-dashboard-starter.git
+session -> auth.uid() -> people.auth_user_id -> person_roles -> RLS
 ```
 
-- `bun install`
-- Create a `.env.local` file by copying the example environment file:
-  `cp env.example.txt .env.local`
-- Add the required environment variables to the `.env.local` file.
-- `bun run dev`
+- `people` may exist without a login; `person_roles` is the only role authority.
+- A login links to the person whose email it has **verified**. Nothing creates
+  logins automatically - invite the people who need access.
+- It fails closed: a session that is not an active person with at least one
+  active role has no access.
+- The schema lives in `supabase/migrations`, the staff directory in
+  `supabase/seeds`. Business semantics are ported from the reference
+  implementation; see the header of each migration for citations.
 
-##### Environment Configuration Setup
+## Getting started
 
-To configure the environment for this project, refer to the `env.example.txt` file. This file contains the necessary environment variables required for authentication and error tracking.
+```bash
+npm install
+supabase start                  # local Postgres + Auth (Docker)
+supabase status -o env          # copy API_URL / ANON_KEY into .env.local
+node scripts/dev-create-login.mjs you@simplesolarltd.co.uk 'a-long-password'
+npm run dev
+```
 
-You should now be able to access the application at http://localhost:3000.
+## Scripts
 
-> [!WARNING]
-> After cloning or forking the repository, be cautious when pulling or syncing with the latest changes, as this may result in breaking conflicts.
+- `npm run dev` - start the dev server
+- `npm run build` - production build
+- `npm run typecheck` - TypeScript check
+- `npm run lint` - ESLint
+- `npm run format` - Prettier
+- `npm run test:db` - reset the local database and run the identity/RLS tests
+- `npm run db:types` - regenerate `src/types/database.ts` from the local schema
 
-Cheers! 🥂
+## Project structure
 
-<!--
+```
+src/app            routes (/, /auth/sign-in, /dashboard)
+src/components/ui  shadcn/ui components
+src/components     layout shell, form field wrappers, data table, kbar
+src/hooks          generic hooks
+src/lib            utilities and the auth placeholder
+```
 
-SEO keywords:
-
-nextjs admin dashboard, nextjs dashboard template, shadcn ui dashboard,
-
-admin dashboard starter, dashboard ui template, nextjs shadcn admin panel,
-
-react admin dashboard, tailwind css admin dashboard
-
--->
-
-## Star History
-
-<a href="https://www.star-history.com/#Kiranism/next-shadcn-dashboard-starter&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Kiranism/next-shadcn-dashboard-starter&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Kiranism/next-shadcn-dashboard-starter&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Kiranism/next-shadcn-dashboard-starter&type=date&legend=top-left" />
- </picture>
-</a>
+UI scaffolding derived from next-shadcn-dashboard-starter (MIT, see `LICENSE`).

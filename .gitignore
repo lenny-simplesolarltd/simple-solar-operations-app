@@ -36,9 +36,6 @@ yarn-error.log*
 next-env.d.ts
 
 .idea/
-# clerk configuration (can include secrets)
-/.clerk/
-
 
 # cursor 
 .cursorrules
@@ -46,3 +43,7 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Raw spreadsheet exports contain staff personal data. The reviewed import lives
+# in supabase/seeds.
+/*.csv
