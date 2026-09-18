@@ -10,6 +10,7 @@ import type {
 } from '../protocol';
 import { consoleAuditSink, type AssistantAuditSink } from './audit';
 import {
+  canHandleMutations,
   issuePendingAction,
   type PendingActionService
 } from './pending-actions';
@@ -291,10 +292,10 @@ export async function runAssistantTurn(
 
     try {
       if (tool.kind === 'mutation') {
-        if (!turnInput.pendingActions) {
+        if (!canHandleMutations(turnInput.pendingActions)) {
           return fail(
             'CONFIRMATION_UNAVAILABLE',
-            'Changes cannot be proposed because confirmation signing is not configured on the server. Nothing was changed.'
+            'Changes cannot be proposed in this environment yet: confirmation is not fully configured on the server (signing key and durable pending-action store). Nothing was changed.'
           );
         }
         const prepared = await tool.prepare(args, ctx);

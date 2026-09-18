@@ -1,5 +1,6 @@
 import type { AssistantCapabilities } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
+import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { resolveProvider } from '@/features/assistant/server/providers';
 import { createToolRegistry } from '@/features/assistant/server/tools';
 
@@ -43,7 +44,7 @@ export async function GET() {
         diagnostics: {
           provider: provider.provider.id,
           model: provider.provider.model,
-          pendingActions: 'memory'
+          pendingActions: resolvePendingActions()?.store.kind ?? 'unavailable'
         }
       })
   };

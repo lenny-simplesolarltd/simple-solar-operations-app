@@ -52,6 +52,11 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
 - **Why:** `get_generated_documents`, `generate_document_pack`.
 
 ## BD-07 Durable pending actions (PROPOSED TABLE, not created)
+
+**Status 2026-09-19:** the application half is built (`SupabasePendingActionStore`, selected with
+`ASSISTANT_PENDING_ACTIONS=database`; production refuses to propose or confirm any change through the
+in-memory store). The table and its three functions are specified for review in
+`docs/design/003-quotes-documents-files.md` section 9 and are still **not created**.
 - **Required capability:** single-use confirmation state shared across server instances.
 - **Proposed interface:**
   ```sql

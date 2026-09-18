@@ -3,7 +3,7 @@ import 'server-only';
 import type { ActionResponse } from '../protocol';
 import { consoleAuditSink, type AssistantAuditSink } from './audit';
 import type { PendingActionService } from './pending-actions';
-import { hashArgs } from './pending-actions';
+import { canHandleMutations, hashArgs } from './pending-actions';
 import { resolveToolCall, type ToolActor, type ToolRegistry } from './registry';
 
 const reject = (
@@ -37,10 +37,10 @@ export async function resolvePendingAction(
   const { actor, registry, pendingActions, decision } = input;
   const audit = input.audit ?? consoleAuditSink;
 
-  if (!pendingActions) {
+  if (!canHandleMutations(pendingActions)) {
     return reject(
       'CONFIRMATION_UNAVAILABLE',
-      `Confirmation signing is not configured on the server. ${NOTHING_CHANGED}`
+      `Changes cannot be confirmed in this environment yet (confirmation is not fully configured on the server). ${NOTHING_CHANGED}`
     );
   }
 
@@ -82,7 +82,7 @@ export async function resolvePendingAction(
 
   if (decision === 'cancel') {
     // Claiming it is what makes a cancelled proposal unusable afterwards.
-    await pendingActions.store.consume(action.id);
+    await pendingActions.store.consume(action.id, 'cancel');
     void audit.record({ ...base, event: 'action_cancelled', outcome: 'ok' });
     return {
       ok: true,
@@ -116,7 +116,7 @@ export async function resolvePendingAction(
     );
   }
 
-  const claim = await pendingActions.store.consume(action.id);
+  const claim = await pendingActions.store.consume(action.id, 'confirm');
   if (claim !== 'ok') {
     void audit.record({
       ...base,

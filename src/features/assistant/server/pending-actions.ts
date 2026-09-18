@@ -52,21 +52,32 @@ export interface PendingActionPayload {
 
 export type ConsumeOutcome = 'ok' | 'already_used' | 'unknown';
 
+export type PendingActionDecision = 'confirm' | 'cancel';
+
 export interface PendingActionStore {
-  register(id: string, expiresAt: number): Promise<void>;
+  /** 'memory' | 'database' - shown in development diagnostics. */
+  readonly kind: string;
+  /**
+   * True when single-use state survives restarts and is shared by every server
+   * instance. Mutations may only be proposed in production through a durable store.
+   */
+  readonly durable: boolean;
+  register(action: PendingActionPayload): Promise<void>;
   /** Atomically claims the action. Exactly one caller ever gets 'ok'. */
-  consume(id: string): Promise<ConsumeOutcome>;
+  consume(id: string, decision: PendingActionDecision): Promise<ConsumeOutcome>;
   /** Hands a claim back after a transport failure, so the (idempotent) command can be retried. */
   release(id: string): Promise<void>;
 }
 
 export class MemoryPendingActionStore implements PendingActionStore {
+  readonly kind = 'memory';
+  readonly durable = false;
   private readonly actions = new Map<
     string,
     { expiresAt: number; used: boolean }
   >();
 
-  async register(id: string, expiresAt: number) {
+  async register({ id, expiresAt }: PendingActionPayload) {
     this.sweep();
     this.actions.set(id, { expiresAt, used: false });
   }
@@ -203,7 +214,7 @@ export async function issuePendingAction(
     issuedAt: now,
     expiresAt: now + PENDING_ACTION_TTL_MS
   };
-  await service.store.register(payload.id, payload.expiresAt);
+  await service.store.register(payload);
   return {
     ...view,
     token: service.signer.sign(payload),
@@ -225,7 +236,9 @@ const globalState = globalThis as typeof globalThis & {
  * then simply stop verifying after a restart. In production a missing key
  * disables proposals rather than inventing one.
  */
-export function getPendingActionService(): PendingActionService | null {
+export function getPendingActionService(
+  storeFactory?: () => PendingActionStore
+): PendingActionService | null {
   if (globalState.__assistantPendingActions) {
     return globalState.__assistantPendingActions;
   }
@@ -240,7 +253,20 @@ export function getPendingActionService(): PendingActionService | null {
   }
   globalState.__assistantPendingActions = {
     signer,
-    store: new MemoryPendingActionStore()
+    store: storeFactory?.() ?? new MemoryPendingActionStore()
   };
   return globalState.__assistantPendingActions;
+}
+
+/**
+ * Production never proposes or confirms a change through a store that is not
+ * durable: an in-memory store is per-process, so on a multi-instance deployment
+ * it cannot guarantee single use. Fails closed.
+ */
+export function canHandleMutations(
+  service: PendingActionService | null,
+  env: Record<string, string | undefined> = process.env
+): service is PendingActionService {
+  if (!service) return false;
+  return service.store.durable || env.NODE_ENV !== 'production';
 }

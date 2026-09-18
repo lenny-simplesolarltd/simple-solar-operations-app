@@ -4,7 +4,7 @@ import {
 } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { runAssistantTurn } from '@/features/assistant/server/orchestrator';
-import { getPendingActionService } from '@/features/assistant/server/pending-actions';
+import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { resolveProvider } from '@/features/assistant/server/providers';
 import { createToolRegistry } from '@/features/assistant/server/tools';
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
           context,
           provider: resolved.provider,
           registry: createToolRegistry(),
-          pendingActions: getPendingActionService(),
+          pendingActions: resolvePendingActions(),
           signal: request.signal,
           emit
         });
