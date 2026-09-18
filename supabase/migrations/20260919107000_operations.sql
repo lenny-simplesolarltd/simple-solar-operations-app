@@ -79,4 +79,7 @@ create policy health_checks_select on public.health_checks
   for select to authenticated using ((select app.is_admin()));
 create policy archive_index_select on public.archive_index
   for select to authenticated using ((select app.is_admin()));
+<<<<<<< HEAD
+=======
 
+>>>>>>> main

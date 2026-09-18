@@ -263,4 +263,7 @@ create policy ghl_tasks_select on public.ghl_tasks
   for select to authenticated using ((select app.is_office_class()));
 create policy report_snapshots_select on public.report_snapshots
   for select to authenticated using ((select app.has_any_role('Admin', 'Manager', 'Director', 'Finance')));
+<<<<<<< HEAD
+=======
 
+>>>>>>> main
