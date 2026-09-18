@@ -1,10 +1,5 @@
 'use client';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -22,29 +17,57 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarRail
 } from '@/components/ui/sidebar';
 import { signOut } from '@/app/auth/actions';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
-import { navItems } from '@/constants/data';
 import type { AppUser } from '@/lib/auth';
+import type { VisibleNavGroup } from '@/types';
 import { BrandLogo, BrandMark } from '@/components/brand-logo';
-import {
-  IconChevronRight,
-  IconChevronsDown,
-  IconLogout
-} from '@tabler/icons-react';
+import { IconChevronsDown, IconLogout } from '@tabler/icons-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Icons } from '../icons';
-import { visibleNavItems } from './nav-visibility';
 
-export default function AppSidebar({ user }: { user: AppUser }) {
+/**
+ * The entry that best matches the current location: the longest URL whose path
+ * is the current path (or an ancestor of it) and whose query parameters are all
+ * present. So /dashboard/tasks?scope=team highlights "Team tasks", and a job
+ * detail page keeps "Job search" highlighted.
+ */
+function bestMatch(
+  nav: VisibleNavGroup[],
+  pathname: string,
+  search: URLSearchParams
+): string | null {
+  let best: { url: string; score: number } | null = null;
+  for (const item of nav.flatMap((g) => g.items)) {
+    const [path, query = ''] = item.url.split('?');
+    const pathOk =
+      pathname === path ||
+      (path !== '/dashboard' && pathname.startsWith(`${path}/`));
+    if (!pathOk) continue;
+    const params: [string, string][] = [];
+    new URLSearchParams(query).forEach((v, k) => params.push([k, v]));
+    if (params.some(([k, v]) => search.get(k) !== v)) continue;
+    // A bare path must not win while a more specific sibling's query matches.
+    const score =
+      path.length * 10 + params.length + (pathname === path ? 1 : 0);
+    if (!best || score > best.score) best = { url: item.url, score };
+  }
+  return best?.url ?? null;
+}
+
+export default function AppSidebar({
+  user,
+  nav
+}: {
+  user: AppUser;
+  nav: VisibleNavGroup[];
+}) {
   const pathname = usePathname();
-  const items = visibleNavItems(navItems, user);
+  const searchParams = useSearchParams();
+  const activeUrl = bestMatch(nav, pathname, searchParams);
 
   return (
     <Sidebar collapsible='icon'>
@@ -70,74 +93,41 @@ export default function AppSidebar({ user }: { user: AppUser }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className='overflow-x-hidden'>
-        <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-          <SidebarMenu>
-            {items.map((item) => {
-              const Icon = item.icon ? Icons[item.icon] : Icons.logo;
-              return item?.items && item?.items?.length > 0 ? (
-                <Collapsible
-                  key={item.title}
-                  asChild
-                  defaultOpen={item.isActive}
-                  className='group/collapsible'
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        isActive={pathname === item.url}
-                      >
-                        {item.icon && <Icon />}
-                        <span>{item.title}</span>
-                        <IconChevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {item.items?.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={pathname === subItem.url}
-                            >
-                              <Link href={subItem.url}>
-                                <span>{subItem.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ) : (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={item.title}
-                    isActive={pathname === item.url}
-                  >
-                    <Link
-                      href={item.url}
-                      aria-current={pathname === item.url ? 'page' : undefined}
+        {nav.map((group) => (
+          <SidebarGroup key={group.label} className='py-1'>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarMenu>
+              {group.items.map((item) => {
+                const Icon = Icons[item.icon];
+                const active = activeUrl === item.url;
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.title}
+                      isActive={active}
                     >
-                      <Icon />
-                      <span>{item.title}</span>
-                      {/* The website's nav marker: a sun dot on the current item. */}
-                      {pathname === item.url && (
-                        <span
-                          aria-hidden='true'
-                          className='bg-brand ml-auto size-2 shrink-0 rounded-full group-data-[collapsible=icon]:hidden'
-                        />
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarGroup>
+                      <Link
+                        href={item.url}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        <Icon />
+                        <span>{item.title}</span>
+                        {/* The website's nav marker: a sun dot on the current item. */}
+                        {active && (
+                          <span
+                            aria-hidden='true'
+                            className='bg-brand ml-auto size-2 shrink-0 rounded-full group-data-[collapsible=icon]:hidden'
+                          />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>

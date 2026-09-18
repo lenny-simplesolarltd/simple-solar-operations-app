@@ -11,7 +11,15 @@ import { getSupabaseEnv } from './env';
 import { createClient } from './server';
 
 const WRITE_METHODS = new Set(['insert', 'update', 'upsert', 'delete']);
-const READ_RPCS = new Set(['current_actor']);
+// Read-only database functions a preview may call. They resolve the actor from
+// the token (the preview target) and never write; execute_command is absent.
+const READ_RPCS = new Set([
+  'current_actor',
+  'execute_read',
+  'execute_operations_read',
+  'describe_command_error',
+  'describe_command_result'
+]);
 
 /** A client that carries the preview token and physically cannot write. */
 export function createPreviewReadClient(jwt: string): SupabaseClient<Database> {

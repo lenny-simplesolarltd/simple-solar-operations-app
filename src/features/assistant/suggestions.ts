@@ -59,6 +59,30 @@ const BY_PAGE: Record<AssistantPageContext['kind'], AssistantSuggestion[]> = {
       requires: ['get_team_tasks']
     }
   ],
+  task: [
+    {
+      label: 'Summarise this job',
+      prompt: 'Summarise the job this task belongs to.',
+      mode: 'send',
+      requires: ['get_job']
+    },
+    {
+      label: 'Show open tasks on the job',
+      prompt: 'Show the other open tasks on this job.',
+      mode: 'send',
+      requires: ['get_job_tasks']
+    }
+  ],
+  jobs: [
+    {
+      label: 'Find a job',
+      prompt: 'Find the job for ',
+      mode: 'prefill',
+      requires: ['find_job']
+    }
+  ],
+  operations: [],
+  requests: [],
   presales: [
     {
       label: 'Find a sold job',

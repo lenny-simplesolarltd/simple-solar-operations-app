@@ -23,7 +23,23 @@ import {
   IconUser,
   IconUserCircle,
   IconUserEdit,
-  IconX
+  IconX,
+  IconUsers,
+  IconSearch,
+  IconHistory,
+  IconCalendarEvent,
+  IconCalendarWeek,
+  IconCalendarOff,
+  IconPackage,
+  IconTruckDelivery,
+  IconPackageImport,
+  IconBuildingWarehouse,
+  IconStairs,
+  IconTool,
+  IconClipboardCheck,
+  IconInbox,
+  IconCertificate,
+  IconHeartbeat
 } from '@tabler/icons-react';
 
 export type Icon = React.ComponentType<IconProps>;
@@ -52,5 +68,22 @@ export const Icons = {
   sun: IconSun,
   moon: IconMoon,
   laptop: IconDeviceLaptop,
-  check: IconCheck
+  check: IconCheck,
+  // Operational navigation
+  teamTasks: IconUsers,
+  search: IconSearch,
+  history: IconHistory,
+  booking: IconCalendarEvent,
+  planner: IconCalendarWeek,
+  availability: IconCalendarOff,
+  materials: IconPackage,
+  orders: IconTruckDelivery,
+  goodsIn: IconPackageImport,
+  stock: IconBuildingWarehouse,
+  scaffold: IconStairs,
+  install: IconTool,
+  commissioning: IconClipboardCheck,
+  intake: IconInbox,
+  skills: IconCertificate,
+  system: IconHeartbeat
 };

@@ -37,6 +37,8 @@ function pageFromRoute(pathname: string): AssistantPageContext {
   if (pathname.startsWith('/dashboard/presales/new'))
     return { kind: 'presale-new' };
   if (pathname.startsWith('/dashboard/people')) return { kind: 'people' };
+  if (pathname === '/dashboard/jobs') return { kind: 'jobs' };
+  if (pathname.startsWith('/dashboard/requests')) return { kind: 'requests' };
   return { kind: 'other' };
 }
 

@@ -9,6 +9,7 @@ import { AssistantProvider } from '@/features/assistant/components/assistant-pro
 import { PreviewBanner } from '@/features/dev-preview/preview-banner';
 import type { PreviewTarget } from '@/features/dev-preview/queries';
 import type { AppUser } from '@/lib/auth';
+import type { VisibleNavGroup } from '@/types';
 import React from 'react';
 
 interface DashboardLayoutClientProps {
@@ -17,19 +18,22 @@ interface DashboardLayoutClientProps {
   user: AppUser;
   /** Development "View as user": null unless this runtime and account may preview. */
   previewTargets?: PreviewTarget[] | null;
+  /** The menu this person gets, built on the server. */
+  nav: VisibleNavGroup[];
 }
 
 export function DashboardLayoutClient({
   children,
   defaultOpen = true,
   user,
-  previewTargets = null
+  previewTargets = null,
+  nav
 }: DashboardLayoutClientProps) {
   return (
-    <KBar user={user}>
+    <KBar nav={nav}>
       <AssistantProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
-          <AppSidebar user={user} />
+          <AppSidebar user={user} nav={nav} />
           <SidebarInset>
             {/* Banner + header stick together so the banner can never scroll away or cover the header. */}
             <div className='sticky top-0 z-30'>

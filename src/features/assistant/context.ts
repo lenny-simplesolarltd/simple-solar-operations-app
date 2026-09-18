@@ -27,15 +27,60 @@ export const tasksPageContextSchema = z.strictObject({
   filters: z
     .strictObject({
       status: shortText(40).optional(),
-      due: z.enum(['overdue', 'today']).optional(),
-      owner: shortText(120).optional()
+      due: z
+        .enum(['overdue', 'today', 'soon', 'later', 'none', 'dated'])
+        .optional(),
+      queue: shortText(40).optional(),
+      owner: shortText(120).optional(),
+      q: shortText(120).optional()
     })
     .optional()
+});
+
+export const taskPageContextSchema = z.strictObject({
+  kind: z.literal('task'),
+  taskId: z.uuid(),
+  title: shortText(160),
+  status: shortText(40),
+  jobId: z.uuid().optional(),
+  jobRef: shortText(40).optional()
 });
 
 export const presalesPageContextSchema = z.strictObject({
   kind: z.literal('presales'),
   scope: z.enum(['all', 'mine'])
+});
+
+export const jobsPageContextSchema = z.strictObject({
+  kind: z.literal('jobs'),
+  query: shortText(120).optional(),
+  stages: z.array(shortText(60)).max(20).optional()
+});
+
+/**
+ * The operational list screens (booking, materials, planner, ...). `surface`
+ * names the screen; `view` is its current tab or filter, when it has one.
+ */
+export const OPERATION_SURFACES = [
+  'booking',
+  'intake-review',
+  'commissioning-review',
+  'goods-in',
+  'materials',
+  'merchant-orders',
+  'stock',
+  'installer-skills',
+  'my-installs',
+  'planner',
+  'scaffold',
+  'availability',
+  'system'
+] as const;
+
+export const operationsPageContextSchema = z.strictObject({
+  kind: z.literal('operations'),
+  surface: z.enum(OPERATION_SURFACES),
+  view: shortText(60).optional()
 });
 
 const simplePage = <K extends string>(kind: K) =>
@@ -44,7 +89,11 @@ const simplePage = <K extends string>(kind: K) =>
 export const pageContextSchema = z.discriminatedUnion('kind', [
   jobPageContextSchema,
   tasksPageContextSchema,
+  taskPageContextSchema,
   presalesPageContextSchema,
+  jobsPageContextSchema,
+  operationsPageContextSchema,
+  simplePage('requests'),
   simplePage('presale-new'),
   simplePage('people'),
   simplePage('dashboard'),
@@ -72,6 +121,17 @@ export function describeContext(page: AssistantPageContext): {
       };
     case 'tasks':
       return { label: 'Tasks', detail: filterSummary(page.filters) };
+    case 'task':
+      return {
+        label: page.jobRef ?? 'Task',
+        detail: `${page.title} · ${page.status}`
+      };
+    case 'jobs':
+      return { label: 'Job search', detail: page.query };
+    case 'operations':
+      return { label: SURFACE_LABELS[page.surface], detail: page.view };
+    case 'requests':
+      return { label: 'My requests' };
     case 'presales':
       return {
         label: 'Presales',
@@ -88,10 +148,32 @@ export function describeContext(page: AssistantPageContext): {
   }
 }
 
+const SURFACE_LABELS: Record<(typeof OPERATION_SURFACES)[number], string> = {
+  booking: 'Booking',
+  'intake-review': 'Intake review',
+  'commissioning-review': 'Commissioning review',
+  'goods-in': 'Goods in',
+  materials: 'Materials',
+  'merchant-orders': 'Merchant orders',
+  stock: 'Stock',
+  'installer-skills': 'Installer skills',
+  'my-installs': 'My installs',
+  planner: 'Planner',
+  scaffold: 'Scaffold bookings',
+  availability: 'Staff availability',
+  system: 'System health'
+};
+
 function filterSummary(
   filters: z.infer<typeof tasksPageContextSchema>['filters']
 ): string | undefined {
   if (!filters) return undefined;
-  const parts = [filters.status, filters.due, filters.owner].filter(Boolean);
+  const parts = [
+    filters.status,
+    filters.due,
+    filters.queue,
+    filters.owner,
+    filters.q
+  ].filter(Boolean);
   return parts.length ? parts.join(' · ') : undefined;
 }

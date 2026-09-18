@@ -13,6 +13,42 @@ export interface NavItem {
   items?: NavItem[];
 }
 
+/** Who a navigation entry is offered to (evaluated on the server). */
+export type NavAccess =
+  | 'any'
+  | 'office'
+  | 'officeManager'
+  | 'teamTasks'
+  | 'jobs'
+  | 'jobSales'
+  | 'presaleSubmit'
+  | 'admin'
+  | 'intakeReview'
+  | 'materials'
+  | 'stock'
+  | 'installer'
+  | 'commissioning'
+  | 'resourcing';
+
+export interface NavEntry {
+  title: string;
+  url: string;
+  icon: keyof typeof Icons;
+  shortcut?: [string, string];
+  access: NavAccess;
+}
+
+export interface NavGroup {
+  label: string;
+  items: NavEntry[];
+}
+
+/** The menu a signed-in person actually gets (serializable; built on the server). */
+export interface VisibleNavGroup {
+  label: string;
+  items: Omit<NavEntry, 'access'>[];
+}
+
 export interface NavItemWithChildren extends NavItem {
   items: NavItemWithChildren[];
 }

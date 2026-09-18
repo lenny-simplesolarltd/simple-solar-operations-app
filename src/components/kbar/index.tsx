@@ -1,7 +1,5 @@
 'use client';
-import { navItems } from '@/constants/data';
-import { visibleNavItems } from '@/components/layout/nav-visibility';
-import type { AppUser } from '@/lib/auth';
+import type { VisibleNavGroup } from '@/types';
 import {
   KBarAnimator,
   KBarPortal,
@@ -16,51 +14,30 @@ import useThemeSwitching from './use-theme-switching';
 
 export default function KBar({
   children,
-  user
+  nav
 }: {
   children: React.ReactNode;
-  user: AppUser;
+  /** The same server-built menu the sidebar shows. */
+  nav: VisibleNavGroup[];
 }) {
   const router = useRouter();
 
-  // These action are for the navigation
-  const actions = useMemo(() => {
-    // Define navigateTo inside the useMemo callback to avoid dependency array issues
-    const navigateTo = (url: string) => {
-      router.push(url);
-    };
-
-    return visibleNavItems(navItems, user).flatMap((navItem) => {
-      // Only include base action if the navItem has a real URL and is not just a container
-      const baseAction =
-        navItem.url !== '#'
-          ? {
-              id: `${navItem.title.toLowerCase()}Action`,
-              name: navItem.title,
-              shortcut: navItem.shortcut,
-              keywords: navItem.title.toLowerCase(),
-              section: 'Navigation',
-              subtitle: `Go to ${navItem.title}`,
-              perform: () => navigateTo(navItem.url)
-            }
-          : null;
-
-      // Map child items into actions
-      const childActions =
-        navItem.items?.map((childItem) => ({
-          id: `${childItem.title.toLowerCase()}Action`,
-          name: childItem.title,
-          shortcut: childItem.shortcut,
-          keywords: childItem.title.toLowerCase(),
-          section: navItem.title,
-          subtitle: `Go to ${childItem.title}`,
-          perform: () => navigateTo(childItem.url)
-        })) ?? [];
-
-      // Return only valid actions (ignoring null base actions for containers)
-      return baseAction ? [baseAction, ...childActions] : childActions;
-    });
-  }, [router, user]);
+  // One navigation action per visible menu entry, grouped like the sidebar.
+  const actions = useMemo(
+    () =>
+      nav.flatMap((group) =>
+        group.items.map((item) => ({
+          id: `nav:${item.url}`,
+          name: item.title,
+          shortcut: item.shortcut,
+          keywords: `${item.title} ${group.label}`.toLowerCase(),
+          section: group.label,
+          subtitle: `Go to ${item.title}`,
+          perform: () => router.push(item.url)
+        }))
+      ),
+    [router, nav]
+  );
 
   return (
     <KBarProvider actions={actions}>

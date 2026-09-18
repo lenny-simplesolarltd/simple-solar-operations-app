@@ -9,10 +9,14 @@ const VARIANT: Record<string, Variant> = {
   Open: 'secondary',
   InProgress: 'info',
   Waiting: 'warning',
-  Blocked: 'danger'
+  Blocked: 'danger',
+  Complete: 'success'
 };
 
-const LABEL: Record<string, string> = { InProgress: 'In progress' };
+const LABEL: Record<string, string> = {
+  InProgress: 'In progress',
+  NotRequired: 'Not required'
+};
 
 export function TaskStatusBadge({ status }: { status: string }) {
   return (
