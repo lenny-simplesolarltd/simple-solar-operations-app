@@ -50,6 +50,11 @@ export function volatileSystemPrompt(
 
   const lines = [
     `Signed-in staff member (resolved by the server from their session): ${actor.user.fullName ?? 'Unnamed'}; roles: ${actor.user.roles.join(', ')}.`,
+    ...(actor.previewing
+      ? [
+          'DEVELOPMENT PREVIEW MODE: a developer is viewing the application AS this staff member. Say so plainly if asked who you are helping. Everything is read-only: you have no mutation tools and must not propose changes. Only describe what this staff member can see.'
+        ]
+      : []),
     `Today is ${today} (Europe/London).`
   ];
   if (context) {

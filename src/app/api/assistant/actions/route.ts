@@ -6,6 +6,7 @@ import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { resolvePendingAction } from '@/features/assistant/server/confirm';
 import { getPendingActionService } from '@/features/assistant/server/pending-actions';
 import { createToolRegistry } from '@/features/assistant/server/tools';
+import { PREVIEW_READ_ONLY_MESSAGE } from '@/lib/preview/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,6 +25,9 @@ export async function POST(request: Request) {
   const actor = await resolveAssistantActor();
   if (!actor)
     return fail(401, 'NOT_AUTHENTICATED', 'Sign in to use the assistant.');
+  // The confirm endpoint is the assistant's write boundary: refuse outright in preview.
+  if (actor.previewing)
+    return fail(403, 'PREVIEW_MODE_READ_ONLY', PREVIEW_READ_ONLY_MESSAGE);
 
   let body: unknown;
   try {
