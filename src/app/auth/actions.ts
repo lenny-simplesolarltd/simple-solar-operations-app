@@ -2,7 +2,10 @@
 
 import { getSiteUrl } from '@/lib/site-url';
 import { getSupabaseEnv } from '@/lib/supabase/env';
+import { PREVIEW_COOKIE } from '@/lib/preview/config';
+import { previewWriteBlock } from '@/lib/preview/guard';
 import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import { createClient as createPlainClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -32,6 +35,8 @@ export async function signIn(
 }
 
 export async function signOut() {
+  // Preview never outlives the session that started it.
+  (await cookies()).delete(PREVIEW_COOKIE);
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect('/auth/sign-in');
@@ -48,6 +53,9 @@ export async function updatePassword(
   _prev: AuthFormState,
   formData: FormData
 ): Promise<AuthFormState> {
+  const blocked = await previewWriteBlock();
+  if (blocked) return { error: blocked };
+
   const parsed = passwordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 

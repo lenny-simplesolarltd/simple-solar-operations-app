@@ -15,5 +15,6 @@ export async function resolveAssistantActor(): Promise<ToolActor | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   const permissions = await getPermissions(user);
-  return { user, permissions };
+  // In preview `user` is the EFFECTIVE person (read visibility follows them).
+  return { user, permissions, previewing: Boolean(user.preview) };
 }

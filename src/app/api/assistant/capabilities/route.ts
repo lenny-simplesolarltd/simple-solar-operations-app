@@ -28,6 +28,9 @@ export async function GET() {
     configured: provider.ok,
     developmentMode: provider.ok && provider.developmentMode,
     notice: provider.ok ? undefined : provider.notice,
+    preview: actor.previewing
+      ? { name: actor.user.fullName ?? 'Staff member', roles: actor.user.roles }
+      : undefined,
     tools: registry
       .availableFor(actor)
       .map(({ name, kind, summary }) => ({ name, kind, summary })),

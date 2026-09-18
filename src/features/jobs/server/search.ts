@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createDataClient } from '@/lib/supabase/data';
 
 export interface JobSearchHit {
   id: string;
@@ -56,7 +56,7 @@ export async function searchVisibleJobs(
   const terms = searchTerms(query);
   if (terms.length === 0) return { hits: [], total: 0 };
 
-  const supabase = await createClient();
+  const supabase = await createDataClient();
 
   // A full job reference is an exact lookup.
   const compact = query.trim().toUpperCase();

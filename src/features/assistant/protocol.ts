@@ -164,6 +164,8 @@ export interface AssistantCapabilities {
   developmentMode: boolean;
   /** Staff-facing note when the assistant cannot answer yet. */
   notice?: string;
+  /** Development "View as user": who the assistant is answering AS. Read-only. */
+  preview?: { name: string; roles: string[] };
   tools: { name: string; kind: 'read' | 'mutation'; summary: string }[];
   planned: { name: string; kind: 'read' | 'mutation'; summary: string }[];
   /** Present outside production only. Never contains credentials. */

@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { createDataClient } from '@/lib/supabase/data';
 import type { AppUser } from '@/lib/auth';
 
 /** Permissions held through the user's roles. RLS and the database functions remain the enforcement point. */
 export async function getPermissions(user: AppUser): Promise<Set<string>> {
-  const supabase = await createClient();
+  const supabase = await createDataClient();
   const { data, error } = await supabase
     .from('role_permissions')
     .select('permission_code')
@@ -16,7 +16,7 @@ export async function getPermissions(user: AppUser): Promise<Set<string>> {
 export async function getSalespeople(): Promise<
   { id: string; displayName: string }[]
 > {
-  const supabase = await createClient();
+  const supabase = await createDataClient();
   const { data, error } = await supabase
     .from('person_roles')
     .select('people!person_roles_person_id_fkey(id, display_name, active)')
@@ -47,7 +47,7 @@ export interface JobListItem {
 
 /** Jobs visible to the current user under RLS (a Surveyor: their own; office: all), newest first. */
 export async function getVisibleJobs(): Promise<JobListItem[]> {
-  const supabase = await createClient();
+  const supabase = await createDataClient();
   const { data, error } = await supabase
     .from('jobs')
     .select(
