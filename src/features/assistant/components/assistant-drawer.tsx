@@ -76,21 +76,34 @@ export function AssistantDrawer() {
   }, [open, docked]);
 
   const panel = (mode: 'docked' | 'sheet') => (
-    <AssistantPanel
-      conversation={conversation.state}
-      page={shell.page}
-      capabilities={shell.capabilities}
-      capabilitiesError={shell.capabilitiesError}
-      onSend={conversation.send}
-      onStop={conversation.stop}
-      onRetry={conversation.retry}
-      onReset={conversation.reset}
-      onDecide={conversation.decide}
-      onClose={mode === 'docked' ? () => setOpen(false) : undefined}
-      onNavigate={mode === 'sheet' ? () => setOpen(false) : undefined}
-      active={open}
-      headingId={`assistant-heading-${mode}`}
-    />
+    <>
+      {shell.capabilities?.preview && (
+        <p
+          role='status'
+          data-testid='assistant-preview-notice'
+          className='border-b-2 border-black bg-amber-400 px-3 py-1.5 text-center text-xs font-semibold text-black'
+        >
+          PREVIEW MODE — answering as {shell.capabilities.preview.name} (
+          {shell.capabilities.preview.roles.join(', ')}). Read-only: no changes
+          can be made.
+        </p>
+      )}
+      <AssistantPanel
+        conversation={conversation.state}
+        page={shell.page}
+        capabilities={shell.capabilities}
+        capabilitiesError={shell.capabilitiesError}
+        onSend={conversation.send}
+        onStop={conversation.stop}
+        onRetry={conversation.retry}
+        onReset={conversation.reset}
+        onDecide={conversation.decide}
+        onClose={mode === 'docked' ? () => setOpen(false) : undefined}
+        onNavigate={mode === 'sheet' ? () => setOpen(false) : undefined}
+        active={open}
+        headingId={`assistant-heading-${mode}`}
+      />
+    </>
   );
 
   if (docked) {
@@ -103,7 +116,7 @@ export function AssistantDrawer() {
           if (e.key === 'Escape' && !e.defaultPrevented) setOpen(false);
         }}
         className={cn(
-          'fixed top-14 right-0 bottom-0 z-30 w-[27.5rem] max-w-full border-l shadow-xl transition-[translate,visibility] duration-300 ease-out motion-reduce:transition-none min-[1400px]:shadow-none',
+          'fixed top-[calc(3.5rem+var(--preview-banner-h,0px))] right-0 bottom-0 z-30 w-[27.5rem] max-w-full border-l shadow-xl transition-[translate,visibility] duration-300 ease-out motion-reduce:transition-none min-[1400px]:shadow-none',
           open ? 'visible translate-x-0' : 'invisible translate-x-full'
         )}
       >

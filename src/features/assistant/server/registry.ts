@@ -38,6 +38,8 @@ export type ToolDomain =
 export interface ToolActor {
   user: AppUser;
   permissions: ReadonlySet<string>;
+  /** Development "View as user" preview: read tools only; every mutation is unavailable. */
+  previewing?: boolean;
 }
 
 export interface ToolContext {
@@ -175,7 +177,9 @@ export class ToolRegistry {
   availableFor(actor: ToolActor): AvailableTool[] {
     return this.all().filter(
       (t): t is AvailableTool =>
-        t.status === 'available' && isPermitted(t, actor)
+        t.status === 'available' &&
+        isPermitted(t, actor) &&
+        !(actor.previewing && t.kind === 'mutation')
     );
   }
 }

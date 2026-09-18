@@ -1,5 +1,6 @@
 'use server';
 
+import { previewWriteBlock } from '@/lib/preview/guard';
 import { createClient } from '@/lib/supabase/server';
 import type {
   JobSoldResult,
@@ -21,6 +22,10 @@ export async function submitPresale(
   commandId: string,
   submission: PresaleSubmission
 ): Promise<SubmitResult> {
+  const blocked = await previewWriteBlock();
+  if (blocked)
+    return { ok: false, code: 'PREVIEW_MODE_READ_ONLY', message: blocked };
+
   if (!UUID.test(commandId)) {
     return {
       ok: false,
