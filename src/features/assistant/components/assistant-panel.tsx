@@ -295,6 +295,15 @@ export function AssistantPanel({
           Answers come from live job and task data you have access to. Changes
           always need your confirmation.
         </p>
+        {capabilities?.diagnostics && (
+          <p className='text-muted-foreground/80 mt-1 px-1 font-mono text-[10px]'>
+            dev · {capabilities.diagnostics.provider} ·{' '}
+            {capabilities.diagnostics.model}
+            {conversation.servedBy &&
+              conversation.servedBy !== capabilities.diagnostics.model &&
+              ` → ${conversation.servedBy}`}
+          </p>
+        )}
       </footer>
     </section>
   );

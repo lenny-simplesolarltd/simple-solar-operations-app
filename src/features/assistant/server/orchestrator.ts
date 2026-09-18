@@ -111,6 +111,7 @@ export async function runAssistantTurn(
 
   const turnMessages: ModelMessage[] = [{ role: 'user', text: input.message }];
   let toolCallCount = 0;
+  let servedBy: string | undefined;
   let stopReason: Extract<
     AssistantStreamEvent,
     { type: 'turn_end' }
@@ -142,6 +143,7 @@ export async function runAssistantTurn(
           }
         }
       );
+      servedBy = turn.servedBy ?? servedBy;
       // Providers that do not stream still get their text shown.
       if (!streamed && turn.text) emit({ type: 'text_delta', text: turn.text });
 
@@ -161,11 +163,14 @@ export async function runAssistantTurn(
 
       if (turn.stopReason === 'max_tokens' || turn.toolCalls.length === 0) {
         // Tool input cut off by the token limit is not trustworthy either.
-        turnMessages.push({
-          role: 'assistant',
-          text: turn.text,
-          toolCalls: []
-        });
+        let text = turn.text;
+        if (!text.trim()) {
+          // Some models occasionally end a turn without saying anything.
+          text =
+            'I don’t have anything to add to that. Try asking another way.';
+          emit({ type: 'text_delta', text });
+        }
+        turnMessages.push({ role: 'assistant', text, toolCalls: [] });
         if (turn.stopReason === 'max_tokens') stopReason = 'truncated';
         break;
       }
@@ -211,6 +216,10 @@ export async function runAssistantTurn(
     if (signal?.aborted) return;
     const known = error instanceof AssistantProviderError ? error : null;
     if (known?.code === 'ABORTED') return;
+    if (known?.cause) {
+      // eslint-disable-next-line no-console -- upstream detail for operators; the browser gets the safe message
+      console.error(`assistant provider error ${known.code}:`, known.cause);
+    }
     // eslint-disable-next-line no-console -- server-side diagnostics
     if (!known) console.error('assistant turn failed', error);
     emit({
@@ -227,6 +236,7 @@ export async function runAssistantTurn(
   emit({
     type: 'turn_end',
     stopReason,
+    ...(process.env.NODE_ENV !== 'production' && servedBy && { servedBy }),
     // providerRaw stays on the server: the browser only ever holds the neutral transcript.
     transcript: turnMessages.map(toTranscriptMessage)
   });

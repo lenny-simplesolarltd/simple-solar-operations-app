@@ -156,4 +156,23 @@ describe('signed in', () => {
     expect(response.status).toBe(409);
     expect((await response.json()).error.code).toBe('ACTION_INVALID');
   });
+
+  it('shows the active provider and model to developers only, and never a key', async () => {
+    vi.stubEnv('ASSISTANT_PROVIDER', 'gemini');
+    vi.stubEnv('GEMENI_API_KEY', 'super-secret-value');
+    vi.stubEnv('GEMINI_MODEL', '');
+
+    vi.stubEnv('NODE_ENV', 'development');
+    const dev = await (await capabilities()).json();
+    expect(dev.diagnostics).toMatchObject({
+      provider: 'gemini',
+      model: 'gemini-flash-latest'
+    });
+    expect(JSON.stringify(dev)).not.toContain('super-secret-value');
+
+    vi.stubEnv('NODE_ENV', 'production');
+    const prod = await (await capabilities()).json();
+    expect(prod.configured).toBe(true);
+    expect(prod.diagnostics).toBeUndefined();
+  });
 });

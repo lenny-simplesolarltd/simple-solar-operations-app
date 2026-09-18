@@ -39,6 +39,8 @@ export interface ModelTurn {
   /** Echoed back on the next request of the same turn (e.g. reasoning blocks some vendors require). Never sent to the browser. */
   providerRaw?: unknown;
   usage?: { inputTokens: number; outputTokens: number };
+  /** The concrete model that answered, when the provider reports it (aliases resolve to a version). */
+  servedBy?: string;
 }
 
 export interface GenerateOptions {
