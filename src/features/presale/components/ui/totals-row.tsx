@@ -1,3 +1,5 @@
+import { cx } from './cx';
+
 export function TotalsRow({
   label,
   value,
@@ -16,7 +18,7 @@ export function TotalsRow({
     );
   }
   return (
-    <div className={`totals-row${emphasis === 'grand' ? 'grand' : ''}`}>
+    <div className={cx('totals-row', emphasis === 'grand' && 'grand')}>
       <span>{label}</span>
       <span className='num'>{value}</span>
     </div>

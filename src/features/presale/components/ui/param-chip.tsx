@@ -4,6 +4,7 @@ import { useId } from 'react';
 
 import { toNum, type NumInput } from '../../designer/types';
 import { NumberInput } from './number-input';
+import { cx } from './cx';
 
 export interface ParamChipProps {
   label: string;
@@ -39,7 +40,7 @@ export function ParamChip({
   };
 
   return (
-    <div className={`param-chip${edge ? ` ${edge}` : ''}`}>
+    <div className={cx('param-chip', edge)}>
       <label htmlFor={id}>
         <span>{label}</span>
         {/* step="any": the buttons own the step, so typed values such as 8.25

@@ -1,5 +1,7 @@
 'use client';
 
+import { type CSSProperties } from 'react';
+
 export interface ToggleOption<T extends string> {
   value: T;
   label: string;
@@ -13,7 +15,7 @@ export interface TogglePairProps<T extends string> {
   /** Red-edged while no option is chosen. */
   flagUnset?: boolean;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 /** Segmented control; the active segment is filled amber. */

@@ -20,6 +20,8 @@ const mono = IBM_Plex_Mono({
 
 const display = Big_Shoulders({
   subsets: ['latin'],
+  // next/font has no fallback metrics for this family; headings tolerate the swap.
+  adjustFontFallback: false,
   axes: ['opsz'],
   variable: '--font-presale-display',
   display: 'swap'
