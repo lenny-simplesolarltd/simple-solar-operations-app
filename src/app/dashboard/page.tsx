@@ -25,6 +25,9 @@ export default async function DashboardPage() {
             </Button>
           )}
           <Button asChild variant='outline'>
+            <Link href='/dashboard/tasks'>Tasks</Link>
+          </Button>
+          <Button asChild variant='outline'>
             <Link href='/dashboard/presales'>
               {permissions.has('job.read.all') ? 'Sold jobs' : 'My presales'}
             </Link>

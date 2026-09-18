@@ -90,7 +90,12 @@ export default async function PresalesPage() {
                 {jobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell className='font-mono font-semibold whitespace-nowrap'>
-                      {job.jobRef}
+                      <Link
+                        className='underline'
+                        href={`/dashboard/jobs/${job.id}`}
+                      >
+                        {job.jobRef}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       {job.customerName}

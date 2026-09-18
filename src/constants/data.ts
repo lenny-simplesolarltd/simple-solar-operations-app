@@ -27,6 +27,14 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Tasks',
+    url: '/dashboard/tasks',
+    icon: 'check',
+    isActive: false,
+    shortcut: ['t', 't'],
+    items: []
+  },
+  {
     title: 'People & access',
     url: '/dashboard/people',
     icon: 'user',
