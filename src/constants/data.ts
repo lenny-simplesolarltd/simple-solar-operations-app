@@ -53,6 +53,25 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Operations',
+    items: [
+      {
+        title: 'Booking',
+        url: '/dashboard/booking',
+        icon: 'booking',
+        shortcut: ['b', 'b'],
+        access: 'office'
+      },
+      {
+        title: 'Intake review',
+        url: '/dashboard/intake',
+        icon: 'intake',
+        shortcut: ['i', 'r'],
+        access: 'intakeReview'
+      }
+    ]
+  },
+  {
     label: 'Sales',
     items: [
       {

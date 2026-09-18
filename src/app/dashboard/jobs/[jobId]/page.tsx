@@ -16,13 +16,19 @@ import {
 } from '@/features/jobs/server/queries';
 import { stageLabel } from '@/features/jobs/stages';
 import { TaskTable } from '@/features/jobs/task-table';
+import { Button } from '@/components/ui/button';
 import { getCurrentUser } from '@/lib/auth';
+import { isOfficeClass } from '@/lib/roles';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
 export const metadata: Metadata = { title: 'Job | Simple Solar Operations' };
 
 const UUID = /^[0-9a-f-]{36}$/i;
+
+// Stages at which BOOKING_INTAKE accepts a booking form (the page re-checks).
+const BOOKING_STAGES = ['Prebooking', 'ReadyToBook', 'BookingInProgress'];
 
 function Row({
   label,
@@ -90,7 +96,17 @@ export default async function JobPage({
             title={job.job_ref}
             description={`${customer.first_name} ${customer.last_name} · ${customer.postcode} · sold ${formatDate(job.sold_at)}`}
           />
-          <Badge>{stageLabel(job.workflow_stage)}</Badge>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Badge>{stageLabel(job.workflow_stage)}</Badge>
+            {isOfficeClass(user) &&
+              BOOKING_STAGES.includes(job.workflow_stage) && (
+                <Button asChild size='sm' variant='outline'>
+                  <Link href={`/dashboard/jobs/${job.id}/booking`}>
+                    Booking form
+                  </Link>
+                </Button>
+              )}
+          </div>
         </div>
 
         <JobTabNav

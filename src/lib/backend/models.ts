@@ -383,3 +383,164 @@ export interface JobAvailabilityRead {
   assigned: boolean;
   commands: Record<string, CommandFlag>;
 }
+
+// -----------------------------------------------------------------------------
+// Booking (BOOKING_BOARD, BOOKING_FORM) and Intake Review (INTAKE_REVIEW_QUEUE)
+// -----------------------------------------------------------------------------
+
+export interface GateSummary {
+  summary: string | null;
+  ready: boolean;
+  failing: { name: string; detail: string | null; blocking: boolean }[];
+}
+
+export interface BookingSchedule {
+  roof_date: string | null;
+  electrical_date: string | null;
+  scaffold_date: string | null;
+  team: {
+    trade: string;
+    role: string | null;
+    person_id: string;
+    name: string | null;
+  }[];
+}
+
+export const BOOKING_VIEWS = [
+  'prebooking',
+  'ready',
+  'in_progress',
+  'upcoming'
+] as const;
+export type BookingView = (typeof BOOKING_VIEWS)[number];
+
+export interface BookingBoardRow {
+  id: string;
+  job_ref: string;
+  version: number;
+  workflow_stage: string;
+  customer_name: string | null;
+  postcode: string | null;
+  town: string | null;
+  finance_route: string | null;
+  sold_at: string | null;
+  salesperson_name: string | null;
+  match_status: string | null;
+  booking_submitted: boolean;
+  booking_approved_at: string | null;
+  in_review: boolean;
+  open_booking_tasks: number;
+  schedule: BookingSchedule;
+  gates: GateSummary | null;
+  commands: { booking_intake: CommandFlag; confirm_booking: CommandFlag };
+}
+
+export interface BookingBoardRead {
+  view: BookingView;
+  q: string | null;
+  as_of: string;
+  counts: Record<BookingView, number>;
+  count: number;
+  total: number;
+  truncated: boolean;
+  can_confirm: boolean;
+  jobs: BookingBoardRow[];
+}
+
+export interface IntakeError {
+  error: string;
+  detail?: string | null;
+  field?: string | null;
+}
+
+export interface BookingFormRead {
+  job: {
+    id: string;
+    job_ref: string;
+    version: number;
+    workflow_stage: string;
+    finance_route: string;
+    roof_required: boolean;
+    electrical_required: boolean;
+    scaffold_required: boolean;
+    match_status: string | null;
+    booking_submitted: boolean;
+    gross_pence: number | null;
+  };
+  customer: {
+    first_name: string | null;
+    last_name: string | null;
+    street_address: string | null;
+    city: string | null;
+    postcode: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+  current: {
+    schedule: BookingSchedule;
+    scaffold: {
+      status: string;
+      company_id: string | null;
+      company: string | null;
+      erect_planned_at: string | null;
+      access_notes: string | null;
+    } | null;
+    merchant: { id: string; name: string } | null;
+    technical: {
+      solar_kw: number | null;
+      annual_generation: number | null;
+      roofing_notes: string | null;
+      electrical_notes: string | null;
+      roof_hooks_type: string | null;
+      ordering_notes: string | null;
+    } | null;
+    last_intake: {
+      status: string;
+      received_at: string;
+      errors: IntakeError[];
+    } | null;
+  };
+  options: {
+    installers: { id: string; name: string }[];
+    merchants: { id: string; name: string }[];
+    scaffolders: { id: string; name: string }[];
+  };
+  materials: {
+    key: string;
+    description: string;
+    unit: string;
+    category: string | null;
+    derived_total: boolean;
+  }[];
+  gates: GateSummary | null;
+  commands: { booking_intake: CommandFlag; confirm_booking: CommandFlag };
+  assigned: boolean;
+}
+
+export interface IntakeReviewItem {
+  id: string;
+  intake_id: string;
+  form_type: string;
+  received_at: string;
+  errors: IntakeError[];
+  job: {
+    id: string;
+    job_ref: string;
+    workflow_stage: string;
+    match_status: string | null;
+    customer_name: string | null;
+    postcode: string | null;
+    can_open: boolean;
+  } | null;
+  customer_changes: {
+    field_name: string;
+    previous_value: string | null;
+    incoming_value: string | null;
+    created_at: string;
+  }[];
+}
+
+export interface IntakeReviewRead {
+  count: number;
+  items: IntakeReviewItem[];
+}

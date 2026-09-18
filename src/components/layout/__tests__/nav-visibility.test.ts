@@ -54,6 +54,15 @@ describe('visibleNavGroups', () => {
     }
   });
 
+  it('offers booking to the office and intake review to office managers', () => {
+    expect(urls(['Director'])).toContain('/dashboard/booking');
+    expect(urls(['Director'])).not.toContain('/dashboard/intake');
+    expect(urls(['Office'])).toEqual(
+      expect.arrayContaining(['/dashboard/booking', '/dashboard/intake'])
+    );
+    expect(urls(['Surveyor'])).not.toContain('/dashboard/booking');
+  });
+
   it('shows admin only to admins', () => {
     expect(urls(['Manager'])).toContain('/dashboard/people');
     expect(urls(['Director'])).not.toContain('/dashboard/people');

@@ -160,9 +160,14 @@ export default async function DashboardPage() {
     {
       label: 'Booking queue',
       value: ops.booking_queue,
-      href: '/dashboard/tasks?scope=team&queue=booking'
+      href: '/dashboard/booking?view=queue'
     },
-    { label: 'Intake review', value: ops.intake_review, tone: 'warning' },
+    {
+      label: 'Intake review',
+      value: ops.intake_review,
+      href: '/dashboard/intake',
+      tone: 'warning'
+    },
     {
       label: 'Commissioning review',
       value: ops.commissioning_review,
