@@ -3,65 +3,26 @@
 // Runs against the LOCAL Supabase stack only (`npm run test:db` resets it
 // first). Every assertion goes through the real path:
 //   Supabase Auth session -> auth.uid() -> people -> person_roles -> RLS.
-import { createClient } from '@supabase/supabase-js';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { before, describe, test } from 'node:test';
+import {
+  PASSWORD,
+  anon,
+  email,
+  person,
+  service,
+  signInAs
+} from './helpers.mjs';
 
-const env = Object.fromEntries(
-  execFileSync('supabase', ['status', '-o', 'env'], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore']
-  })
-    .split('\n')
-    .map((line) => line.match(/^([A-Z_]+)="?(.*?)"?$/))
-    .filter(Boolean)
-    .map(([, key, value]) => [key, value])
-);
-
-const API_URL = env.API_URL;
-assert.match(
-  API_URL ?? '',
-  /^http:\/\/(127\.0\.0\.1|localhost):/,
-  'identity tests only run against the local Supabase stack'
-);
-
-const PASSWORD = 'local-test-password-1';
-const options = { auth: { persistSession: false, autoRefreshToken: false } };
-const service = createClient(API_URL, env.SERVICE_ROLE_KEY, options);
-const anon = createClient(API_URL, env.ANON_KEY, options);
-
-async function createLogin(email, { confirmed = true } = {}) {
+async function createLogin(address, { confirmed = true } = {}) {
   const { data, error } = await service.auth.admin.createUser({
-    email,
+    email: address,
     password: PASSWORD,
     email_confirm: confirmed
   });
   assert.ifError(error);
   return data.user;
 }
-
-async function signInAs(email) {
-  const client = createClient(API_URL, env.ANON_KEY, options);
-  const { error } = await client.auth.signInWithPassword({
-    email,
-    password: PASSWORD
-  });
-  assert.ifError(error);
-  return client;
-}
-
-async function person(legacyId) {
-  const { data, error } = await service
-    .from('people')
-    .select('*')
-    .eq('legacy_id', legacyId)
-    .single();
-  assert.ifError(error);
-  return data;
-}
-
-const email = (name) => `${name}@simplesolarltd.co.uk`;
 
 let mike, hannah, lenny, tanya, stranger;
 

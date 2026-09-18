@@ -47,3 +47,6 @@ next-env.d.ts
 # Raw spreadsheet exports contain staff personal data. The reviewed import lives
 # in supabase/seeds.
 /*.csv
+
+# Local-only operator files (initial passwords etc.)
+/.local/

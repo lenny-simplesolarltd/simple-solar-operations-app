@@ -13,7 +13,8 @@
     "format:check": "prettier -c -w .",
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
-    "test:db": "supabase db reset && node --test 'tests/*.test.mjs'",
+    "test:db": "supabase db reset && node --test --test-concurrency=1 'tests/*.test.mjs'",
+    "test:unit": "vitest run",
     "db:types": "supabase gen types typescript --local > src/types/database.ts"
   },
   "lint-staged": {
@@ -93,6 +94,7 @@
     "lint-staged": "^15.2.11",
     "prettier": "3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.11",
-    "tw-animate-css": "^1.2.4"
+    "tw-animate-css": "^1.2.4",
+    "vitest": "^4.1.11"
   }
 }
