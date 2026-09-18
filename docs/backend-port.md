@@ -33,6 +33,7 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | `r1-appsheet/command-result.js` (R2–R4 codes) | `20260919167000_result_catalogue_r2r4.sql` |
 | view-port read models (TASKS, TASK_DETAIL, JOBS, OFFICE_DASHBOARD, MY_REQUESTS) + canonical read visibility | `20260919170000_view_port_reads.sql` |
 | view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
+| view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role

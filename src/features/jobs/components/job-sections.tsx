@@ -13,6 +13,7 @@ import {
 import { getStaffOptions } from '@/features/tasks/server/queries';
 import type { AuditHistoryRead, JobOverviewRead } from '@/lib/backend/models';
 import { readR1 } from '@/lib/backend/read';
+import Link from 'next/link';
 import { formatDate, formatDateTime, pounds } from '../format';
 
 // Job Detail tabs backed by the R1 read models (execute_read). Each tab reads
@@ -116,7 +117,15 @@ export async function WorkTab({ jobId }: { jobId: string }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className='text-base'>Materials</CardTitle>
+            <CardTitle className='flex items-center justify-between text-base'>
+              Materials
+              <Link
+                href={`/dashboard/materials/${jobId}`}
+                className='text-xs font-normal underline underline-offset-4'
+              >
+                open
+              </Link>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Row label='Lines'>{materials.materials_count}</Row>

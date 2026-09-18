@@ -175,7 +175,13 @@ export default async function DashboardPage() {
     },
     { label: 'Open issues', value: ops.open_issues },
     { label: 'Blocking issues', value: ops.blocking_issues, tone: 'danger' },
-    { label: 'Draft orders', value: ops.draft_orders },
+    {
+      label: 'Draft orders',
+      value: ops.draft_orders,
+      href: canSee('materials', user, permissions)
+        ? '/dashboard/orders?view=draft'
+        : undefined
+    },
     { label: 'Installs, next 14 days', value: ops.installs_next_14_days },
     {
       label: 'Unallocated installs',

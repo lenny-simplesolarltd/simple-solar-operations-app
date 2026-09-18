@@ -63,6 +63,20 @@ describe('visibleNavGroups', () => {
     expect(urls(['Surveyor'])).not.toContain('/dashboard/booking');
   });
 
+  it('gives the store materials, goods in and stock but not booking', () => {
+    const store = urls(['Store']);
+    expect(store).toEqual(
+      expect.arrayContaining([
+        '/dashboard/materials',
+        '/dashboard/orders',
+        '/dashboard/goods-in',
+        '/dashboard/stock'
+      ])
+    );
+    expect(store).not.toContain('/dashboard/booking');
+    expect(urls(['Office'])).not.toContain('/dashboard/stock');
+  });
+
   it('shows admin only to admins', () => {
     expect(urls(['Manager'])).toContain('/dashboard/people');
     expect(urls(['Director'])).not.toContain('/dashboard/people');

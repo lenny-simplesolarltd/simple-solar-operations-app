@@ -72,6 +72,39 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Materials',
+    items: [
+      {
+        title: 'Materials',
+        url: '/dashboard/materials',
+        icon: 'materials',
+        shortcut: ['m', 'm'],
+        access: 'materials'
+      },
+      {
+        title: 'Merchant orders',
+        url: '/dashboard/orders',
+        icon: 'orders',
+        shortcut: ['m', 'o'],
+        access: 'materials'
+      },
+      {
+        title: 'Goods in',
+        url: '/dashboard/goods-in',
+        icon: 'goodsIn',
+        shortcut: ['g', 'i'],
+        access: 'materials'
+      },
+      {
+        title: 'Stock',
+        url: '/dashboard/stock',
+        icon: 'stock',
+        shortcut: ['s', 's'],
+        access: 'stock'
+      }
+    ]
+  },
+  {
     label: 'Sales',
     items: [
       {
