@@ -9,5 +9,21 @@ export const navItems: NavItem[] = [
     isActive: false,
     shortcut: ['d', 'd'],
     items: []
+  },
+  {
+    title: 'New presale',
+    url: '/dashboard/presales/new',
+    icon: 'add',
+    isActive: false,
+    shortcut: ['n', 'p'],
+    items: []
+  },
+  {
+    title: 'Presales',
+    url: '/dashboard/presales',
+    icon: 'page',
+    isActive: false,
+    shortcut: ['p', 'p'],
+    items: []
   }
 ];

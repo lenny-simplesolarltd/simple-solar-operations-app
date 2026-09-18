@@ -43,13 +43,22 @@ session -> auth.uid() -> people.auth_user_id -> person_roles -> RLS
 
 ## Getting started
 
+The app runs against the **hosted** Supabase project with real Supabase Auth.
+
 ```bash
 npm install
-supabase start                  # local Postgres + Auth (Docker)
-supabase status -o env          # copy API_URL / ANON_KEY into .env.local
-node scripts/dev-create-login.mjs you@simplesolarltd.co.uk 'a-long-password'
+# .env needs NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+# (Supabase dashboard > Project Settings > API keys)
 npm run dev
 ```
+
+Accounts are invite-only: create the login in Supabase Auth with the person's
+work email; it links to their `people` row automatically once the email is
+verified. People without a login stay in the directory for scheduling and tasks.
+
+Schema changes are migrations in `supabase/migrations`, applied with
+`supabase db push`. The local Supabase stack (`supabase start`, ports 5532x) is
+used **only** by the automated tests, which reset it - never point tests at hosted.
 
 ## Scripts
 
@@ -58,7 +67,8 @@ npm run dev
 - `npm run typecheck` - TypeScript check
 - `npm run lint` - ESLint
 - `npm run format` - Prettier
-- `npm run test:db` - reset the local database and run the identity/RLS tests
+- `npm run test:db` - reset the LOCAL database and run the identity + Job Sold integration tests
+- `npm run test:unit` - designer calculation tests
 - `npm run db:types` - regenerate `src/types/database.ts` from the local schema
 
 ## Project structure
