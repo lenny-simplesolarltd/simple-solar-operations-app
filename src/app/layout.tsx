@@ -12,7 +12,7 @@ import './theme.css';
 
 const META_THEME_COLORS = {
   light: '#ffffff',
-  dark: '#09090b'
+  dark: '#0b0b0b'
 };
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ export default async function RootLayout({
   const isScaled = activeThemeValue?.endsWith('-scaled');
 
   return (
-    <html lang='en' suppressHydrationWarning>
+    <html lang='en' className={fontVariables} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -52,8 +52,7 @@ export default async function RootLayout({
         className={cn(
           'bg-background font-sans antialiased',
           activeThemeValue ? `theme-${activeThemeValue}` : '',
-          isScaled ? 'theme-scaled' : '',
-          fontVariables
+          isScaled ? 'theme-scaled' : ''
         )}
       >
         <NextTopLoader color='var(--primary)' showSpinner={false} />

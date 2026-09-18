@@ -2,8 +2,9 @@ import { getSupabaseEnv } from '@/lib/supabase/env';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-// Keeps the Supabase session cookie fresh. Authorization is NOT decided here:
-// pages resolve the actor through getCurrentUser() and the database enforces RLS.
+// Keeps the Supabase session cookie fresh and turns away signed-out visitors.
+// Authorization is NOT decided here: pages resolve the actor through
+// getCurrentUser() and the database enforces RLS.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const { url, anonKey } = getSupabaseEnv();
@@ -25,7 +26,15 @@ export async function proxy(request: NextRequest) {
     }
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  // Protected routes: no session, no page. (Pages still resolve the actor and
+  // the database still enforces RLS - this is the outer gate, not the only one.)
+  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/auth/sign-in', request.url));
+  }
 
   return response;
 }

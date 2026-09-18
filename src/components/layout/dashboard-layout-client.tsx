@@ -19,7 +19,7 @@ export function DashboardLayoutClient({
   user
 }: DashboardLayoutClientProps) {
   return (
-    <KBar>
+    <KBar user={user}>
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar user={user} />
         <SidebarInset>

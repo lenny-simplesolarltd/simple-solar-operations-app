@@ -310,3 +310,7 @@ create policy job_equipment_select on public.job_equipment
   using ((select app.is_office_class()) or app.holds_active_allocation(work_package_id));
 create policy handover_select on public.handover
   for select to authenticated using ((select app.is_office_class()));
+<<<<<<< HEAD
+=======
+
+>>>>>>> main

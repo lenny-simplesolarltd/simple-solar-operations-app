@@ -106,3 +106,7 @@ create policy mapping_rules_select on public.mapping_rules
   for select to authenticated using ((select app.is_admin()));
 create policy customer_changes_select on public.customer_changes
   for select to authenticated using ((select app.is_office_class()));
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
