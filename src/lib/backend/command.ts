@@ -40,6 +40,16 @@ const ENVELOPE = new Set([
   'payload'
 ]);
 
+const NEEDS_REVIEW: Record<string, string> = {
+  INSTALLER_INACTIVE_OR_WRONG_ROLE: 'That person is not an active installer',
+  CAPACITY_NOT_CONFIGURED: 'That installer has no daily capacity set',
+  INSTALLER_UNAVAILABLE: 'That installer is outside their available dates',
+  ON_LEAVE: 'That installer is on leave then',
+  SKILL_MISMATCH: 'That installer does not have this skill',
+  OFFICE_HOLIDAY: 'Those dates include an office holiday',
+  CAPACITY_CONFLICT: 'That installer is already fully booked then'
+};
+
 const FALLBACK: CommandOutcome = {
   status: 'Failed',
   heading: 'COULD NOT COMPLETE',
@@ -114,6 +124,24 @@ export async function runCommand(
     result: Record<string, unknown>;
     replayed: boolean;
   };
+
+  // R2 planning commands answer "NeedsReview" when the person chosen is not
+  // eligible: the command succeeded but wrote nothing. Never word that as done.
+  if (response.result?.status === 'NeedsReview') {
+    const reason = String(response.result.reason ?? 'REVIEW');
+    return {
+      ok: true,
+      outcome: {
+        status: 'ActionRequired',
+        heading: 'NOTHING CHANGED',
+        message: `${NEEDS_REVIEW[reason] ?? 'This needs a person to review it'}. Nothing was saved.`,
+        code: reason
+      },
+      result: response.result,
+      replayed: response.replayed
+    };
+  }
+
   const described = await supabase.rpc('describe_command_result', {
     p_command_type: request.command_type,
     p_result: data

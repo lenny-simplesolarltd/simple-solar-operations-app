@@ -171,6 +171,9 @@ export default async function DashboardPage() {
     {
       label: 'Commissioning review',
       value: ops.commissioning_review,
+      href: canSee('commissioning', user, permissions)
+        ? '/dashboard/commissioning'
+        : undefined,
       tone: 'warning'
     },
     { label: 'Open issues', value: ops.open_issues },
@@ -182,10 +185,19 @@ export default async function DashboardPage() {
         ? '/dashboard/orders?view=draft'
         : undefined
     },
-    { label: 'Installs, next 14 days', value: ops.installs_next_14_days },
+    {
+      label: 'Installs, next 14 days',
+      value: ops.installs_next_14_days,
+      href: canSee('resourcing', user, permissions)
+        ? '/dashboard/planner'
+        : undefined
+    },
     {
       label: 'Unallocated installs',
       value: ops.unallocated_next_14_days,
+      href: canSee('resourcing', user, permissions)
+        ? '/dashboard/planner?view=board'
+        : undefined,
       tone: 'warning'
     },
     {

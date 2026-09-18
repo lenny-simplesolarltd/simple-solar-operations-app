@@ -72,6 +72,58 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Planning',
+    items: [
+      {
+        title: 'Planner',
+        url: '/dashboard/planner',
+        icon: 'planner',
+        shortcut: ['p', 'l'],
+        access: 'resourcing'
+      },
+      {
+        title: 'Scaffold bookings',
+        url: '/dashboard/scaffold',
+        icon: 'scaffold',
+        shortcut: ['s', 'b'],
+        access: 'resourcing'
+      },
+      {
+        title: 'Staff availability',
+        url: '/dashboard/availability',
+        icon: 'availability',
+        shortcut: ['s', 'a'],
+        access: 'resourcing'
+      },
+      {
+        title: 'Installer skills',
+        url: '/dashboard/skills',
+        icon: 'skills',
+        shortcut: ['i', 's'],
+        access: 'resourcing'
+      }
+    ]
+  },
+  {
+    label: 'Installs',
+    items: [
+      {
+        title: 'My installs',
+        url: '/dashboard/installs',
+        icon: 'install',
+        shortcut: ['m', 'i'],
+        access: 'installer'
+      },
+      {
+        title: 'Commissioning review',
+        url: '/dashboard/commissioning',
+        icon: 'commissioning',
+        shortcut: ['c', 'r'],
+        access: 'commissioning'
+      }
+    ]
+  },
+  {
     label: 'Materials',
     items: [
       {

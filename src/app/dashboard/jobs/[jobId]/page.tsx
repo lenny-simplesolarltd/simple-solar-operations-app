@@ -29,6 +29,13 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 // Stages at which BOOKING_INTAKE accepts a booking form (the page re-checks).
 const BOOKING_STAGES = ['Prebooking', 'ReadyToBook', 'BookingInProgress'];
+// Stages at which MOVE_JOB accepts a move.
+const MOVABLE_STAGES = [
+  'BookingInProgress',
+  'Booked',
+  'AwaitingInstallation',
+  'InProgress'
+];
 
 function Row({
   label,
@@ -104,6 +111,12 @@ export default async function JobPage({
                   <Link href={`/dashboard/jobs/${job.id}/booking`}>
                     Booking form
                   </Link>
+                </Button>
+              )}
+            {isOfficeClass(user) &&
+              MOVABLE_STAGES.includes(job.workflow_stage) && (
+                <Button asChild size='sm' variant='outline'>
+                  <Link href={`/dashboard/jobs/${job.id}/move`}>Move job</Link>
                 </Button>
               )}
           </div>

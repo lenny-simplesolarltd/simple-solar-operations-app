@@ -34,7 +34,8 @@ const SEGMENT_TITLES: Record<string, string> = {
   planner: 'Planner',
   scaffold: 'Scaffold bookings',
   availability: 'Staff availability',
-  system: 'System health'
+  system: 'System health',
+  move: 'Move job'
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

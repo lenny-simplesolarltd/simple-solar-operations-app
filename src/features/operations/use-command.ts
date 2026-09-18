@@ -50,13 +50,22 @@ export function useCommand() {
           return;
         }
         if (response.ok) {
-          const tone =
-            response.outcome.status === 'Succeeded'
-              ? toast.success
-              : toast.warning;
-          tone(response.outcome.message);
+          // A stored answer: any further attempt must be a new command.
           setCommandId(newCommandId());
-          router.refresh();
+          if (response.outcome.status === 'ActionRequired') {
+            // Nothing was written (e.g. NeedsReview): keep the dialog open
+            // with the reason, and tell the caller it did not happen.
+            setOutcome(response.outcome);
+            onDone?.({ ok: false, outcome: response.outcome });
+            return;
+          } else {
+            const tone =
+              response.outcome.status === 'Succeeded'
+                ? toast.success
+                : toast.warning;
+            tone(response.outcome.message);
+            router.refresh();
+          }
         } else {
           setOutcome(response.outcome);
         }
