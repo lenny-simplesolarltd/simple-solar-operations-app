@@ -1,4 +1,5 @@
-import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/empty-state';
+import { TaskStatusBadge } from '@/components/task-status-badge';
 import {
   Table,
   TableBody,
@@ -19,10 +20,10 @@ export function TaskTable({
   showJob?: boolean;
 }) {
   if (tasks.length === 0) {
-    return <p className='text-muted-foreground text-sm'>Nothing here.</p>;
+    return <EmptyState title='Nothing here' />;
   }
   return (
-    <div className='overflow-x-auto rounded-md border'>
+    <div className='overflow-x-auto rounded-lg border'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -53,10 +54,10 @@ export function TaskTable({
                   <TableCell className='whitespace-nowrap'>
                     {task.jobId ? (
                       <Link
-                        className='underline'
+                        className='group/job'
                         href={`/dashboard/jobs/${task.jobId}`}
                       >
-                        <span className='font-mono font-semibold'>
+                        <span className='decoration-primary group-hover/job:decoration-foreground font-mono font-semibold underline decoration-2 underline-offset-4'>
                           {task.jobRef}
                         </span>
                         <span className='text-muted-foreground block text-xs'>
@@ -80,7 +81,11 @@ export function TaskTable({
                   {task.dueAt ? (
                     <span
                       className={
-                        due === 'overdue' ? 'text-destructive font-medium' : ''
+                        due === 'overdue'
+                          ? 'text-destructive font-medium'
+                          : due === 'today'
+                            ? 'text-warning font-medium'
+                            : ''
                       }
                     >
                       {formatDateTime(task.dueAt)}
@@ -92,11 +97,7 @@ export function TaskTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant={task.status === 'Open' ? 'secondary' : 'outline'}
-                  >
-                    {task.status}
-                  </Badge>
+                  <TaskStatusBadge status={task.status} />
                 </TableCell>
               </TableRow>
             );

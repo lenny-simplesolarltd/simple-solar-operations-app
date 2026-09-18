@@ -76,14 +76,12 @@ function Shell({
     <div className={cx('presale-root', presaleFontVariables)}>
       <div className='app'>
         <header className='site-head'>
-          {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark; intrinsic size set */}
-          <img
-            className='brand-logo'
-            src='/presale/logo.webp'
-            width={2500}
-            height={571}
-            alt='Simple Solar'
-          />
+          <div>
+            <h2 className='page-title'>New presale</h2>
+            <p className='page-sub'>
+              System designer. Your draft saves on this device as you go.
+            </p>
+          </div>
           {headerAction}
         </header>
         {children}

@@ -1,102 +1,79 @@
 /*
  * Presale / System Designer — scoped stylesheet.
  *
- * Every rule lives under .presale-root. Tokens, scale and component styles are
- * carried over from the System Designer prototype v0.12; the app's theme is
- * driven by next-themes (a `dark` class on <html>), so dark tokens hang off
- * `.dark .presale-root` rather than prefers-color-scheme.
- *
- * Fonts arrive as CSS variables from next/font (see fonts.ts).
+ * Every rule lives under .presale-root. Layout and component styles are carried
+ * over from the System Designer prototype v0.12; colour and type come from the
+ * app's Simple Solar tokens, so dark mode follows next-themes automatically.
  */
 
 .presale-root {
-  --paper: #ecefe9;
-  --paper-raised: #f8faf6;
-  --ink: #1e2a28;
-  --ink-soft: #56655f;
-  --line: #c7d0c6;
-  --accent: #c9852a;
-  --accent-ink: #241202;
+  /*
+   * The designer's own token names, re-pointed at the app's semantic tokens
+   * (globals.css) so Presale follows the Simple Solar theme in light and dark.
+   */
+  --paper: var(--background);
+  --paper-raised: var(--card);
+  --ink: var(--foreground);
+  --ink-soft: var(--muted-foreground);
+  --line: var(--border);
+  --field-line: var(--input);
+  --accent: var(--primary);
+  --accent-ink: var(--primary-foreground);
+  /* Yellow is a fill, never text on a light surface: emphasised text uses ink. */
+  --accent-text: var(--foreground);
+  --focus: var(--ring);
+  --good: var(--success);
+  --good-soft: var(--success-soft);
+  --warn: var(--destructive);
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.04);
+  /* Diagram colours: the panel navy and pitch blue belong to the drawings. */
   --panel: #1c2b3d;
   --panel-line: #3e5872;
-  --good: #2f6e5c;
-  --warn: #b23b30;
-  --pitch: #2b6cb0;
-  --shadow: 0 1px 0 rgba(30, 42, 40, 0.05);
-  --confirmed-bg: #22c55e;
-  --confirmed-line: #16a34a;
+  --pitch: var(--info);
 
-  --ps-sans: var(--font-presale-sans), 'IBM Plex Sans', system-ui, sans-serif;
-  --ps-mono: var(--font-presale-mono), 'IBM Plex Mono', ui-monospace, monospace;
-  --ps-display: var(--font-presale-display), 'Big Shoulders Display',
-    var(--font-presale-sans), sans-serif;
+  --ps-sans: var(--font-sans);
+  --ps-mono: var(--font-mono);
+  --ps-display: var(--font-sans);
 
   min-height: 100%;
   color: var(--ink);
   font-family: var(--ps-sans);
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  /* 28px graph paper over the paper colour. */
   background-color: var(--paper);
-  background-image: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 27px,
-      color-mix(in srgb, var(--line) 35%, transparent) 27px,
-      color-mix(in srgb, var(--line) 35%, transparent) 28px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 27px,
-      color-mix(in srgb, var(--line) 35%, transparent) 27px,
-      color-mix(in srgb, var(--line) 35%, transparent) 28px
-    );
 }
 
 .dark .presale-root {
-  --paper: #141f1c;
-  --paper-raised: #1b2925;
-  --ink: #e7ede7;
-  --ink-soft: #9db0a8;
-  --line: #33443d;
-  --accent: #e3a34a;
-  --accent-ink: #1b1204;
+  --accent-text: var(--primary);
   --panel: #0d1824;
   --panel-line: #2c4054;
-  --good: #4fa98c;
-  --warn: #e07a6b;
-  --pitch: #5b9bd9;
-  --shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.2);
 }
 
 .presale-root .app {
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
   padding: 16px 16px 48px;
 }
 
-/* Big Shoulders is a single optical-size family now; 72 is the Display cut. */
-.presale-root h1,
-.presale-root h2,
-.presale-root h3,
-.presale-root .display {
-  font-variation-settings: 'opsz' 72;
-}
-
 .presale-root .site-head {
-  padding: 6px 2px 14px;
+  padding: 8px 2px 16px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
-.presale-root .brand-logo {
-  height: clamp(52px, 14vw, 68px);
-  width: auto;
-  display: block;
-  flex-shrink: 0;
+.presale-root .page-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.presale-root .page-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
 }
 
 /* Stepper: one horizontally scrollable row (the prototype's 5-column grid wrapped). */
@@ -117,12 +94,13 @@
   flex: 1 0 auto;
   min-width: 74px;
   text-align: center;
-  padding: 8px 6px;
-  border-radius: 8px;
+  min-height: 44px;
+  padding: 7px 10px;
+  border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--paper-raised);
-  font-size: 10.5px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
   cursor: default;
   font-weight: 600;
@@ -149,9 +127,19 @@
 .presale-root .step.current .n {
   color: var(--accent-ink);
 }
+.presale-root .step.current {
+  font-weight: 700;
+}
 .presale-root .step.done:not(.current) {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--good) 45%, var(--line));
+  background: var(--good-soft);
+}
+.presale-root .step.done:not(.current) .n {
   color: var(--good);
-  border-color: color-mix(in srgb, var(--good) 40%, var(--line));
+}
+.presale-root .step.reachable:not(.current):hover {
+  border-color: var(--ink-soft);
 }
 
 /* ---- carried over from the prototype ---- */
@@ -176,17 +164,22 @@
   font-variant-numeric: tabular-nums;
 }
 .presale-root .site-head {
-  padding: 6px 2px 14px;
+  padding: 8px 2px 16px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
-.presale-root .brand-logo {
-  height: clamp(52px, 14vw, 68px);
-  width: auto;
-  display: block;
-  flex-shrink: 0;
+.presale-root .page-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.presale-root .page-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
 }
 .presale-root .newjob-btn {
   flex-shrink: 0;
@@ -250,8 +243,8 @@
 .presale-root select {
   font-size: 15px;
   color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  border: 1px solid var(--field-line);
   border-radius: 7px;
   padding: 9px 10px;
   width: 100%;
@@ -263,7 +256,7 @@
 .presale-root select:focus,
 .presale-root textarea:focus,
 .presale-root button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 .presale-root .toggle-pair {
@@ -380,7 +373,7 @@
   font-family: var(--ps-display);
   font-size: 36px;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--accent-text);
   line-height: 1;
   margin-bottom: 14px;
 }
@@ -416,9 +409,9 @@
   font-size: 13.5px;
   font-weight: 700;
   border-radius: 8px;
-  background: #22c55e;
-  color: #ffffff;
-  border: 1px solid #16a34a;
+  background: var(--good-soft);
+  color: var(--good);
+  border: 1px solid color-mix(in srgb, var(--good) 45%, transparent);
 }
 .presale-root .confirmed-tick {
   flex: none;
@@ -474,7 +467,7 @@
 }
 .presale-root .param-chip .step-btn:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .presale-root .param-chip input {
   width: 78px;
@@ -526,7 +519,7 @@
 }
 .presale-root .add-btn:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .presale-root .nav-row {
   display: flex;
@@ -535,8 +528,9 @@
 }
 .presale-root .btn {
   flex: 1;
+  min-height: 46px;
   padding: 13px;
-  border-radius: 9px;
+  border-radius: 999px;
   font-weight: 700;
   font-size: 14.5px;
   letter-spacing: 0.01em;
@@ -552,9 +546,15 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+.presale-root .btn-primary:not([disabled]):hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--paper-raised));
+}
 .presale-root .btn-secondary {
-  background: transparent;
-  color: var(--ink-soft);
+  background: var(--paper-raised);
+  color: var(--ink);
+}
+.presale-root .btn-secondary:hover {
+  background: var(--paper);
 }
 .presale-root .nav-note {
   font-size: 12px;
@@ -587,11 +587,11 @@
 .presale-root select:required:invalid,
 .presale-root .field-error {
   border-color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 8%, var(--paper));
+  background: color-mix(in srgb, var(--warn) 4%, var(--paper-raised));
 }
 .presale-root .slope-card.confirmed input:invalid {
-  border-color: var(--line);
-  background: var(--paper);
+  border-color: var(--field-line);
+  background: var(--paper-raised);
 }
 .presale-root .panel-cards {
   display: flex;
@@ -663,7 +663,7 @@
   font-family: var(--ps-mono);
   font-weight: 700;
   font-size: 22px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .presale-root .pc-breakdown {
   font-size: 11.5px;
@@ -721,7 +721,7 @@
   line-height: 1.15;
 }
 .presale-root .stat-tile.accent .stat-value {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .presale-root .selected-panel-bar {
   display: flex;
@@ -739,7 +739,7 @@
 .presale-root .link-btn {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
   font-size: 12.5px;
   cursor: pointer;
@@ -780,7 +780,7 @@
   margin-bottom: 12px;
 }
 .presale-root .fit-summary .readout .v.net {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 15px;
 }
 .presale-root .grid-wrap {
@@ -936,13 +936,13 @@
   flex-shrink: 0;
 }
 .presale-root .obs-btn:hover {
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: var(--accent);
 }
 .presale-root .obs-btn.active {
   background: var(--warn);
   border-color: var(--warn);
-  color: #fff;
+  color: var(--paper-raised);
 }
 .presale-root .shift-row {
   display: flex;
@@ -1096,7 +1096,7 @@
   font-size: 20px;
   font-weight: 800;
   font-family: var(--ps-display);
-  color: var(--accent);
+  color: var(--accent-text);
   border-top: 2px solid var(--accent);
   border-bottom: none;
   padding-top: 12px;
@@ -1246,22 +1246,31 @@
   padding: 26px 16px 22px;
   border-radius: 12px;
   margin-bottom: 14px;
-  background: color-mix(in srgb, var(--good) 12%, var(--paper-raised));
-  border: 1.5px solid color-mix(in srgb, var(--good) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, var(--paper-raised));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 60%, var(--line));
+}
+.presale-root .sold-hero::before {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: var(--accent);
 }
 .presale-root .sold-hero h1 {
-  font-size: clamp(40px, 13vw, 60px);
+  font-size: clamp(36px, 11vw, 56px);
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.02em;
   line-height: 1;
-  color: var(--good);
+  color: var(--ink);
 }
 .presale-root .sold-ref {
   font-family: var(--ps-display);
-  font-variation-settings: 'opsz' 72;
+  font-family: var(--ps-mono);
   font-weight: 700;
-  font-size: clamp(26px, 8vw, 36px);
-  color: var(--accent);
+  font-size: clamp(22px, 7vw, 30px);
+  color: var(--accent-text);
   margin-top: 10px;
   line-height: 1.1;
   overflow-wrap: anywhere;
@@ -1321,7 +1330,7 @@
 }
 
 .presale-root svg [role='button']:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 

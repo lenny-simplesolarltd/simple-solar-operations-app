@@ -1,16 +1,11 @@
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { AuthShell } from '../auth-shell';
 
 // Finishes invite / recovery links that carry the session in the URL fragment
 // (Supabase's default email templates). Nothing here chooses a password: the
@@ -47,28 +42,33 @@ export default function AuthCompletePage() {
   }, [router]);
 
   return (
-    <div className='flex min-h-screen items-center justify-center p-4'>
-      <Card className='w-full max-w-md'>
-        <CardHeader>
-          <CardTitle>Simple Solar Operations</CardTitle>
-          <CardDescription>
-            {failed
-              ? 'This link has expired or was already used.'
-              : 'Signing you in…'}
-          </CardDescription>
-        </CardHeader>
-        {failed && (
-          <CardContent className='text-sm'>
-            <p className='text-muted-foreground mb-3'>
-              Invite and password links work once and expire. Ask for a new one,
-              or reset your password.
-            </p>
-            <Link className='underline' href='/auth/forgot-password'>
-              Reset my password
-            </Link>
-          </CardContent>
-        )}
-      </Card>
-    </div>
+    <AuthShell
+      title={failed ? 'Link expired' : 'Signing you in…'}
+      description={
+        failed
+          ? 'This link has expired or was already used.'
+          : 'One moment while we finish signing you in.'
+      }
+    >
+      {failed ? (
+        <div className='text-sm'>
+          <p className='text-muted-foreground mb-3'>
+            Invite and password links work once and expire. Ask for a new one,
+            or reset your password.
+          </p>
+          <Link
+            className='underline underline-offset-4'
+            href='/auth/forgot-password'
+          >
+            Reset my password
+          </Link>
+        </div>
+      ) : (
+        <div role='status' aria-live='polite' className='space-y-2'>
+          <Skeleton className='h-9 w-full' />
+          <Skeleton className='h-9 w-2/3' />
+        </div>
+      )}
+    </AuthShell>
   );
 }

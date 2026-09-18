@@ -17,7 +17,10 @@ const initialState: AuthFormState = { error: null };
 function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role='alert' className='text-destructive text-sm'>
+    <p
+      role='alert'
+      className='bg-destructive-soft text-destructive rounded-md px-3 py-2 text-sm'
+    >
       {message}
     </p>
   );
@@ -54,7 +57,7 @@ export function SignInForm() {
       </Button>
       <p className='text-center text-sm'>
         <Link
-          className='text-muted-foreground underline'
+          className='text-muted-foreground hover:text-foreground underline underline-offset-4'
           href='/auth/forgot-password'
         >
           Forgot your password?
@@ -105,7 +108,10 @@ export function ForgotPasswordForm() {
 
   if (state.notice) {
     return (
-      <p role='status' className='text-sm'>
+      <p
+        role='status'
+        className='bg-success-soft text-success rounded-md px-3 py-2 text-sm'
+      >
         {state.notice}
       </p>
     );

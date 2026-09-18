@@ -7,75 +7,110 @@
 @import './theme.css';
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /*
+   * Simple Solar design tokens.
+   *
+   * Brand values are taken from simplesolarltd.co.uk (its theme variables and
+   * custom CSS): solar yellow #fdc42e, ink #0b0b0b, pale yellow #fdecbe, white.
+   * Components must use the semantic tokens below, never these hex values.
+   */
+  --brand-yellow: #fdc42e;
+  --brand-yellow-soft: #fdecbe;
+  --brand-ink: #0b0b0b;
+
+  --radius: 0.5rem;
+  --background: #f8f7f4;
+  --foreground: var(--brand-ink);
+  --card: #ffffff;
+  --card-foreground: var(--brand-ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--brand-ink);
+  --primary: var(--brand-yellow);
+  --primary-foreground: var(--brand-ink);
+  --secondary: #efede7;
+  --secondary-foreground: var(--brand-ink);
+  --muted: #f1f0eb;
+  --muted-foreground: #5c5b56;
+  --accent: #fdf4d6;
+  --accent-foreground: var(--brand-ink);
+  --destructive: #c4321c;
+  --border: #e4e2db;
+  --input: #d6d4cc;
+  /* Yellow on white fails as a focus indicator, so light mode focuses in ink. */
+  --ring: var(--brand-ink);
+
+  /* Status. Warning is a burnt orange so it never reads as the brand yellow. */
+  --success: #17703f;
+  --success-soft: #e3f3e9;
+  --warning: #a8480a;
+  --warning-soft: #fcebd9;
+  --info: #1b5a9e;
+  --info-soft: #e2edf8;
+  --destructive-soft: #fbe6e2;
+
+  --chart-1: var(--brand-yellow);
+  --chart-2: #1b5a9e;
+  --chart-3: #17703f;
+  --chart-4: #a8480a;
+  --chart-5: #5c5b56;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--brand-ink);
+  --sidebar-primary: var(--brand-yellow);
+  --sidebar-primary-foreground: var(--brand-ink);
+  --sidebar-hover: #f1f0eb;
+  --sidebar-accent: var(--brand-yellow-soft);
+  --sidebar-accent-foreground: var(--brand-ink);
+  --sidebar-border: #e4e2db;
+  --sidebar-ring: var(--brand-ink);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.269 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: var(--brand-ink);
+  --foreground: #f5f4ef;
+  --card: #161615;
+  --card-foreground: #f5f4ef;
+  --popover: #1b1b19;
+  --popover-foreground: #f5f4ef;
+  --primary: var(--brand-yellow);
+  --primary-foreground: var(--brand-ink);
+  --secondary: #252522;
+  --secondary-foreground: #f5f4ef;
+  --muted: #1f1f1d;
+  --muted-foreground: #a8a69d;
+  --accent: #2e2810;
+  --accent-foreground: #f5f4ef;
+  --destructive: #ef6a55;
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: var(--brand-yellow);
+
+  --success: #5fce92;
+  --success-soft: #10301f;
+  --warning: #f0a15e;
+  --warning-soft: #3a2210;
+  --info: #7db4ee;
+  --info-soft: #11283f;
+  --destructive-soft: #3d1711;
+
+  --chart-2: #7db4ee;
+  --chart-3: #5fce92;
+  --chart-4: #f0a15e;
+  --chart-5: #a8a69d;
+
+  --sidebar: #111110;
+  --sidebar-foreground: #f5f4ef;
+  --sidebar-primary: var(--brand-yellow);
+  --sidebar-primary-foreground: var(--brand-ink);
+  --sidebar-hover: #1f1f1d;
+  --sidebar-accent: #3a3112;
+  --sidebar-accent-foreground: var(--brand-yellow-soft);
+  --sidebar-border: oklch(1 0 0 / 11%);
+  --sidebar-ring: var(--brand-yellow);
 }
 
 @theme inline {
+  --font-heading: var(--font-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -95,6 +130,16 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-brand: var(--brand-yellow);
+  --color-brand-soft: var(--brand-yellow-soft);
+  --color-brand-ink: var(--brand-ink);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -107,6 +152,7 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
@@ -119,6 +165,13 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* The website sets headings heavy and tight; the app keeps that, one step lighter. */
+  h1,
+  h2,
+  h3 {
+    @apply font-heading;
+    letter-spacing: -0.015em;
   }
 }
 

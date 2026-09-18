@@ -53,7 +53,7 @@ export default async function PeoplePage() {
           title='People & access'
           description='Everyone in the directory. A login is separate: invite only the people who need to use the app. They set their own password from the emailed link; roles decide what they can do.'
         />
-        <div className='overflow-x-auto rounded-md border'>
+        <div className='overflow-x-auto rounded-lg border'>
           <Table>
             <TableHeader>
               <TableRow>
@@ -100,9 +100,9 @@ export default async function PeoplePage() {
                     </TableCell>
                     <TableCell>
                       {person.auth_user_id ? (
-                        <Badge>Active login</Badge>
+                        <Badge variant='success'>Active login</Badge>
                       ) : pending ? (
-                        <Badge variant='secondary'>Invited</Badge>
+                        <Badge variant='warning'>Invited</Badge>
                       ) : (
                         <Badge variant='outline'>No login</Badge>
                       )}

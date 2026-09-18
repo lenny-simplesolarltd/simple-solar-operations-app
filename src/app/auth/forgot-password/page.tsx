@@ -1,13 +1,7 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ForgotPasswordForm } from '../auth-forms';
+import { AuthShell } from '../auth-shell';
 
 export const metadata: Metadata = {
   title: 'Reset password | Simple Solar Operations'
@@ -15,26 +9,21 @@ export const metadata: Metadata = {
 
 export default function ForgotPasswordPage() {
   return (
-    <div className='flex min-h-screen items-center justify-center p-4'>
-      <Card className='w-full max-w-md'>
-        <CardHeader>
-          <CardTitle>Reset your password</CardTitle>
-          <CardDescription>
-            We will email you a link. You choose the new password yourself.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='space-y-4'>
-          <ForgotPasswordForm />
-          <p className='text-center text-sm'>
-            <Link
-              className='text-muted-foreground underline'
-              href='/auth/sign-in'
-            >
-              Back to sign in
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell
+      title='Reset your password'
+      description='We will email you a link. You choose the new password yourself.'
+    >
+      <div className='space-y-4'>
+        <ForgotPasswordForm />
+        <p className='text-center text-sm'>
+          <Link
+            className='text-muted-foreground hover:text-foreground underline underline-offset-4'
+            href='/auth/sign-in'
+          >
+            Back to sign in
+          </Link>
+        </p>
+      </div>
+    </AuthShell>
   );
 }

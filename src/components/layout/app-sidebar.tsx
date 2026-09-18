@@ -31,32 +31,38 @@ import { signOut } from '@/app/auth/actions';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navItems } from '@/constants/data';
 import type { AppUser } from '@/lib/auth';
+import { BrandLogo, BrandMark } from '@/components/brand-logo';
 import {
   IconChevronRight,
   IconChevronsDown,
-  IconLogout,
-  IconSolarPanel
+  IconLogout
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icons } from '../icons';
+import { visibleNavItems } from './nav-visibility';
 
 export default function AppSidebar({ user }: { user: AppUser }) {
   const pathname = usePathname();
+  const items = visibleNavItems(navItems, user);
 
   return (
     <Sidebar collapsible='icon'>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size='lg' asChild>
-              <Link href='/dashboard'>
-                <div className='bg-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg'>
-                  <IconSolarPanel className='size-4' />
-                </div>
-                <div className='flex flex-col gap-0.5 leading-none'>
-                  <span className='font-semibold'>Simple Solar</span>
-                  <span>Operations</span>
+            <SidebarMenuButton
+              size='lg'
+              asChild
+              className='hover:bg-transparent active:bg-transparent'
+            >
+              <Link href='/dashboard' aria-label='Simple Solar Operations home'>
+                <BrandMark className='hidden group-data-[collapsible=icon]:flex' />
+                <div className='flex flex-col gap-1 px-1 group-data-[collapsible=icon]:hidden'>
+                  <BrandLogo className='h-[22px]' />
+                  <span className='text-muted-foreground text-[10px] leading-none font-semibold tracking-[0.18em] uppercase'>
+                    Operations
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -65,9 +71,9 @@ export default function AppSidebar({ user }: { user: AppUser }) {
       </SidebarHeader>
       <SidebarContent className='overflow-x-hidden'>
         <SidebarGroup>
-          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarMenu>
-            {navItems.map((item) => {
+            {items.map((item) => {
               const Icon = item.icon ? Icons[item.icon] : Icons.logo;
               return item?.items && item?.items?.length > 0 ? (
                 <Collapsible
@@ -112,9 +118,19 @@ export default function AppSidebar({ user }: { user: AppUser }) {
                     tooltip={item.title}
                     isActive={pathname === item.url}
                   >
-                    <Link href={item.url}>
+                    <Link
+                      href={item.url}
+                      aria-current={pathname === item.url ? 'page' : undefined}
+                    >
                       <Icon />
                       <span>{item.title}</span>
+                      {/* The website's nav marker: a sun dot on the current item. */}
+                      {pathname === item.url && (
+                        <span
+                          aria-hidden='true'
+                          className='bg-brand ml-auto size-2 shrink-0 rounded-full group-data-[collapsible=icon]:hidden'
+                        />
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

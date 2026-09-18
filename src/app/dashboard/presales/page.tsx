@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,11 +70,19 @@ export default async function PresalesPage() {
         </div>
 
         {jobs.length === 0 ? (
-          <p className='text-muted-foreground text-sm'>
-            No jobs have been sold yet.
-          </p>
+          <EmptyState
+            title='No jobs have been sold yet'
+            description='Sold jobs appear here as soon as a presale is submitted.'
+            action={
+              permissions.has('presale.submit') && (
+                <Button asChild size='sm'>
+                  <Link href='/dashboard/presales/new'>New presale</Link>
+                </Button>
+              )
+            }
+          />
         ) : (
-          <div className='overflow-x-auto rounded-md border'>
+          <div className='overflow-x-auto rounded-lg border'>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -91,7 +100,7 @@ export default async function PresalesPage() {
                   <TableRow key={job.id}>
                     <TableCell className='font-mono font-semibold whitespace-nowrap'>
                       <Link
-                        className='underline'
+                        className='decoration-primary underline decoration-2 underline-offset-4'
                         href={`/dashboard/jobs/${job.id}`}
                       >
                         {job.jobRef}
@@ -114,7 +123,7 @@ export default async function PresalesPage() {
                     <TableCell>
                       {FINANCE_LABEL[job.financeRoute] ?? job.financeRoute}
                     </TableCell>
-                    <TableCell className='text-right font-mono'>
+                    <TableCell className='text-right font-mono tabular-nums'>
                       {pounds.format(job.agreedPricePence / 100)}
                     </TableCell>
                     <TableCell>
