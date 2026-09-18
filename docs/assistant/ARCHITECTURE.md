@@ -78,15 +78,19 @@ with a test-only tool.
 
 `server/providers/types.ts` defines `AssistantModelProvider.generate(request, {signal, onTextDelta})`.
 The orchestrator owns the loop, the tools and the safety rules; an adapter only translates.
-`providers/anthropic.ts` is the only file that imports a vendor SDK (tested).
+`providers/anthropic.ts` is the only file that imports a vendor SDK (tested). `providers/gemini.ts`
+talks to the Gemini REST API directly (streaming SSE, function calling with JSON Schema tools, thought
+signatures replayed within a tool loop, call ids echoed, transient 5xx retried with backoff before any
+output). Upstream error detail is logged on the server only; the browser gets safe wording.
 
 Server-only configuration (never `NEXT_PUBLIC_*`):
 
 | Variable | Meaning |
 | --- | --- |
-| `ASSISTANT_PROVIDER` | `anthropic` or `dev-router`. Unset = assistant off, with a staff-readable notice. A key alone never enables paid usage. |
+| `ASSISTANT_PROVIDER` | `anthropic`, `gemini` or `dev-router`. Unset = assistant off, with a staff-readable notice. A key alone never enables usage. |
 | `ANTHROPIC_API_KEY` | required for `anthropic` |
-| `ASSISTANT_MODEL` | optional, default `claude-opus-5` |
+| `GEMINI_API_KEY` | required for `gemini` (the spelling `GEMENI_API_KEY` is also read) |
+| `ASSISTANT_MODEL` | optional; default `claude-opus-5` for anthropic, `gemini-flash-latest` (Google's moving Flash alias) for gemini |
 | `ASSISTANT_ACTION_SECRET` | >= 32 chars; signs pending actions. Required in production for proposals; dev falls back to a per-process random key. |
 
 `dev-router` is a keyword router for local development (no language model, no cost). It requests the
@@ -115,6 +119,10 @@ Domain commands remain the audit truth. `server/audit.ts` is the hook that recor
 command id; today it only logs identifiers (no arguments, no customer data). Persisting it is BD-08.
 
 ## Before enabling a real provider
+
+On Google's **free** Gemini tier, prompts may be used to improve Google's products and the request
+quota is small (a staff question is 2-3 model calls). Use a billed key before pointing the assistant
+at real customer data.
 
 Customer names, postcodes, sale values and staff names will be sent to the model provider. Agree the
 data-processing position (provider terms, retention, region) first. This is a business decision, not

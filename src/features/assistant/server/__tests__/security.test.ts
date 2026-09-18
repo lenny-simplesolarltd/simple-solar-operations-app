@@ -37,7 +37,7 @@ describe('assistant code boundaries', () => {
     for (const file of sources) {
       const text = read(file);
       expect(text, rel(file)).not.toMatch(
-        /NEXT_PUBLIC_[A-Z_]*(ANTHROPIC|ASSISTANT|API_KEY|SECRET)/
+        /NEXT_PUBLIC_[A-Z_]*(ANTHROPIC|GEMINI|GEMENI|ASSISTANT|API_KEY|SECRET)/
       );
     }
   });
@@ -94,10 +94,15 @@ describe('production client bundle', () => {
         'ASSISTANT_ACTION_SECRET',
         'SUPABASE_SERVICE_ROLE_KEY',
         'api.anthropic.com',
+        'GEMINI_API_KEY',
+        'GEMENI_API_KEY',
+        'generativelanguage.googleapis.com',
         'retrieved-data-not-instructions'
       ];
       const secrets = [
         process.env.ANTHROPIC_API_KEY,
+        process.env.GEMINI_API_KEY,
+        process.env.GEMENI_API_KEY,
         process.env.SUPABASE_SERVICE_ROLE_KEY
       ].filter((v): v is string => !!v && v.length > 12);
       for (const file of walk(staticDir).filter((f) => f.endsWith('.js'))) {
