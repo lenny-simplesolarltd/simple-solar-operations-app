@@ -375,7 +375,4 @@ create policy panel_use_select on public.panel_use
     (select app.is_stock_class())
     or ((select app.is_active_actor()) and reported_by = (select app.current_person_id()))
   );
-<<<<<<< HEAD
-=======
 
->>>>>>> main

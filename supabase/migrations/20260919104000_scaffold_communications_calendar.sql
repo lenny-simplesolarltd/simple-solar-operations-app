@@ -228,7 +228,4 @@ create policy calendar_links_select on public.calendar_links
     (select app.is_office_class())
     or ((select app.is_active_actor()) and (select app.current_person_id()) = any (guest_person_ids))
   );
-<<<<<<< HEAD
-=======
 
->>>>>>> main

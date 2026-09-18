@@ -52,7 +52,4 @@ begin
   end if;
 end
 $$;
-<<<<<<< HEAD
-=======
 
->>>>>>> main

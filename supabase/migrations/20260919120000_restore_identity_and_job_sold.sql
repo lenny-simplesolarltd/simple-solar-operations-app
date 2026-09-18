@@ -28,13 +28,7 @@
 -- =============================================================================
 
 create schema if not exists app;
-<<<<<<< HEAD
-
 revoke all on schema app from public;
-
-=======
-revoke all on schema app from public;
->>>>>>> main
 grant usage on schema app to authenticated, service_role;
 
 -- -----------------------------------------------------------------------------
@@ -49,10 +43,6 @@ create table public.roles (
   sort_order  integer not null default 0,
   created_at  timestamptz not null default now()
 );
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 comment on table public.roles is
   'Role vocabulary. Codes are the exact literals used by the reference authorization matrix.';
 
@@ -62,10 +52,6 @@ create table public.skills (
   active     boolean not null default true,
   created_at timestamptz not null default now()
 );
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 comment on table public.skills is
   'Installer trade competences. Same taxonomy as work-package trades in the reference (Roof, Electrical).';
 
@@ -99,18 +85,9 @@ create table public.people (
     available_from is null or available_to is null or available_from <= available_to
   )
 );
-<<<<<<< HEAD
-
-comment on table public.people is
-  'Staff and partner directory. Roles come only from person_roles; there is intentionally no role column here.';
-
-comment on column public.people.available_from is 'Europe/London local date.';
-
-=======
 comment on table public.people is
   'Staff and partner directory. Roles come only from person_roles; there is intentionally no role column here.';
 comment on column public.people.available_from is 'Europe/London local date.';
->>>>>>> main
 comment on column public.people.available_to is 'Europe/London local date, inclusive.';
 
 create table public.person_roles (
@@ -125,15 +102,8 @@ create table public.person_roles (
   version    integer not null default 1 check (version >= 1),
   unique (person_id, role_code)
 );
-<<<<<<< HEAD
-
 comment on table public.person_roles is
   'Authoritative role assignments. A role is revoked by setting active = false, never by deleting the row.';
-
-=======
-comment on table public.person_roles is
-  'Authoritative role assignments. A role is revoked by setting active = false, never by deleting the row.';
->>>>>>> main
 create index person_roles_role_code_idx on public.person_roles (role_code) where active;
 
 create table public.person_skills (
@@ -151,10 +121,6 @@ create table public.person_skills (
   version         integer not null default 1 check (version >= 1),
   unique (person_id, skill_code)
 );
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 comment on table public.person_skills is
   'Installer trade competence. No active rows for a person means no skill constraint; any active rows without a match block allocation (reference resource/planning.js:215-217).';
 
@@ -178,21 +144,10 @@ create table public.audit_events (
   command_id           text,
   reason               text
 );
-<<<<<<< HEAD
-
-comment on table public.audit_events is
-  'Immutable audit log: one event per committed change per entity, with before/after snapshots. Rejected commands are not audited.';
-
-create index audit_events_entity_idx on public.audit_events (entity_type, entity_id, occurred_at);
-
-create index audit_events_command_idx on public.audit_events (command_id) where command_id is not null;
-
-=======
 comment on table public.audit_events is
   'Immutable audit log: one event per committed change per entity, with before/after snapshots. Rejected commands are not audited.';
 create index audit_events_entity_idx on public.audit_events (entity_type, entity_id, occurred_at);
 create index audit_events_command_idx on public.audit_events (command_id) where command_id is not null;
->>>>>>> main
 create index audit_events_person_idx on public.audit_events (initiating_person_id, occurred_at);
 
 -- -----------------------------------------------------------------------------
@@ -212,10 +167,6 @@ as $$
   where p.auth_user_id = (select auth.uid())
     and p.active
 $$;
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 comment on function app.current_person_id() is
   'The active person mapped to the authenticated user, or null. Inactive people resolve to null (fail closed).';
 
@@ -358,10 +309,6 @@ $$;
 create trigger audit_events_no_update_delete
   before update or delete on public.audit_events
   for each row execute function app.forbid_audit_mutation();
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create trigger audit_events_no_truncate
   before truncate on public.audit_events
   for each statement execute function app.forbid_audit_mutation();
@@ -384,15 +331,8 @@ $$;
 
 create trigger people_touch before insert or update on public.people
   for each row execute function app.touch_row();
-<<<<<<< HEAD
-
 create trigger person_roles_touch before insert or update on public.person_roles
   for each row execute function app.touch_row();
-
-=======
-create trigger person_roles_touch before insert or update on public.person_roles
-  for each row execute function app.touch_row();
->>>>>>> main
 create trigger person_skills_touch before insert or update on public.person_skills
   for each row execute function app.touch_row();
 
@@ -401,15 +341,8 @@ create trigger person_skills_installer_only before insert or update on public.pe
 
 create trigger people_audit after insert or update or delete on public.people
   for each row execute function app.audit_row_change();
-<<<<<<< HEAD
-
 create trigger person_roles_audit after insert or update or delete on public.person_roles
   for each row execute function app.audit_row_change();
-
-=======
-create trigger person_roles_audit after insert or update or delete on public.person_roles
-  for each row execute function app.audit_row_change();
->>>>>>> main
 create trigger person_skills_audit after insert or update or delete on public.person_skills
   for each row execute function app.audit_row_change();
 
@@ -444,10 +377,6 @@ end
 $$;
 
 drop trigger if exists link_auth_user_to_person on auth.users;
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create trigger link_auth_user_to_person
   after insert or update of email, email_confirmed_at on auth.users
   for each row execute function app.link_auth_user_to_person();
@@ -462,29 +391,6 @@ revoke all on public.roles, public.skills, public.people, public.person_roles,
   from anon, authenticated;
 
 grant select on public.roles, public.skills, public.audit_events to authenticated;
-<<<<<<< HEAD
-
-grant select, insert, update on public.people, public.person_roles, public.person_skills to authenticated;
-
-revoke execute on all functions in schema app from public, anon;
-
-grant execute on all functions in schema app to authenticated, service_role;
-
-revoke execute on function public.current_actor() from public, anon;
-
-grant execute on function public.current_actor() to authenticated, service_role;
-
-alter table public.roles         enable row level security;
-
-alter table public.skills        enable row level security;
-
-alter table public.people        enable row level security;
-
-alter table public.person_roles  enable row level security;
-
-alter table public.person_skills enable row level security;
-
-=======
 grant select, insert, update on public.people, public.person_roles, public.person_skills to authenticated;
 
 revoke execute on all functions in schema app from public, anon;
@@ -497,16 +403,11 @@ alter table public.skills        enable row level security;
 alter table public.people        enable row level security;
 alter table public.person_roles  enable row level security;
 alter table public.person_skills enable row level security;
->>>>>>> main
 alter table public.audit_events  enable row level security;
 
 -- Vocabularies: readable by any active actor; changed only by migration.
 create policy roles_select on public.roles
   for select to authenticated using ((select app.is_active_actor()));
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create policy skills_select on public.skills
   for select to authenticated using ((select app.is_active_actor()));
 
@@ -519,15 +420,8 @@ create policy people_select on public.people
     ((select app.is_active_actor()) and id = (select app.current_person_id()))
     or (select app.is_office_class())
   );
-<<<<<<< HEAD
-
 create policy people_insert on public.people
   for insert to authenticated with check ((select app.is_admin()));
-
-=======
-create policy people_insert on public.people
-  for insert to authenticated with check ((select app.is_admin()));
->>>>>>> main
 create policy people_update on public.people
   for update to authenticated
   using ((select app.is_admin())) with check ((select app.is_admin()));
@@ -540,15 +434,8 @@ create policy person_roles_select on public.person_roles
     ((select app.is_active_actor()) and person_id = (select app.current_person_id()))
     or (select app.is_office_class())
   );
-<<<<<<< HEAD
-
 create policy person_roles_insert on public.person_roles
   for insert to authenticated with check ((select app.is_admin()));
-
-=======
-create policy person_roles_insert on public.person_roles
-  for insert to authenticated with check ((select app.is_admin()));
->>>>>>> main
 create policy person_roles_update on public.person_roles
   for update to authenticated
   using ((select app.is_admin())) with check ((select app.is_admin()));
@@ -560,15 +447,8 @@ create policy person_skills_select on public.person_skills
     ((select app.is_active_actor()) and person_id = (select app.current_person_id()))
     or (select app.is_office_class())
   );
-<<<<<<< HEAD
-
 create policy person_skills_insert on public.person_skills
   for insert to authenticated with check ((select app.is_office_manager()));
-
-=======
-create policy person_skills_insert on public.person_skills
-  for insert to authenticated with check ((select app.is_office_manager()));
->>>>>>> main
 create policy person_skills_update on public.person_skills
   for update to authenticated
   using ((select app.is_office_manager())) with check ((select app.is_office_manager()));
@@ -599,10 +479,7 @@ insert into public.skills (code, name) values
   ('Roof',       'Roof'),
   ('Electrical', 'Electrical');
 
-<<<<<<< HEAD
-=======
 
->>>>>>> main
 -- =============================================================================
 -- 2. Job Sold (as 20260919090000)
 -- =============================================================================
@@ -624,10 +501,6 @@ create table public.role_permissions (
   version         integer not null default 1 check (version >= 1),
   unique (role_code, permission_code)
 );
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 comment on table public.role_permissions is
   'Which roles hold which permission. Object-level rules (own job, task owner/backup) are enforced separately.';
 
@@ -666,15 +539,8 @@ create table public.customers (
   version           integer not null default 1 check (version >= 1),
   constraint customers_contact_method check (email is not null or phone is not null)
 );
-<<<<<<< HEAD
-
 comment on table public.customers is
   'A sale always creates a new customer; the reference never resolves or merges customers at sale.';
-
-=======
-comment on table public.customers is
-  'A sale always creates a new customer; the reference never resolves or merges customers at sale.';
->>>>>>> main
 create index customers_match_idx on public.customers (postcode, lower(last_name));
 
 -- -----------------------------------------------------------------------------
@@ -708,19 +574,9 @@ create table public.jobs (
   updated_by                   uuid references public.people (id),
   version                      integer not null default 1 check (version >= 1)
 );
-<<<<<<< HEAD
-
-create index jobs_customer_idx on public.jobs (customer_id);
-
-create index jobs_salesperson_idx on public.jobs (salesperson_id);
-
-create index jobs_created_by_idx on public.jobs (created_by);
-
-=======
 create index jobs_customer_idx on public.jobs (customer_id);
 create index jobs_salesperson_idx on public.jobs (salesperson_id);
 create index jobs_created_by_idx on public.jobs (created_by);
->>>>>>> main
 create index jobs_stage_idx on public.jobs (workflow_stage);
 
 create function app.forbid_job_ref_change()
@@ -733,10 +589,6 @@ begin
   return new;
 end
 $$;
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create trigger jobs_job_ref_immutable before update on public.jobs
   for each row execute function app.forbid_job_ref_change();
 
@@ -771,10 +623,6 @@ begin
   raise exception '%_IS_IMMUTABLE', upper(tg_table_name) using errcode = 'P0001';
 end
 $$;
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create trigger presales_immutable before update or delete on public.presales
   for each row execute function app.forbid_mutation();
 
@@ -816,15 +664,8 @@ create table public.task_assignment_rules (
   version              integer not null default 1 check (version >= 1),
   constraint task_assignment_backup_differs check (backup_person_id is null or backup_person_id <> owner_person_id)
 );
-<<<<<<< HEAD
-
 comment on table public.task_assignment_rules is
   'Explicit, deterministic task ownership. Exactly one active rule per template; never resolved from row order, names or roles lists.';
-
-=======
-comment on table public.task_assignment_rules is
-  'Explicit, deterministic task ownership. Exactly one active rule per template; never resolved from row order, names or roles lists.';
->>>>>>> main
 create unique index task_assignment_one_active_rule
   on public.task_assignment_rules (template_code) where active;
 
@@ -860,16 +701,8 @@ create table public.tasks (
   updated_by           uuid references public.people (id),
   version              integer not null default 1 check (version >= 1)
 );
-<<<<<<< HEAD
-
-create index tasks_job_idx on public.tasks (job_id);
-
-create index tasks_owner_open_idx on public.tasks (owner_id) where status in ('Open', 'Waiting', 'InProgress', 'Blocked');
-
-=======
 create index tasks_job_idx on public.tasks (job_id);
 create index tasks_owner_open_idx on public.tasks (owner_id) where status in ('Open', 'Waiting', 'InProgress', 'Blocked');
->>>>>>> main
 create index tasks_backup_open_idx on public.tasks (backup_id) where status in ('Open', 'Waiting', 'InProgress', 'Blocked');
 
 -- -----------------------------------------------------------------------------
@@ -886,10 +719,6 @@ create table public.commands (
   result          jsonb,
   created_at      timestamptz not null default now()
 );
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create trigger commands_immutable before delete on public.commands
   for each row execute function app.forbid_mutation();
 
@@ -965,21 +794,6 @@ $$;
 
 create trigger role_permissions_touch before insert or update on public.role_permissions
   for each row execute function app.touch_row();
-<<<<<<< HEAD
-
-create trigger customers_touch before insert or update on public.customers
-  for each row execute function app.touch_row();
-
-create trigger jobs_touch before insert or update on public.jobs
-  for each row execute function app.touch_row();
-
-create trigger task_templates_touch before insert or update on public.task_templates
-  for each row execute function app.touch_row();
-
-create trigger task_assignment_rules_touch before insert or update on public.task_assignment_rules
-  for each row execute function app.touch_row();
-
-=======
 create trigger customers_touch before insert or update on public.customers
   for each row execute function app.touch_row();
 create trigger jobs_touch before insert or update on public.jobs
@@ -988,7 +802,6 @@ create trigger task_templates_touch before insert or update on public.task_templ
   for each row execute function app.touch_row();
 create trigger task_assignment_rules_touch before insert or update on public.task_assignment_rules
   for each row execute function app.touch_row();
->>>>>>> main
 create trigger tasks_touch before insert or update on public.tasks
   for each row execute function app.touch_row();
 
@@ -1001,33 +814,11 @@ begin
   return new;
 end
 $$;
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create trigger presales_stamp before insert on public.presales
   for each row execute function app.stamp_created();
 
 create trigger role_permissions_audit after insert or update or delete on public.role_permissions
   for each row execute function app.audit_row_change();
-<<<<<<< HEAD
-
-create trigger customers_audit after insert or update or delete on public.customers
-  for each row execute function app.audit_row_change();
-
-create trigger jobs_audit after insert or update or delete on public.jobs
-  for each row execute function app.audit_row_change();
-
-create trigger presales_audit after insert on public.presales
-  for each row execute function app.audit_row_change();
-
-create trigger task_templates_audit after insert or update or delete on public.task_templates
-  for each row execute function app.audit_row_change();
-
-create trigger task_assignment_rules_audit after insert or update or delete on public.task_assignment_rules
-  for each row execute function app.audit_row_change();
-
-=======
 create trigger customers_audit after insert or update or delete on public.customers
   for each row execute function app.audit_row_change();
 create trigger jobs_audit after insert or update or delete on public.jobs
@@ -1038,7 +829,6 @@ create trigger task_templates_audit after insert or update or delete on public.t
   for each row execute function app.audit_row_change();
 create trigger task_assignment_rules_audit after insert or update or delete on public.task_assignment_rules
   for each row execute function app.audit_row_change();
->>>>>>> main
 create trigger tasks_audit after insert or update or delete on public.tasks
   for each row execute function app.audit_row_change();
 
@@ -1442,53 +1232,6 @@ revoke all on public.permissions, public.role_permissions, public.customers, pub
 grant select on public.permissions, public.role_permissions, public.customers, public.jobs, public.presales,
                 public.task_templates, public.task_assignment_rules, public.tasks, public.commands
   to authenticated;
-<<<<<<< HEAD
-
-grant insert, update on public.role_permissions, public.task_templates, public.task_assignment_rules to authenticated;
-
-grant delete on public.role_permissions to authenticated;
-
-revoke execute on all functions in schema app from public, anon;
-
-grant execute on all functions in schema app to authenticated, service_role;
-
-revoke execute on function public.submit_presale(uuid, jsonb) from public, anon;
-
-grant execute on function public.submit_presale(uuid, jsonb) to authenticated;
-
-alter table public.permissions           enable row level security;
-
-alter table public.role_permissions      enable row level security;
-
-alter table public.customers             enable row level security;
-
-alter table public.jobs                  enable row level security;
-
-alter table public.presales              enable row level security;
-
-alter table public.task_templates        enable row level security;
-
-alter table public.task_assignment_rules enable row level security;
-
-alter table public.tasks                 enable row level security;
-
-alter table public.commands              enable row level security;
-
-drop policy if exists permissions_select on public.permissions;
-
-create policy permissions_select on public.permissions
-  for select to authenticated using ((select app.is_active_actor()));
-
-create policy role_permissions_select on public.role_permissions
-  for select to authenticated using ((select app.is_active_actor()));
-
-create policy role_permissions_insert on public.role_permissions
-  for insert to authenticated with check ((select app.is_admin()));
-
-create policy role_permissions_update on public.role_permissions
-  for update to authenticated using ((select app.is_admin())) with check ((select app.is_admin()));
-
-=======
 grant insert, update on public.role_permissions, public.task_templates, public.task_assignment_rules to authenticated;
 grant delete on public.role_permissions to authenticated;
 
@@ -1516,7 +1259,6 @@ create policy role_permissions_insert on public.role_permissions
   for insert to authenticated with check ((select app.is_admin()));
 create policy role_permissions_update on public.role_permissions
   for update to authenticated using ((select app.is_admin())) with check ((select app.is_admin()));
->>>>>>> main
 create policy role_permissions_delete on public.role_permissions
   for delete to authenticated using ((select app.is_admin()));
 
@@ -1540,38 +1282,20 @@ create policy jobs_select on public.jobs
 -- Customers and presales follow job visibility (the subquery runs under jobs RLS).
 create policy customers_select on public.customers
   for select to authenticated using (exists (select 1 from public.jobs j where j.customer_id = customers.id));
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 create policy presales_select on public.presales
   for select to authenticated using (exists (select 1 from public.jobs j where j.id = presales.job_id));
 
 create policy task_templates_select on public.task_templates
   for select to authenticated using ((select app.is_active_actor()));
-<<<<<<< HEAD
-
 create policy task_templates_insert on public.task_templates
   for insert to authenticated with check ((select app.is_admin()));
-
-=======
-create policy task_templates_insert on public.task_templates
-  for insert to authenticated with check ((select app.is_admin()));
->>>>>>> main
 create policy task_templates_update on public.task_templates
   for update to authenticated using ((select app.is_admin())) with check ((select app.is_admin()));
 
 create policy task_assignment_rules_select on public.task_assignment_rules
   for select to authenticated using ((select app.has_permission('task.read.all')));
-<<<<<<< HEAD
-
 create policy task_assignment_rules_insert on public.task_assignment_rules
   for insert to authenticated with check ((select app.is_admin()));
-
-=======
-create policy task_assignment_rules_insert on public.task_assignment_rules
-  for insert to authenticated with check ((select app.is_admin()));
->>>>>>> main
 create policy task_assignment_rules_update on public.task_assignment_rules
   for update to authenticated using ((select app.is_admin())) with check ((select app.is_admin()));
 

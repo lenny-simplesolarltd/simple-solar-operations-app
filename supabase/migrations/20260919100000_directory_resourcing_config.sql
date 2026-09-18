@@ -334,7 +334,4 @@ create policy release_modes_insert on public.release_modes
 create policy release_modes_update on public.release_modes
   for update to authenticated
   using ((select app.is_admin())) with check ((select app.is_admin()));
-<<<<<<< HEAD
-=======
 
->>>>>>> main
