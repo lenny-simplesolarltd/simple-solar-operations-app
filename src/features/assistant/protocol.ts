@@ -179,7 +179,22 @@ export type DisplayCard =
       title: string;
       links: FormLinkCardData[];
       total: number;
+    }
+  /** Help Center guides (links only; the text stays in the Help Center). */
+  | { kind: 'help_articles'; title: string; articles: HelpCardArticle[] }
+  | {
+      kind: 'help_article';
+      article: HelpCardArticle;
+      related: HelpCardArticle[];
     };
+
+export interface HelpCardArticle {
+  title: string;
+  summary: string;
+  /** In-app link (/dashboard/help/<slug>); never an id. */
+  href: string;
+  switchedOn: boolean;
+}
 
 export interface FormCardData {
   id: string;

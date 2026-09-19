@@ -82,6 +82,14 @@ const BY_PAGE: Record<AssistantPageContext['kind'], AssistantSuggestion[]> = {
     }
   ],
   operations: [],
+  help: [
+    {
+      label: 'Ask how to do something',
+      prompt: 'How do I ',
+      mode: 'prefill',
+      requires: ['search_help_articles']
+    }
+  ],
   requests: [],
   presales: [
     {

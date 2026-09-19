@@ -44,7 +44,7 @@ export const getPresaleWorkflowTool: ReadTool<Record<string, never>> = {
       detail: STEP_DETAIL[key]
     }));
     const onSubmit =
-      'Submitting records the customer, the job (with its SS- reference), the presale snapshot and the follow-up tasks in one transaction. The presale is the record of what was sold and cannot be edited afterwards. Staff submit sales from Presales > New presale; SimpleBot cannot submit one.';
+      'Submitting records the customer, the job (with its SS- reference), the presale snapshot and the follow-up tasks in one transaction. The presale is the record of what was sold and cannot be edited afterwards. Staff submit sales from Sales > New job sold; SimpleBot cannot submit one.';
     return {
       ok: true,
       data: { kind: 'application_rules', steps, on_submit: onSubmit },

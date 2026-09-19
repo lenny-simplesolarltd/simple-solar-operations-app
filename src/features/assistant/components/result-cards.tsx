@@ -4,7 +4,12 @@ import { dueState, formatDateTime } from '@/features/jobs/format';
 import { cn } from '@/lib/utils';
 import { IconChevronRight } from '@tabler/icons-react';
 import Link from 'next/link';
-import type { DisplayCard, JobCardData, TaskCardData } from '../protocol';
+import type {
+  DisplayCard,
+  HelpCardArticle,
+  JobCardData,
+  TaskCardData
+} from '../protocol';
 import { FormCardBody, FormLinkRow } from './form-cards';
 
 // Structured tool results. These show exactly what the application returned,
@@ -29,6 +34,34 @@ function CardShell({
       </div>
       {children}
     </div>
+  );
+}
+
+function HelpRow({
+  article,
+  onNavigate
+}: {
+  article: HelpCardArticle;
+  onNavigate?: () => void;
+}) {
+  return (
+    <li className='flex items-start justify-between gap-2 px-3 py-2'>
+      <div className='min-w-0'>
+        <p className='text-sm font-medium'>{article.title}</p>
+        {!article.switchedOn && (
+          <p className='text-warning text-xs'>Not switched on yet</p>
+        )}
+      </div>
+      <Link
+        href={article.href}
+        onClick={onNavigate}
+        className='hover:bg-accent focus-visible:ring-ring -mr-1 inline-flex shrink-0 items-center gap-0.5 rounded-md py-1 pr-1 pl-2 text-xs font-medium outline-none focus-visible:ring-2'
+      >
+        Open guide
+        <span className='sr-only'> {article.title}</span>
+        <IconChevronRight aria-hidden className='size-3.5' />
+      </Link>
+    </li>
   );
 }
 
@@ -274,6 +307,63 @@ export function ResultCard({
         </CardShell>
       );
     }
+
+    case 'help_articles':
+      return (
+        <CardShell
+          title={card.title}
+          meta={
+            card.articles.length
+              ? count(card.articles.length, 'guide')
+              : undefined
+          }
+        >
+          {card.articles.length ? (
+            <ul className='divide-y'>
+              {card.articles.map((a) => (
+                <HelpRow key={a.href} article={a} onNavigate={onNavigate} />
+              ))}
+            </ul>
+          ) : (
+            <p className='text-muted-foreground px-3 py-2 text-xs'>
+              Nothing in the Help Center matched.{' '}
+              <Link
+                href='/dashboard/help'
+                onClick={onNavigate}
+                className='underline'
+              >
+                Search the Help Center
+              </Link>
+            </p>
+          )}
+        </CardShell>
+      );
+
+    case 'help_article':
+      return (
+        <CardShell title='Help Center guide'>
+          <ul className='divide-y'>
+            <HelpRow article={card.article} onNavigate={onNavigate} />
+          </ul>
+          {card.related.length > 0 && (
+            <p className='text-muted-foreground border-t px-3 py-2 text-xs'>
+              Related:{' '}
+              {card.related.map((r, i) => (
+                <span key={r.href}>
+                  {i > 0 && ' · '}
+                  <Link
+                    href={r.href}
+                    onClick={onNavigate}
+                    className='underline'
+                  >
+                    {r.title}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          )}
+        </CardShell>
+      );
 
     case 'workflow':
       return (

@@ -3,6 +3,7 @@ import 'server-only';
 import { formsEnabled } from '@/features/forms/server/service';
 import { ToolRegistry, type PlannedTool } from '../registry';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
+import { HELP_TOOLS } from './help';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
 import { PLANNED_TOOLS } from './planned';
 import { getPresaleWorkflowTool } from './presale';
@@ -23,6 +24,9 @@ export function createToolRegistry(
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
     .register(getPresaleWorkflowTool);
+  // Help Center: read-only, the same published guides staff read.
+  for (const tool of HELP_TOOLS)
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Forms: the same service the manual builder uses. Mutations are proposals
   // a staff member confirms; see tools/forms.ts.
   // While Forms is switched off (release gate FN-21) its tools are only

@@ -98,6 +98,16 @@ export const formPageContextSchema = z.strictObject({
   status: shortText(20)
 });
 
+/** The Help Center; `slug` is the article open, when one is. */
+export const helpPageContextSchema = z.strictObject({
+  kind: z.literal('help'),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+    .max(80)
+    .optional()
+});
+
 const simplePage = <K extends string>(kind: K) =>
   z.strictObject({ kind: z.literal(kind) });
 
@@ -110,6 +120,7 @@ export const pageContextSchema = z.discriminatedUnion('kind', [
   operationsPageContextSchema,
   formsPageContextSchema,
   formPageContextSchema,
+  helpPageContextSchema,
   simplePage('requests'),
   simplePage('presale-new'),
   simplePage('people'),
@@ -161,6 +172,8 @@ export function describeContext(page: AssistantPageContext): {
         label: page.formKind === 'template' ? 'Template' : 'Form',
         detail: `${page.title} · ${page.status}`
       };
+    case 'help':
+      return { label: 'Help Center', detail: page.slug };
     case 'requests':
       return { label: 'My requests' };
     case 'presales':

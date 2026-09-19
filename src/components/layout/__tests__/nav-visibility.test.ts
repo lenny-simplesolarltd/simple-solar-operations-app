@@ -17,17 +17,19 @@ const urls = (roles: RoleCode[], permissions: string[] = []) =>
   );
 
 describe('visibleNavGroups', () => {
-  it('gives an installer home, tasks, requests and their installs', () => {
+  it('gives an installer home, tasks, requests, their installs and help', () => {
     expect(urls(['Installer'])).toEqual([
       '/dashboard',
       '/dashboard/tasks',
       '/dashboard/requests',
-      '/dashboard/installs'
+      '/dashboard/installs',
+      '/dashboard/help'
     ]);
     expect(urls(['ReadOnly'])).toEqual([
       '/dashboard',
       '/dashboard/tasks',
-      '/dashboard/requests'
+      '/dashboard/requests',
+      '/dashboard/help'
     ]);
   });
 
@@ -54,7 +56,12 @@ describe('visibleNavGroups', () => {
 
   it('drops empty groups and never exposes access rules to the client', () => {
     const groups = visibleNavGroups(navGroups, user(['Installer']), new Set());
-    expect(groups.map((g) => g.label)).toEqual(['Home', 'Work', 'Installs']);
+    expect(groups.map((g) => g.label)).toEqual([
+      'Home',
+      'Work',
+      'Installs',
+      'Help'
+    ]);
     for (const item of groups.flatMap((g) => g.items)) {
       expect(item).not.toHaveProperty('access');
     }

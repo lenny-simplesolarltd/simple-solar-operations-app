@@ -63,13 +63,17 @@ describe('the production registry', () => {
       'find_job',
       'get_form',
       'get_form_response',
+      'get_help_article',
+      'get_help_for_route',
       'get_job',
       'get_job_tasks',
       'get_my_tasks',
       'get_presale_workflow',
+      'get_related_help',
       'get_team_tasks',
       'list_form_responses',
-      'list_forms'
+      'list_forms',
+      'search_help_articles'
     ]);
     const mutations = available.filter((t) => t.kind === 'mutation');
     expect(mutations.map((t) => t.name).sort()).toEqual([

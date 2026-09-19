@@ -188,6 +188,18 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Help',
+    items: [
+      {
+        title: 'Help Center',
+        url: '/dashboard/help',
+        icon: 'help',
+        shortcut: ['h', 'h'],
+        access: 'any'
+      }
+    ]
+  },
+  {
     label: 'Admin',
     items: [
       {

@@ -715,11 +715,15 @@ describe('history cannot change authorization', () => {
     expect(available.filter((t) => t.kind === 'mutation')).toEqual([]);
     expect(available.map((t) => t.name).sort()).toEqual([
       'find_job',
+      'get_help_article',
+      'get_help_for_route',
       'get_job',
       'get_job_tasks',
       'get_my_tasks',
       'get_presale_workflow',
-      'get_team_tasks'
+      'get_related_help',
+      'get_team_tasks',
+      'search_help_articles'
     ]);
   });
 });
