@@ -35,7 +35,7 @@ export class DevRouterProvider implements AssistantModelProvider {
     const call = route(text, request, offered);
     if (!call) {
       return {
-        text: 'Development router: no language model is configured. I can only route a few phrases - try "find <customer or job ref>", "my tasks", "overdue tasks", "team tasks", or "explain the presale workflow".',
+        text: 'Development router: no language model is configured. I can only route a few phrases - try "find <customer or job ref>", "files for SS-XXXX-0001", "my tasks", "overdue tasks", "team tasks", or "explain the presale workflow".',
         toolCalls: [],
         stopReason: 'end'
       };
@@ -109,6 +109,37 @@ function route(
     });
   if (pageFormId && /\b(this form|describe)\b/.test(lower))
     return pick('get_form', { form_id: pageFormId });
+
+  // Stored files: "where is the signed contract for SS-...", "what photos are
+  // on this job", "find the delivery note for Smith".
+  if (
+    !/^\s*how\b/i.test(text) &&
+    /\b(files?|documents?|contracts?|photos?|pictures?|delivery notes?|commissioning (pdf|record|certificate|sheet)s?|pdfs?)\b/.test(
+      lower
+    )
+  ) {
+    const ref = /\bSS-[A-Z0-9]{2,8}-\d{2,6}\b/i.exec(text)?.[0];
+    const group = /\bcontracts?\b/.test(lower)
+      ? 'contracts'
+      : /\b(photos?|pictures?)\b/.test(lower)
+        ? 'photos'
+        : /\bdelivery notes?\b/.test(lower)
+          ? 'materials'
+          : /\bcommissioning\b/.test(lower)
+            ? 'commissioning'
+            : undefined;
+    const job = ref ?? pageJobId;
+    if (job)
+      return pick('list_job_files', { job, ...(group ? { group } : {}) });
+    const forWhom = /\bfor\s+(?:the\s+)?(.{2,80})$/i.exec(
+      text.replace(/[?.!]+$/, '')
+    )?.[1];
+    return pick('search_files', {
+      ...(forWhom ? { query: forWhom } : {}),
+      ...(group ? { group } : {}),
+      ...(!forWhom && !group ? { query: text.slice(0, 120) } : {})
+    });
+  }
 
   // Help Center: "how do I ...", "what does ... mean", "why can't I ...",
   // "where can I find ...", "help with this page".

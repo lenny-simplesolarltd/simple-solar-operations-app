@@ -20,6 +20,7 @@ export type NavAccess =
   | 'officeManager'
   | 'systemHealth'
   | 'releaseControl'
+  | 'files'
   | 'teamTasks'
   | 'jobs'
   | 'jobSales'

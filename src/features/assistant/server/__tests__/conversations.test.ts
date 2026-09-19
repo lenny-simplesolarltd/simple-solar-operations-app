@@ -723,6 +723,8 @@ describe('history cannot change authorization', () => {
       'get_presale_workflow',
       'get_related_help',
       'get_team_tasks',
+      'list_job_files',
+      'search_files',
       'search_help_articles'
     ]);
   });

@@ -58,7 +58,7 @@ export default async function IssuesPage({
 
   return (
     <PageContainer>
-      <AssistantPageContext page={{ kind: 'other' }} />
+      <AssistantPageContext page={{ kind: 'operations', surface: 'issues' }} />
       <div className='flex w-full flex-col gap-4'>
         <Heading
           title='Issues'

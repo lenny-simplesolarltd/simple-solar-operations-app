@@ -186,7 +186,22 @@ export type DisplayCard =
       kind: 'help_article';
       article: HelpCardArticle;
       related: HelpCardArticle[];
-    };
+    }
+  /** Stored files (no storage paths): Open/Download go through /api/evidence/<id>. */
+  | { kind: 'file_list'; title: string; files: FileCardData[]; total: number };
+
+export interface FileCardData {
+  id: string;
+  filename: string;
+  /** Staff label of the file's category ("Signed contract"). */
+  category: string;
+  /** Staff group ("Contracts", "Photos & installation"). */
+  group: string;
+  addedAt: string | null;
+  addedBy: string | null;
+  jobId: string | null;
+  jobRef: string | null;
+}
 
 export interface HelpCardArticle {
   title: string;

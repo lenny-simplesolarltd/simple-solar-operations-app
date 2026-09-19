@@ -73,6 +73,8 @@ describe('the production registry', () => {
       'get_team_tasks',
       'list_form_responses',
       'list_forms',
+      'list_job_files',
+      'search_files',
       'search_help_articles'
     ]);
     const mutations = available.filter((t) => t.kind === 'mutation');

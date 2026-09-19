@@ -83,6 +83,8 @@ describe('signed in', () => {
       'get_job_tasks',
       'get_my_tasks',
       'get_presale_workflow',
+      'list_job_files',
+      'search_files',
       'search_help_articles',
       'get_help_article',
       'get_help_for_route',

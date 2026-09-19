@@ -16,7 +16,7 @@ import {
   OPEN_TASK_STATUSES
 } from '@/features/jobs/server/queries';
 import { stageLabel } from '@/features/jobs/stages';
-import { EvidenceList } from '@/features/operations/evidence-list';
+import { JobFiles } from '@/features/operations/job-files';
 import { TaskTable } from '@/features/jobs/task-table';
 import { Button } from '@/components/ui/button';
 import { getCurrentUser } from '@/lib/auth';
@@ -135,18 +135,7 @@ export default async function JobPage({
         {tab === 'operations' && <OperationsTab jobId={job.id} />}
         {tab === 'money' && <MoneyTab jobId={job.id} />}
         {tab === 'files' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className='text-base'>Evidence and files</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <EvidenceList
-                scope={{ job_id: job.id }}
-                showTask
-                empty='No files have been added to this job yet.'
-              />
-            </CardContent>
-          </Card>
+          <JobFiles jobId={job.id} canUpload={isOfficeClass(user)} />
         )}
         {tab === 'history' && <HistoryTab jobId={job.id} />}
 

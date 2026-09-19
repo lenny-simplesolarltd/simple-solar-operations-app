@@ -22,6 +22,7 @@ const READ_RPCS = new Set([
   // Evidence metadata a person may see (no storage paths). Opening a file is
   // refused while previewing: Storage is not reachable with a preview token.
   'list_evidence',
+  'search_evidence',
   'cancellation_preview',
   // Help Center: published articles this person may read (never drafts).
   'help_published_articles',

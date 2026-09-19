@@ -216,7 +216,7 @@ export const navGroups: NavGroup[] = [
         url: '/dashboard/files',
         icon: 'files',
         shortcut: ['f', 'd'],
-        access: 'any'
+        access: 'files'
       }
     ]
   },

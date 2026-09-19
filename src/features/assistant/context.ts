@@ -74,7 +74,9 @@ export const OPERATION_SURFACES = [
   'planner',
   'scaffold',
   'availability',
-  'system'
+  'system',
+  'issues',
+  'files'
 ] as const;
 
 export const operationsPageContextSchema = z.strictObject({
@@ -205,7 +207,9 @@ const SURFACE_LABELS: Record<(typeof OPERATION_SURFACES)[number], string> = {
   planner: 'Planner',
   scaffold: 'Scaffold bookings',
   availability: 'Staff availability',
-  system: 'System health'
+  system: 'System health',
+  issues: 'Issues',
+  files: 'Files & documents'
 };
 
 function filterSummary(

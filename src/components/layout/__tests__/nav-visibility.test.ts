@@ -17,12 +17,13 @@ const urls = (roles: RoleCode[], permissions: string[] = []) =>
   );
 
 describe('visibleNavGroups', () => {
-  it('gives an installer home, tasks, requests, their installs and help', () => {
+  it('gives an installer home, tasks, requests, their installs, files and help', () => {
     expect(urls(['Installer'])).toEqual([
       '/dashboard',
       '/dashboard/tasks',
       '/dashboard/requests',
       '/dashboard/installs',
+      '/dashboard/files',
       '/dashboard/help'
     ]);
     expect(urls(['ReadOnly'])).toEqual([
@@ -60,11 +61,29 @@ describe('visibleNavGroups', () => {
       'Home',
       'Work',
       'Installs',
+      'Files',
       'Help'
     ]);
     for (const item of groups.flatMap((g) => g.items)) {
       expect(item).not.toHaveProperty('access');
     }
+  });
+
+  it('offers the office queues, files and release control to the right roles', () => {
+    expect(urls(['Office'])).toEqual(
+      expect.arrayContaining([
+        '/dashboard/issues',
+        '/dashboard/tasks?scope=all&queue=calls',
+        '/dashboard/tasks?scope=all&queue=cancellation',
+        '/dashboard/files'
+      ])
+    );
+    expect(urls(['Installer'])).not.toContain('/dashboard/issues');
+    expect(urls(['Surveyor'])).not.toContain('/dashboard/issues');
+    expect(urls(['ReadOnly'])).not.toContain('/dashboard/files');
+    expect(urls(['Admin'])).toContain('/dashboard/release');
+    expect(urls(['Director'])).toContain('/dashboard/release');
+    expect(urls(['Office'])).not.toContain('/dashboard/release');
   });
 
   it('offers booking to the office and intake review to office managers', () => {

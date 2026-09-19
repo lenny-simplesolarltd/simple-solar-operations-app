@@ -6,6 +6,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import Link from 'next/link';
 import type {
   DisplayCard,
+  FileCardData,
   HelpCardArticle,
   JobCardData,
   TaskCardData
@@ -155,6 +156,54 @@ function TaskRow({
       {task.blockingReason && (
         <p className='text-destructive text-xs'>{task.blockingReason}</p>
       )}
+    </li>
+  );
+}
+
+function FileRow({
+  file,
+  showJob,
+  onNavigate
+}: {
+  file: FileCardData;
+  showJob: boolean;
+  onNavigate?: () => void;
+}) {
+  const link =
+    'hover:bg-accent focus-visible:ring-ring inline-flex shrink-0 items-center rounded-md px-1.5 py-1 text-xs font-medium outline-none focus-visible:ring-2';
+  return (
+    <li className='flex flex-col gap-1 px-3 py-2'>
+      <div className='flex items-start justify-between gap-2'>
+        <p className='min-w-0 truncate text-sm font-medium'>{file.filename}</p>
+        <div className='-mr-1 flex shrink-0 items-center'>
+          {/* Opens a one-minute signed link; the route re-checks access. */}
+          <a
+            href={`/api/evidence/${file.id}`}
+            target='_blank'
+            rel='noopener noreferrer'
+            className={link}
+          >
+            Open<span className='sr-only'> {file.filename}</span>
+          </a>
+          <a href={`/api/evidence/${file.id}?download=1`} className={link}>
+            Download<span className='sr-only'> {file.filename}</span>
+          </a>
+        </div>
+      </div>
+      <p className='text-muted-foreground flex flex-wrap gap-x-2 text-xs'>
+        <span>{file.category}</span>
+        {file.addedAt && <span>· {formatDateTime(file.addedAt)}</span>}
+        {file.addedBy && <span>· {file.addedBy}</span>}
+        {showJob && file.jobId && file.jobRef && (
+          <Link
+            href={`/dashboard/jobs/${file.jobId}?tab=files`}
+            onClick={onNavigate}
+            className='text-foreground decoration-primary font-mono font-semibold underline decoration-2 underline-offset-2'
+          >
+            {file.jobRef}
+          </Link>
+        )}
+      </p>
     </li>
   );
 }
@@ -364,6 +413,47 @@ export function ResultCard({
           )}
         </CardShell>
       );
+
+    case 'file_list': {
+      const showJob = new Set(card.files.map((f) => f.jobId)).size > 1;
+      return (
+        <CardShell
+          title={card.title}
+          meta={
+            card.total > card.files.length
+              ? `${card.files.length} of ${card.total}`
+              : count(card.total, 'file')
+          }
+        >
+          {card.files.length === 0 ? (
+            <p className='text-muted-foreground px-3 py-3 text-sm'>
+              No files you have access to matched.
+            </p>
+          ) : (
+            <ul className='divide-y'>
+              {card.files.map((file) => (
+                <FileRow
+                  key={file.id}
+                  file={file}
+                  showJob={showJob}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </ul>
+          )}
+          <p className='text-muted-foreground border-t px-3 py-2 text-xs'>
+            Files open with a link that works for 60 seconds.{' '}
+            <Link
+              href='/dashboard/files'
+              onClick={onNavigate}
+              className='text-foreground decoration-primary underline decoration-2 underline-offset-2'
+            >
+              Files & documents
+            </Link>
+          </p>
+        </CardShell>
+      );
+    }
 
     case 'workflow':
       return (

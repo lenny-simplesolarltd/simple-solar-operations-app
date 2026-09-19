@@ -36,6 +36,20 @@ export function canSee(
     case 'officeManager':
     case 'intakeReview':
       return isOfficeManager(user);
+    case 'files':
+      // The roles app.can_read_evidence lets read some file (installers: their
+      // allocated work; Store: delivery notes). ReadOnly / Scaffolder read none.
+      return has(user, [
+        'Admin',
+        'Manager',
+        'Director',
+        'Office',
+        'VariationApprover',
+        'Surveyor',
+        'Finance',
+        'Store',
+        'Installer'
+      ]);
     case 'releaseControl':
       // Admin / Manager switch functions; Director (go-live approver) reads.
       return isAdmin(user) || has(user, ['Director']);

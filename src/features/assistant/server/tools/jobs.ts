@@ -83,7 +83,7 @@ export const getJobTool: ReadTool<{ jobId: string }> = {
   name: 'get_job',
   summary: 'Read a job: customer, sale, system, scope and task counts',
   description:
-    'Read one job by id: customer name and location, workflow stage, sale details (agreed price, payment route, salesperson, quote reference), the sold system (kWp, panels), required scope, surveyor notes, and counts of open / blocked / overdue tasks. Does not return quote revisions, documents, booking or timeline data - those are not available yet.',
+    'Read one job by id: customer name and location, workflow stage, sale details (agreed price, payment route, salesperson, quote reference), the sold system (kWp, panels), required scope, surveyor notes, and counts of open / blocked / overdue tasks. Does not return quote revisions, booking or timeline data - those are not available yet. For the stored files of a job (contracts, photos, commissioning records) use list_job_files.',
   domain: 'jobs',
   kind: 'read',
   status: 'available',

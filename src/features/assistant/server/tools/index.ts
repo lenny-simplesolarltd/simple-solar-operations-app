@@ -2,6 +2,7 @@ import 'server-only';
 
 import { formsEnabled } from '@/features/forms/server/service';
 import { ToolRegistry, type PlannedTool } from '../registry';
+import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
@@ -24,6 +25,9 @@ export function createToolRegistry(
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
     .register(getPresaleWorkflowTool);
+  // Stored files: the same reads as the job Files tab and the Files library.
+  for (const tool of FILE_TOOLS)
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Help Center: read-only, the same published guides staff read.
   for (const tool of HELP_TOOLS)
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);

@@ -70,7 +70,7 @@ export const PLANNED_TOOLS: PlannedTool[] = [
     'get_generated_documents',
     'read',
     'documents',
-    'List the documents generated for a job',
+    'List documents the app itself generates for a job (e.g. a quotation pack); stored files such as signed contracts and photos are available now through list_job_files / search_files',
     'BD-06 generated documents'
   ),
   // -- mutations -----------------------------------------------------------
@@ -92,7 +92,7 @@ export const PLANNED_TOOLS: PlannedTool[] = [
     'attach_task_evidence',
     'mutation',
     'evidence',
-    'Attach evidence to a task',
+    'Attach a file to a task for the staff member (reading stored files is available now)',
     'BD-04 task commands + evidence storage'
   ),
   planned(
