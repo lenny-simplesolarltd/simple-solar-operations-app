@@ -1,5 +1,10 @@
 import {
+  IconAlertOctagon,
   IconAlertTriangle,
+  IconBan,
+  IconFolders,
+  IconPhoneCall,
+  IconToggleRight,
   IconArrowRight,
   IconCheck,
   IconChevronLeft,
@@ -87,5 +92,10 @@ export const Icons = {
   intake: IconInbox,
   skills: IconCertificate,
   system: IconHeartbeat,
-  forms: IconForms
+  forms: IconForms,
+  calls: IconPhoneCall,
+  issues: IconAlertOctagon,
+  cancellations: IconBan,
+  files: IconFolders,
+  release: IconToggleRight
 };

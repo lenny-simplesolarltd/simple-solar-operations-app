@@ -492,7 +492,8 @@ end
 $$;
 
 -- STAFF_ROLE_SET: {payload: {person_id, role_code, active, reason},
--- expected_version: the person_roles row's version, 0 for a new grant}.
+-- expected_version: the person_roles row's version, or - for a role the
+-- person has never held - the people row's version}.
 create function app.cmd_staff_role_set(p_request jsonb, p_actor jsonb)
 returns jsonb
 language plpgsql
@@ -522,7 +523,7 @@ begin
     perform app.fail('R1A_REQUIRED_REASON');
   end if;
   select * into v_row from public.person_roles r where r.person_id = v_person and r.role_code = v_role for update;
-  if coalesce(v_row.version, 0) <> app.expected_version(p_request) then
+  if coalesce(v_row.version, (select p.version from public.people p where p.id = v_person)) <> app.expected_version(p_request) then
     perform app.fail('R1A_STALE_VERSION');
   end if;
   if v_role = 'Admin' and not v_active then

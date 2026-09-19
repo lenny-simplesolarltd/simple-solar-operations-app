@@ -25,6 +25,8 @@ import {
 } from '@/features/system/operational-health';
 import { getCurrentUser } from '@/lib/auth';
 import { readOps, readR1 } from '@/lib/backend/read';
+import { ReadinessCard } from '@/features/release/readiness-card';
+import type { ReleaseReadiness } from '@/lib/backend/admin-models';
 import { isAdmin, isDirectorClass, isOfficeManager } from '@/lib/roles';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
@@ -77,14 +79,15 @@ export default async function SystemPage() {
   const canResolve = isOfficeManager(user);
   // Director reads System Health to record backup evidence; the calendar
   // outbox is office work (CALENDAR_STATUS: Admin / Manager / Office).
-  const [status, modes, calendar] = await Promise.all([
+  const [status, modes, calendar, readiness] = await Promise.all([
     readR1<SystemStatus>('SYSTEM_STATUS'),
     admin
       ? readR1<ReleaseMode[]>('RELEASE_MODE_STATUS')
       : Promise.resolve(null),
     canResolve
       ? readOps<CalendarStatus>('CALENDAR_STATUS')
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    readOps<ReleaseReadiness>('RELEASE_READINESS')
   ]);
   const canRecordEvidence = isDirectorClass(user);
   const operational = normalizeOperational(
@@ -100,6 +103,7 @@ export default async function SystemPage() {
           title='System health'
           description='Background checks, integrations that need a person, and which parts of the system are switched on.'
         />
+        {readiness.ok && <ReadinessCard readiness={readiness.data} link />}
         {!status.ok ? (
           <ReadFailureState failure={status.error} />
         ) : (

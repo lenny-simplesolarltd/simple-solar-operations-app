@@ -9,11 +9,18 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
+import { ReadFailureState } from '@/components/read-failure';
 import { InviteButton } from '@/features/people/invite-button';
+import {
+  ActiveToggleButton,
+  AddPersonButton,
+  RoleChangeButton
+} from '@/features/people/staff-admin';
 import { getCurrentUser } from '@/lib/auth';
+import type { StaffAdminRead } from '@/lib/backend/admin-models';
+import { readOps } from '@/lib/backend/read';
 import { isAdmin } from '@/lib/roles';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
@@ -26,14 +33,20 @@ export default async function PeoplePage() {
   if (!user) redirect('/auth/sign-in');
   if (!isAdmin(user)) redirect('/dashboard');
 
-  const supabase = await createClient();
-  const { data: people, error } = await supabase
-    .from('people')
-    .select(
-      'id, display_name, email, active, auth_user_id, person_roles!person_roles_person_id_fkey(role_code, active)'
-    )
-    .order('display_name');
-  if (error) throw new Error(`people: ${error.message}`);
+  // Staff administration read (STAFF_ADMIN): roles held and withdrawn, with
+  // the versions the staff commands check.
+  const staff = await readOps<StaffAdminRead>('STAFF_ADMIN');
+  if (!staff.ok)
+    return (
+      <PageContainer>
+        <ReadFailureState failure={staff.error} />
+      </PageContainer>
+    );
+  const people = staff.data.people;
+  // Only an Admin gives or removes Admin (the database refuses otherwise).
+  const grantable = staff.data.roles.filter(
+    (r) => staff.data.actor_is_admin || r !== 'Admin'
+  );
 
   // Pending invites live in Supabase Auth, which only the service role can list.
   // The actor has already been authorized as an administrator above.
@@ -49,10 +62,13 @@ export default async function PeoplePage() {
   return (
     <PageContainer>
       <div className='flex w-full flex-col gap-4'>
-        <Heading
-          title='People & access'
-          description='Everyone in the directory. A login is separate: invite only the people who need to use the app. They set their own password from the emailed link; roles decide what they can do.'
-        />
+        <div className='flex flex-wrap items-start justify-between gap-3'>
+          <Heading
+            title='People & access'
+            description='Everyone in the directory. A login is separate: invite only the people who need to use the app. They set their own password from the emailed link; roles decide what they can do. Every change needs a reason and is recorded.'
+          />
+          <AddPersonButton roles={grantable} />
+        </div>
         <div className='overflow-x-auto rounded-lg border'>
           <Table>
             <TableHeader>
@@ -66,7 +82,7 @@ export default async function PeoplePage() {
             </TableHeader>
             <TableBody>
               {people.map((person) => {
-                const roles = person.person_roles
+                const roles = person.roles
                   .filter((r) => r.active)
                   .map((r) => r.role_code);
                 const pending =
@@ -74,7 +90,7 @@ export default async function PeoplePage() {
                 const canInvite =
                   person.active &&
                   !!person.email &&
-                  !person.auth_user_id &&
+                  !person.has_login &&
                   roles.length > 0;
                 return (
                   <TableRow
@@ -99,7 +115,7 @@ export default async function PeoplePage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {person.auth_user_id ? (
+                      {person.has_login ? (
                         <Badge variant='success'>Active login</Badge>
                       ) : pending ? (
                         <Badge variant='warning'>Invited</Badge>
@@ -107,10 +123,25 @@ export default async function PeoplePage() {
                         <Badge variant='outline'>No login</Badge>
                       )}
                     </TableCell>
-                    <TableCell className='text-right'>
-                      {canInvite && (
-                        <InviteButton personId={person.id} resend={pending} />
-                      )}
+                    <TableCell>
+                      <div className='flex flex-wrap justify-end gap-2'>
+                        {canInvite && (
+                          <InviteButton personId={person.id} resend={pending} />
+                        )}
+                        {person.active && (
+                          <RoleChangeButton
+                            person={person}
+                            roles={grantable}
+                            mode='grant'
+                          />
+                        )}
+                        <RoleChangeButton
+                          person={person}
+                          roles={grantable}
+                          mode='withdraw'
+                        />
+                        <ActiveToggleButton person={person} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

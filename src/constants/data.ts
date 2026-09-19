@@ -53,6 +53,25 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Sales',
+    items: [
+      {
+        title: 'New job sold',
+        url: '/dashboard/presales/new',
+        icon: 'add',
+        shortcut: ['n', 'p'],
+        access: 'presaleSubmit'
+      },
+      {
+        title: 'Job sales',
+        url: '/dashboard/presales',
+        icon: 'page',
+        shortcut: ['p', 'p'],
+        access: 'jobSales'
+      }
+    ]
+  },
+  {
     label: 'Operations',
     items: [
       {
@@ -68,6 +87,27 @@ export const navGroups: NavGroup[] = [
         icon: 'intake',
         shortcut: ['i', 'r'],
         access: 'intakeReview'
+      },
+      {
+        title: 'Calls',
+        url: '/dashboard/tasks?scope=all&queue=calls',
+        icon: 'calls',
+        shortcut: ['c', 'c'],
+        access: 'teamTasks'
+      },
+      {
+        title: 'Issues',
+        url: '/dashboard/issues',
+        icon: 'issues',
+        shortcut: ['i', 'i'],
+        access: 'office'
+      },
+      {
+        title: 'Cancellations',
+        url: '/dashboard/tasks?scope=all&queue=cancellation',
+        icon: 'cancellations',
+        shortcut: ['x', 'x'],
+        access: 'teamTasks'
       }
     ]
   },
@@ -157,25 +197,6 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
-    label: 'Sales',
-    items: [
-      {
-        title: 'New job sold',
-        url: '/dashboard/presales/new',
-        icon: 'add',
-        shortcut: ['n', 'p'],
-        access: 'presaleSubmit'
-      },
-      {
-        title: 'Job sales',
-        url: '/dashboard/presales',
-        icon: 'page',
-        shortcut: ['p', 'p'],
-        access: 'jobSales'
-      }
-    ]
-  },
-  {
     label: 'Forms',
     items: [
       {
@@ -184,6 +205,18 @@ export const navGroups: NavGroup[] = [
         icon: 'forms',
         shortcut: ['f', 'f'],
         access: 'forms'
+      }
+    ]
+  },
+  {
+    label: 'Files',
+    items: [
+      {
+        title: 'Files & documents',
+        url: '/dashboard/files',
+        icon: 'files',
+        shortcut: ['f', 'd'],
+        access: 'any'
       }
     ]
   },
@@ -208,6 +241,13 @@ export const navGroups: NavGroup[] = [
         icon: 'user',
         shortcut: ['u', 'u'],
         access: 'admin'
+      },
+      {
+        title: 'Release control',
+        url: '/dashboard/release',
+        icon: 'release',
+        shortcut: ['r', 'c'],
+        access: 'releaseControl'
       },
       {
         title: 'System health',

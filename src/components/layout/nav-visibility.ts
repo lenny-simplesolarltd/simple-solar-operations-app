@@ -36,6 +36,9 @@ export function canSee(
     case 'officeManager':
     case 'intakeReview':
       return isOfficeManager(user);
+    case 'releaseControl':
+      // Admin / Manager switch functions; Director (go-live approver) reads.
+      return isAdmin(user) || has(user, ['Director']);
     case 'systemHealth':
       // Director records backup / restore evidence there (read only otherwise).
       return isOfficeManager(user) || has(user, ['Director']);
