@@ -112,6 +112,22 @@ insert into app.read_registry (read_type, roles, modes, module, notes) values
   ('ISSUES', array['Admin', 'Manager', 'Director', 'Office', 'VariationApprover'], '[]', 'convergence',
    'Cross-job issues (Issues Queue): job, customer, status, blocking, owner and ISSUE_UPDATE availability per issue.');
 
+-- JOB_OPERATIONS also lists who an issue can be reassigned to (ISSUE_UPDATE
+-- REASSIGN takes an office person), so the job's Operations tab can offer it.
+alter function app.read_job_operations(jsonb, jsonb) rename to read_job_operations_pre_convergence;
+
+create function app.read_job_operations(p_request jsonb, p_actor jsonb)
+returns jsonb
+language sql stable security definer
+set search_path = ''
+as $$
+  select app.read_job_operations_pre_convergence(p_request, p_actor) || jsonb_build_object('office_people',
+    (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.display_name) order by p.display_name), '[]'::jsonb)
+     from public.people p
+     where p.active and exists (select 1 from public.person_roles r where r.person_id = p.id and r.active
+                                and r.role_code in ('Admin', 'Manager', 'Director', 'Office', 'VariationApprover'))))
+$$;
+
 -- -----------------------------------------------------------------------------
 -- 2. Issue files: evidence quoted on an issue event belongs to that issue
 -- -----------------------------------------------------------------------------
