@@ -453,3 +453,11 @@ const aPreview = (await db.query(`select public.cancellation_preview($1::uuid) p
 assert.ok(aPreview.risks.includes('OPERATIONALLY_COMPLETE'), JSON.stringify(aPreview.risks));
 
 console.log('R1 COMPLETION PASS');
+
+// Staff-facing wording
+const worded = (await one(`select public.describe_command_result('COMMISSIONING_RECORD', $1::jsonb) r`, [{ status: 'Recorded' }])).r;
+assert.equal(worded.status, 'Succeeded'); assert.match(worded.message, /^Commissioning evidence recorded/);
+assert.equal((await one(`select public.describe_command_result('CALL_RECORD', $1::jsonb) r`, [{ status: 'Recorded' }])).r.message, 'Call recorded.');
+const err = (await one(`select public.describe_command_error('R1A_COMMISSIONING_ALREADY_ACCEPTED') r`)).r;
+assert.match(err.message, /installer commissioning form has already been accepted/);
+console.log('wording ok');

@@ -698,3 +698,23 @@ as $$
   ]
 }'::jsonb
 $$;
+
+-- Success wording for COMMISSIONING_RECORD (otherwise the generic "Request
+-- completed successfully."). Every other command is described exactly as
+-- before by the renamed original.
+alter function public.describe_command_result(text, jsonb) rename to describe_command_result_pre_r1_completion;
+
+create function public.describe_command_result(p_command_type text, p_result jsonb)
+returns jsonb
+language plpgsql stable
+set search_path = ''
+as $$
+declare
+  v_out jsonb := public.describe_command_result_pre_r1_completion(p_command_type, p_result);
+begin
+  if p_command_type = 'COMMISSIONING_RECORD' and v_out ->> 'status' = 'Succeeded' then
+    return v_out || jsonb_build_object('message', 'Commissioning evidence recorded. It counts towards completion for this work package.');
+  end if;
+  return v_out;
+end
+$$;
