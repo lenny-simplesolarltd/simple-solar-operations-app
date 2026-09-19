@@ -57,6 +57,10 @@ export default async function PublicFormPage({
       'This form is closed',
       'It is no longer accepting answers. Please contact Simple Solar if you need help.'
     ],
+    unavailable: [
+      'This form is not available right now',
+      'Please try again later, or contact Simple Solar.'
+    ],
     not_found: [
       'Link not recognised',
       'Check you have the whole link from your message, or contact Simple Solar.'

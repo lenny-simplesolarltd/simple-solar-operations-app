@@ -76,9 +76,28 @@ confirms; the confirmed action id is the command id): `create_form`, `edit_form_
 never receives a link or token; cards show "Copy link", which asks the server when pressed.
 Confirmed/cancelled outcomes are recorded in the stored conversation.
 
-## Not in v1 (decisions needed)
+## Release gate (FN-21)
 
-- **File/photo uploads**: needs a storage decision (see the report). The existing `evidence` bucket
-  is authenticated-only and job-scoped; recipients are anonymous.
-- **Drawn signatures**; staff-authenticated (internal) forms; autosave/"started" state.
-- **Email/SMS delivery** (no approved sender); **Forms release gate**; **retention**.
+Forms is registered in the existing RA01 release-mode register as `FN-21` and ships **Disabled**.
+It is on only when an administrator sets `FN-21` to `Manual` (scope `Pilot` or `All`). While off:
+
+- every `FORMS_*` command is refused by the command core (`R1A_MODE_DENIED`), via its
+  `app.command_registry` modes;
+- staff reads return nothing (RLS on all four tables includes `app.forms_on()`);
+- recipient links answer `unavailable` and accept nothing;
+- the app hides the Forms menu entry, Forms pages show "switched off", and SimpleBot's Forms tools are
+  registered as _planned_ (not offered, not executable; a pending Forms proposal cannot be confirmed).
+
+`public.forms_enabled()` lets any signed-in staff member (the menu, pages and SimpleBot) ask whether
+Forms is on; the release-mode register itself stays Admin-only.
+
+## Decisions for v1
+
+- **File/photo uploads: deferred.** When built, use a dedicated private Forms storage path with a
+  server-authorised upload flow, not the staff evidence bucket.
+- **FORMS_LINK_SECRET**: required, server-only, no fallback (links cannot be created without it). Never
+  sent to the model; the model never sees links.
+- **Email/SMS: deferred.** Links are copied and sent by staff; nothing claims delivery.
+- **Surveyors** may receive and complete forms; no Forms administration.
+- **Retention**: nothing is deleted automatically; archived forms and submitted responses are kept.
+- **Deferred**: drawn signatures, autosave/"started", staff-only internal forms.

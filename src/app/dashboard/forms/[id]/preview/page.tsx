@@ -1,3 +1,5 @@
+import { formsEnabled } from '@/features/forms/server/service';
+import { FormsNotEnabled } from '@/features/forms/components/forms-not-enabled';
 import PageContainer from '@/components/layout/page-container';
 import { PreviewFrame } from '@/features/forms/components/preview-frame';
 import { getForm, getRevision } from '@/features/forms/server/service';
@@ -25,6 +27,7 @@ export default async function PreviewPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect('/auth/sign-in');
+  if (!(await formsEnabled())) return <FormsNotEnabled />;
   if (!(await getPermissions(user)).has('forms.read')) redirect('/dashboard');
   const { id } = await params;
   const { version } = await searchParams;

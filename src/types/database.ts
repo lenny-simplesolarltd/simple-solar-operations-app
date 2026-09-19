@@ -5834,6 +5834,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      forms_enabled: { Args: never; Returns: boolean };
       forms_public_open: { Args: { p_token: string }; Returns: Json };
       forms_public_submit: {
         Args: { p_answers: Json; p_submission_id: string; p_token: string };

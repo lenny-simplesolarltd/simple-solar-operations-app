@@ -98,6 +98,13 @@ function route(
         }
       ]
     });
+  const linkFor = /create (?:a )?link for (.{1,80})/i.exec(text);
+  if (pageFormId && linkFor)
+    return pick('create_form_link', {
+      form_id: pageFormId,
+      recipient: 'other',
+      recipient_name: linkFor[1].replace(/[?.!]+$/, '')
+    });
   if (pageFormId && /\b(this form|describe)\b/.test(lower))
     return pick('get_form', { form_id: pageFormId });
 

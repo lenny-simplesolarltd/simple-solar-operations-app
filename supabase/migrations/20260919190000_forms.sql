@@ -22,9 +22,15 @@
 -- and validate every answer here against the immutable revision - the browser's
 -- idea of the form is never trusted.
 --
--- Not in this migration (deliberately): file/photo uploads (needs a storage
--- decision), drawn signatures, delivery by email/SMS (no approved sender yet),
--- a release gate for Forms, retention.
+-- Release gate: FN-21 "Forms" in public.release_modes, seeded Disabled. Until
+-- an administrator sets it to Manual, every Forms command is refused by the
+-- command core (R1A_MODE_DENIED), staff reads return nothing (RLS), recipient
+-- links answer 'unavailable', and the app hides Forms and offers SimpleBot no
+-- Forms tools (public.forms_enabled()).
+--
+-- Not in this migration (deliberately): file/photo uploads, drawn signatures,
+-- delivery by email/SMS (no approved sender yet), autosave, staff-only forms,
+-- automatic retention (forms and responses are kept; archiving hides only).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -50,6 +56,30 @@ cross join (values ('forms.read'), ('forms.create'), ('forms.edit'), ('forms.pub
                    ('forms.send'), ('forms.responses.read'), ('forms.templates.manage')) as p (code)
 union all
 select 'Director', code from (values ('forms.read'), ('forms.responses.read')) as d (code);
+
+-- -----------------------------------------------------------------------------
+-- Release gate (existing RA01 release-mode register)
+-- -----------------------------------------------------------------------------
+
+insert into public.release_modes (function_id, function_name, mode, mode_record_basis, authorised_job_scope,
+                                  target_release, planned_target_mode, current_system, fallback, scope_boundary_notes)
+values ('FN-21', 'Forms (builder, recipient links, SimpleBot forms)', 'Disabled',
+        'Forms v1 migration; disabled until approved', 'None', 'R1', 'Manual',
+        'No forms module', 'Existing paper/phone/email requests',
+        'Switch to Manual (scope Pilot or All) to enable Forms for staff and recipients')
+on conflict (function_id) do nothing;
+
+-- Whether Forms is switched on. Any signed-in staff member (and the recipient
+-- entry points) may ask; release_modes itself stays Admin-only.
+create function app.forms_on()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$ select app.mode_available('FN-21', 'Manual') $$;
+
+create function public.forms_enabled()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$ select app.forms_on() $$;
 
 -- -----------------------------------------------------------------------------
 -- Tables
@@ -926,7 +956,7 @@ $$;
 insert into app.command_registry (command_type, roles, job_scoped, modes, module, notes)
 select t, array['Admin', 'Manager', 'Director', 'Office', 'VariationApprover', 'Surveyor', 'Installer',
                 'Store', 'Finance', 'Scaffolder', 'ReadOnly'],
-       false, '[]'::jsonb, 'forms',
+       false, '[{"function_id": "FN-21", "mode": "Manual"}]'::jsonb, 'forms',
        'Any active staff role may call; the handler requires the forms.* permission (role_permissions).'
 from unnest(array['FORMS_CREATE', 'FORMS_UPDATE_DRAFT', 'FORMS_PUBLISH', 'FORMS_SET_STATUS',
                   'FORMS_INVITATION_CREATE', 'FORMS_INVITATION_REVOKE']) as t;
@@ -980,6 +1010,7 @@ declare
   v_rev public.form_revisions;
   v_state text;
 begin
+  if not app.forms_on() then return jsonb_build_object('state', 'unavailable'); end if;
   if v_inv.id is null then return jsonb_build_object('state', 'not_found'); end if;
   select * into v_form from public.forms where id = v_inv.form_id;
   v_state := app.forms_link_state(v_inv, v_form);
@@ -1009,6 +1040,7 @@ declare
   v_state text;
   v_existing public.form_submissions;
 begin
+  if not app.forms_on() then return jsonb_build_object('ok', false, 'state', 'unavailable'); end if;
   if v_inv.id is null then return jsonb_build_object('ok', false, 'state', 'not_found'); end if;
   if p_submission_id is null then perform app.fail('FORMS_SUBMISSION_ID_REQUIRED'); end if;
 
@@ -1063,14 +1095,15 @@ alter table public.form_invitations enable row level security;
 alter table public.form_submissions enable row level security;
 
 create policy forms_select on public.forms
-  for select to authenticated using ((select app.has_permission('forms.read')));
+  for select to authenticated using ((select app.forms_on()) and (select app.has_permission('forms.read')));
 create policy form_revisions_select on public.form_revisions
-  for select to authenticated using ((select app.has_permission('forms.read')));
+  for select to authenticated using ((select app.forms_on()) and (select app.has_permission('forms.read')));
 create policy form_invitations_select on public.form_invitations
-  for select to authenticated using ((select app.has_permission('forms.read')));
+  for select to authenticated using ((select app.forms_on()) and (select app.has_permission('forms.read')));
 create policy form_submissions_select on public.form_submissions
-  for select to authenticated using ((select app.has_permission('forms.responses.read')));
+  for select to authenticated using ((select app.forms_on()) and (select app.has_permission('forms.responses.read')));
 
-grant execute on function app.forms_job_visible(uuid) to authenticated;
+grant execute on function app.forms_job_visible(uuid), app.forms_on() to authenticated;
+grant execute on function public.forms_enabled() to authenticated, service_role;
 grant execute on function public.forms_public_open(text), public.forms_public_submit(text, uuid, jsonb)
   to anon, authenticated, service_role;

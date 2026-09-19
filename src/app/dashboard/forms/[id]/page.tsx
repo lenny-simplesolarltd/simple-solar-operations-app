@@ -1,3 +1,5 @@
+import { formsEnabled } from '@/features/forms/server/service';
+import { FormsNotEnabled } from '@/features/forms/components/forms-not-enabled';
 import PageContainer from '@/components/layout/page-container';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { FormBuilder } from '@/features/forms/components/form-builder';
@@ -22,6 +24,7 @@ export default async function FormPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect('/auth/sign-in');
+  if (!(await formsEnabled())) return <FormsNotEnabled />;
   const permissions = await getPermissions(user);
   if (!permissions.has('forms.read')) redirect('/dashboard');
   const { id } = await params;

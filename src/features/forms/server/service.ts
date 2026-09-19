@@ -108,6 +108,22 @@ async function command<T>(
   return { ok: true, result: data!.result, replayed: data!.replayed };
 }
 
+// -- Release gate -----------------------------------------------------------------
+
+/**
+ * Whether Forms is switched on (release_modes FN-21 = Manual). Fails closed:
+ * an error, or a database without the function, counts as off.
+ */
+export async function formsEnabled(): Promise<boolean> {
+  try {
+    const client = await createDataClient();
+    const { data, error } = await client.rpc('forms_enabled');
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
 // -- Reads ------------------------------------------------------------------------
 
 const FORM_COLUMNS =

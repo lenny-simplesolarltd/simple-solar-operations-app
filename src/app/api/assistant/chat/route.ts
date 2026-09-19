@@ -7,7 +7,7 @@ import { openConversationStore } from '@/features/assistant/server/conversations
 import { runConversationTurn } from '@/features/assistant/server/conversations/turn';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { resolveProvider } from '@/features/assistant/server/providers';
-import { createToolRegistry } from '@/features/assistant/server/tools';
+import { createRequestToolRegistry } from '@/features/assistant/server/tools';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           transcript,
           context,
           provider: resolved.provider,
-          registry: createToolRegistry(),
+          registry: await createRequestToolRegistry(),
           pendingActions: resolvePendingActions(),
           signal: request.signal,
           emit

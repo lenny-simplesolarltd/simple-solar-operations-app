@@ -19,7 +19,9 @@ export type PublicFormState =
   | 'revoked'
   | 'expired'
   | 'closed'
-  | 'not_found';
+  | 'not_found'
+  /** Forms is switched off (release gate): nothing is shown or accepted. */
+  | 'unavailable';
 
 export interface PublicForm {
   state: PublicFormState;

@@ -6,7 +6,7 @@ import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { resolvePendingAction } from '@/features/assistant/server/confirm';
 import { recordDecision } from '@/features/assistant/server/conversations/decisions';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
-import { createToolRegistry } from '@/features/assistant/server/tools';
+import { createRequestToolRegistry } from '@/features/assistant/server/tools';
 import { PREVIEW_READ_ONLY_MESSAGE } from '@/lib/preview/config';
 
 export const runtime = 'nodejs';
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     actor,
     decision: parsed.data.decision,
     token: parsed.data.token,
-    registry: createToolRegistry(),
+    registry: await createRequestToolRegistry(),
     pendingActions: resolvePendingActions()
   });
   if (result.ok) await recordDecision(actor, result);

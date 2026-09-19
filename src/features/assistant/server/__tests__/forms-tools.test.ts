@@ -439,3 +439,29 @@ describe('privacy', () => {
     expect(text).toContain('9');
   });
 });
+
+describe('Forms release gate', () => {
+  it('while switched off, no Forms tool is offered or executable - even with every permission', () => {
+    const off = createToolRegistry({ forms: false });
+    const everything = staff(['forms.templates.manage']);
+    expect(
+      off.availableFor(everything).some((t) => t.name.includes('form'))
+    ).toBe(false);
+    for (const [tool, args] of [
+      ['list_forms', {}],
+      ['get_form', { form_id: FORM_ID }],
+      ['create_form', { title: 'x' }],
+      [
+        'create_form_link',
+        { form_id: FORM_ID, recipient: 'other', recipient_name: 'Bob' }
+      ]
+    ] as const) {
+      expect(resolveToolCall(off, everything, tool, args)).toMatchObject({
+        ok: false,
+        code: 'TOOL_UNAVAILABLE'
+      });
+    }
+    // The model is told they are planned, not available.
+    expect(off.planned().map((t) => t.name)).toContain('create_form');
+  });
+});

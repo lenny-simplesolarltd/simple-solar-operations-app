@@ -8,7 +8,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { before, describe, test } from 'node:test';
 import { anon, email, ensureLogin, service, signInAs } from './helpers.mjs';
 
-let lucy, hannah, john, ben, anne;
+let lucy, tanya, john, ben, anne;
 let jobId;
 // Synthetic local test data is left in place (published revisions are immutable).
 const formIds = [];
@@ -95,14 +95,75 @@ async function invite(client, formId, extra = {}) {
 }
 
 before(async () => {
-  for (const n of ['lucy', 'hannah', 'john', 'ben', 'anne'])
+  for (const n of ['lucy', 'tanya', 'john', 'ben', 'anne'])
     await ensureLogin(email(n));
-  [lucy, hannah, john, ben, anne] = await Promise.all(
-    ['lucy', 'hannah', 'john', 'ben', 'anne'].map((n) => signInAs(email(n)))
+  [lucy, tanya, john, ben, anne] = await Promise.all(
+    ['lucy', 'tanya', 'john', 'ben', 'anne'].map((n) => signInAs(email(n)))
   );
-  const { data } = await service.from('jobs').select('id').limit(1).single();
-  jobId = data.id;
+  // Forms ships switched off (release gate FN-21); these tests switch it on
+  // in the LOCAL test database only.
+  await setForms('Manual');
+  jobId = await ensureJob();
 });
+
+async function setForms(mode) {
+  const { error } = await service
+    .from('release_modes')
+    .update({ mode, authorised_job_scope: mode === 'Manual' ? 'All' : 'None' })
+    .eq('function_id', 'FN-21');
+  assert.ifError(error);
+}
+
+/** A job to send links about: an existing one, or a synthetic sale on a fresh test database. */
+async function ensureJob() {
+  const { data } = await service.from('jobs').select('id').limit(1);
+  if (data?.length) return data[0].id;
+  await ensureLogin(email('rick'));
+  const rick = await signInAs(email('rick'));
+  const rickId = (await rick.rpc('current_actor')).data[0].person_id;
+  const { data: sold, error } = await rick.rpc('submit_presale', {
+    p_command_id: randomUUID(),
+    p_payload: {
+      customer: {
+        first_name: 'Forms',
+        last_name: 'Test',
+        address_line1: '1 Test Street',
+        address_line2: null,
+        town: 'Exeter',
+        postcode: 'EX1 1AA',
+        phone: '07000 000000',
+        email: 'forms.test@example.com'
+      },
+      sale: {
+        salesperson_id: rickId,
+        lead_source: 'Referral',
+        quote_reference: 'Q-FORMS',
+        finance_route: 'Standard',
+        agreed_price_pence: 1250000
+      },
+      scope: {
+        roof_required: true,
+        electrical_required: true,
+        scaffold_required: true,
+        roof_notes: null,
+        electrical_notes: null
+      },
+      design: { slopes: [{ id: 's1', label: 'Primary Elevation' }] },
+      design_schema_version: 1,
+      catalogue_version: 'test-catalogue',
+      computed: {
+        system_kwp: 5.1,
+        net_panels: 10,
+        computed_total_pence: 1249900,
+        price_breakdown: [
+          { key: 'total', label: 'Total system price', pence: 1249900 }
+        ]
+      }
+    }
+  });
+  assert.ifError(error);
+  return sold.job_id;
+}
 
 describe('permissions', () => {
   test('office staff can create; others cannot, and cannot read forms', async () => {
@@ -172,9 +233,9 @@ describe('drafts and revisions', () => {
       )
     );
     assert.equal(first.version, created.version + 1);
-    // Hannah still holds the old version: refused, nothing overwritten.
+    // Tanya still holds the old version: refused, nothing overwritten.
     const stale = await command(
-      hannah,
+      tanya,
       'FORMS_UPDATE_DRAFT',
       { form_id: created.form_id, title: 'Overwrite' },
       { envelope: { expected_version: created.version } }
@@ -297,7 +358,7 @@ describe('drafts and revisions', () => {
     formIds.push(template.form_id);
     assert.equal(template.status, 'active');
     const fromTemplate = ok(
-      await command(hannah, 'FORMS_CREATE', {
+      await command(tanya, 'FORMS_CREATE', {
         kind: 'form',
         title: 'From template',
         source_template_id: template.form_id
@@ -680,6 +741,44 @@ describe('links and submissions', () => {
       JSON.stringify(audit[0].after_json).includes('rating'),
       false,
       'answers are not copied into the audit log'
+    );
+  });
+});
+
+describe('release gate (FN-21)', () => {
+  test('switched off: no command, no staff read, no recipient access', async () => {
+    const v1 = await publishedForm();
+    const link = await invite(lucy, v1.form_id);
+    assert.ifError(link.error);
+    await setForms('Disabled');
+    try {
+      const create = await command(lucy, 'FORMS_CREATE', {
+        kind: 'form',
+        title: 'While off'
+      });
+      assert.match(create.error.message, /MODE_DENIED/);
+      assert.deepEqual(
+        (await lucy.from('forms').select('id').eq('id', v1.form_id)).data,
+        []
+      );
+      assert.equal((await lucy.rpc('forms_enabled')).data, false);
+      assert.deepEqual(
+        (await anon.rpc('forms_public_open', { p_token: link.token })).data,
+        { state: 'unavailable' }
+      );
+      const submit = await anon.rpc('forms_public_submit', {
+        p_token: link.token,
+        p_submission_id: randomUUID(),
+        p_answers: { rating: 5, tidy: true }
+      });
+      assert.equal(submit.data.state, 'unavailable');
+    } finally {
+      await setForms('Manual');
+    }
+    assert.equal((await lucy.rpc('forms_enabled')).data, true);
+    assert.equal(
+      (await anon.rpc('forms_public_open', { p_token: link.token })).data.state,
+      'open'
     );
   });
 });
