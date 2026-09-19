@@ -707,7 +707,7 @@ describe('history cannot change authorization', () => {
     expect(result.error?.code).toBe('UNKNOWN_TOOL');
   });
 
-  it('keeps every mutation tool unavailable', () => {
+  it('offers no mutation tool to staff without Forms permissions', () => {
     const registry = createToolRegistry();
     const available = registry.availableFor(
       makeActor({ roles: ['Admin'], permissions: ['task.read.all'] })

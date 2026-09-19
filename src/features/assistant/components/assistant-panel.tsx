@@ -79,6 +79,8 @@ export function AssistantPanel({
 
   const working = conversation.status === 'working';
   const unavailable = capabilities !== null && !capabilities.configured;
+  // A stored conversation is still loading: sending now would be dropped.
+  const opening = conversation.load === 'loading';
   const context = describeContext(page);
   const suggestions = capabilities?.configured
     ? suggestionsFor(
@@ -103,7 +105,7 @@ export function AssistantPanel({
   }, [conversation.items, working]);
 
   const submit = () => {
-    if (!draft.trim() || working || unavailable) return;
+    if (!draft.trim() || working || unavailable || opening) return;
     pinnedRef.current = true;
     onSend(draft);
     setDraft('');
@@ -381,11 +383,13 @@ export function AssistantPanel({
             }}
             rows={1}
             maxLength={4000}
-            disabled={unavailable}
+            disabled={unavailable || opening}
             placeholder={
               unavailable
                 ? 'SimpleBot is not available yet'
-                : 'Ask about a job, a customer or your tasks'
+                : opening
+                  ? 'Opening conversation…'
+                  : 'Ask about a job, a customer or your tasks'
             }
             className='placeholder:text-muted-foreground field-sizing-content max-h-36 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-base outline-none disabled:cursor-not-allowed md:text-sm'
           />
@@ -405,7 +409,7 @@ export function AssistantPanel({
               type='submit'
               size='icon'
               className='size-9 shrink-0 rounded-md'
-              disabled={!draft.trim() || unavailable}
+              disabled={!draft.trim() || unavailable || opening}
             >
               <IconArrowUp aria-hidden />
               <span className='sr-only'>Send</span>
@@ -713,6 +717,14 @@ function Item({
 
     case 'stopped':
       return <p className='text-muted-foreground text-xs'>Stopped.</p>;
+
+    case 'note':
+      return (
+        <p className='text-muted-foreground flex items-center gap-2 text-xs'>
+          <IconCheck aria-hidden className='size-3.5' />
+          {item.text}
+        </p>
+      );
 
     case 'error':
       return (

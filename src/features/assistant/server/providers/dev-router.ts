@@ -64,6 +64,43 @@ function route(
   const pick = (name: string, args: unknown) =>
     offered.has(name) ? { name, args } : null;
 
+  // Forms (development only): list, create from the template on screen, and
+  // "make <question id> optional/required" on the form on screen.
+  const pageFormId = /"formId":"([0-9a-f-]{36})"/i.exec(
+    request.system.volatile
+  )?.[1];
+  if (/\btemplates\b/.test(lower) && /\b(list|show)\b/.test(lower))
+    return pick('list_forms', { kind: 'template' });
+  if (/\bforms\b/.test(lower) && /\b(list|show)\b/.test(lower))
+    return pick('list_forms', {});
+  const fromTemplate =
+    /create (?:a )?(?:new )?(?:form|draft) from this template(?: called (.{1,100}))?/i.exec(
+      text
+    );
+  if (pageFormId && fromTemplate)
+    return pick('create_form', {
+      template_id: pageFormId,
+      title: (fromTemplate[1] ?? 'New form from template').replace(
+        /[?.!]+$/,
+        ''
+      )
+    });
+  const requirement =
+    /make (?:question )?([a-z][a-z0-9_]{0,39}) (optional|required)/i.exec(text);
+  if (pageFormId && requirement)
+    return pick('edit_form_draft', {
+      form_id: pageFormId,
+      operations: [
+        {
+          op: 'update_field',
+          field_id: requirement[1].toLowerCase(),
+          changes: { required: requirement[2].toLowerCase() === 'required' }
+        }
+      ]
+    });
+  if (pageFormId && /\b(this form|describe)\b/.test(lower))
+    return pick('get_form', { form_id: pageFormId });
+
   const find = /\bfind\s+(?:the\s+job\s+for\s+|job\s+)?(.{2,80})/i.exec(text);
   if (find) return pick('find_job', { query: find[1].replace(/[?.!]+$/, '') });
   if (lower.includes('presale workflow'))

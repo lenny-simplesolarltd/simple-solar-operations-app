@@ -30,6 +30,7 @@ export type ToolDomain =
   | 'scaffolding'
   | 'installation'
   | 'commissioning'
+  | 'forms'
   | 'finance'
   | 'calendar'
   | 'reporting';

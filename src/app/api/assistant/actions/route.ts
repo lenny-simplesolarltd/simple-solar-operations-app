@@ -4,6 +4,7 @@ import {
 } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { resolvePendingAction } from '@/features/assistant/server/confirm';
+import { recordDecision } from '@/features/assistant/server/conversations/decisions';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { createToolRegistry } from '@/features/assistant/server/tools';
 import { PREVIEW_READ_ONLY_MESSAGE } from '@/lib/preview/config';
@@ -51,5 +52,6 @@ export async function POST(request: Request) {
     registry: createToolRegistry(),
     pendingActions: resolvePendingActions()
   });
+  if (result.ok) await recordDecision(actor, result);
   return Response.json(result, { status: result.ok ? 200 : 409 });
 }
