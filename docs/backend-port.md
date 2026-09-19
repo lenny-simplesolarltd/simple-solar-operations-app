@@ -40,6 +40,7 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | audit triggers lost in the drop/restore incident; audit coverage check | `20260919202000_p0_audit_integrity.sql` |
 | `backup/service.js` verify + restore rehearsal as recorded evidence, `s16/health.js` staleness, `s18` BKP/MAN-06/MAN-13, `s20` BACKUP_MISSING (see `docs/OPERATIONAL_HEALTH.md`) | `20260919202100_p0_operational_health.sql` |
 | `r1-appsheet/services.js` COMMISSIONING_RECORD (+ `s12/commissioning.js` office template), CALL_RECORD job-level calls, JOB_OPERATIONS read (Operations tab) | `20260919210000_r1_completion.sql` |
+| P0 integration: catalogue grants, COMMISSIONING_RECORD on the Evidence model, one audit trail for the office template, Director SYSTEM_STATUS, cancellation work in JOB_OPERATIONS, TASK_EVIDENCE_ATTACH audit reason (see `docs/p0-r1-integration.md`) | `20260919220000_p0_r1_integration.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role
@@ -75,12 +76,20 @@ External senders (Google Calendar, Xero, email) are a future TypeScript worker u
   lets a job with an Electrical work package pass the S10 operational-completion
   gate in R1; the R3 route (`IW_COMMISSIONING_*` + `COMMISSIONING_REVIEW`) is
   unchanged and still needs an approved template.
-- Evidence integration point: the command uses only `app.ensure_evidence(job,
-  'Commissioning', storage_path)` and `app.job_evidence(job, id_or_path, code)`,
-  then links `evidence.submission_id` once (never re-pointed). Changes to
-  evidence storage internals must keep those two signatures and that behaviour.
+- Evidence integration point (after `20260919220000`): the command uses
+  `app.evidence_attach(job, 'Commissioning', storage_path)` (a registered upload,
+  confirmed durable in the command's transaction) or `app.job_evidence(job,
+  id_or_path, code)`, then links `evidence.submission_id` once (never re-pointed).
+  A file already on an earlier office record of the same work package may be
+  quoted again; a file on any other submission is refused
+  (`R1A_EVIDENCE_ALREADY_LINKED`). The office upload uses the `Job` evidence
+  context (the `WorkPackage` context is the R3 installer route, FN-06).
 - `CALL_RECORD` without `task_id` is a job-level call (no task, job or package
   side effects; `expected_version` is the job's).
-- Open business decision (REF-03 §11.2): nothing moves a job to
-  `InProgress` / `Aftercare`. The server gate, not the stage, decides
-  completion; the Operations tab offers completion when the gate is ready.
+- `InProgress` / `Aftercare` (REF-03 §11.2): the reference never writes either
+  stage (only fixtures do), and its WIP snapshot (`fffbe1f`
+  `tests/r1-appsheet.test.cjs:4315`) states R1 goes Booked ->
+  OperationallyComplete with the S10 gate as the sole authority. Both stages
+  are obsolete for R1; any R3 meaning is a future business decision. The old
+  S17 `ACTION_AVAILABILITY` read still offers completion only in those stages
+  (`20260919149000` :858, :909); no screen uses it.
