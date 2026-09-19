@@ -23,8 +23,35 @@ implementation (`simple-solar-operations`: Google Sheets + AppSheet + Apps Scrip
 SOLD_INTAKE is not ported here: the sale is `public.submit_presale` (Job Sold migration).
 Not ported by design: AppSheet request rows and bots, upload retry, CommitJournal recovery states,
 script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-bridge/`).
-Not yet ported: R2 (materials, stock, scaffold, calendar), R3 (installer, commissioning), R4 (Xero,
-reporting, archive).
+| — (registry for R2–R4 commands/reads as data; release modes for any release) | `20260919160000_command_registry.sql` |
+| `materials/workflow.js`, `s07/ordering.js` | `20260919161000_r2_materials_ordering.sql` |
+| `materials/workflow.js` receive/quarantine, `operations-contract.js` GOODS_IN_RECEIVE / STOCK_QUARANTINE, `s08/picking.js` (survey for the missing `stock/workflow.js`) | `20260919162000_r2_stock.sql` |
+| `scaffold/workflow.js`, `s09/scaffold.js` | `20260919163000_r2_scaffold.sql` |
+| `calendar/service.js`, `processor/outbox.js` (generic outbox worker protocol), `resource/planning.js`, `s11/planner.js` R2 | `20260919164000_r2_calendar_resourcing.sql` |
+| `installer/workflow.js`, `operations-contract.js` IW_* / COMMISSIONING_REVIEW, `s12/commissioning.js` | `20260919165000_r3_installer_commissioning.sql` |
+| `s13/payments.js`, `s14/reporting.js`, `xero/adapter.js`, `s16/health.js` archive | `20260919166000_r4_finance_reporting.sql` |
+| `r1-appsheet/command-result.js` (R2–R4 codes) | `20260919167000_result_catalogue_r2r4.sql` |
+| view-port read models (TASKS, TASK_DETAIL, JOBS, OFFICE_DASHBOARD, MY_REQUESTS) + canonical read visibility | `20260919170000_view_port_reads.sql` |
+| view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
+| view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
+| view-port resourcing reads (STAFF_AVAILABILITY, INSTALLER_SKILLS, SCAFFOLD_BOARD, COMMISSIONING_QUEUE) | `20260919173000_view_port_resourcing_reads.sql` |
+
+Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
+External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role
+`public.outbox_*` functions (contract in the 164000 header; Xero specifics in 166000).
+
+## Deployment status
+
+- `20260919140000`–`20260919150000` (core + R1): applied to the hosted project.
+- `20260919160000` onwards: **not yet applied** — waiting for the other stream's reconciliation
+  migration. Before applying: re-read `supabase_migrations.schema_migrations`, renumber after any
+  newer hosted version if needed, dry-run in a rolled-back transaction, apply.
+- Seeds: `supabase/seeds/003_backend_task_assignment_rules.sql` gives every template an owner; run it
+  after the migrations.
+
+## Tests without Docker
+
+`npm run test:db:pglite` replays the whole migration chain on PGlite and runs `tests/pglite/t_*.mjs`.
 
 ## When the reference changes
 

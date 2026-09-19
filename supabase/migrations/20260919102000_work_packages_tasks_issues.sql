@@ -270,7 +270,4 @@ create policy issues_select on public.issues
   for select to authenticated using ((select app.is_office_class()));
 create policy issue_events_select on public.issue_events
   for select to authenticated using ((select app.is_office_class()));
-<<<<<<< HEAD
-=======
 
->>>>>>> main

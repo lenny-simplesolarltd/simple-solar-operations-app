@@ -43,7 +43,12 @@ export function TaskTable({
                   <span className='font-mono text-xs font-semibold'>
                     {task.code}
                   </span>
-                  <span className='block'>{task.title}</span>
+                  <Link
+                    href={`/dashboard/tasks/${task.id}`}
+                    className='decoration-primary block hover:underline hover:decoration-2 hover:underline-offset-4'
+                  >
+                    {task.title}
+                  </Link>
                   {task.blockingReason && (
                     <span className='text-destructive block text-xs'>
                       {task.blockingReason}

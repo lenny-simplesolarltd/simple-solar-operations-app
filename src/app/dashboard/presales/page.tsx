@@ -16,6 +16,7 @@ import {
   getPermissions,
   getVisibleJobs
 } from '@/features/presale/server/queries';
+import { stageLabel } from '@/features/jobs/stages';
 import { getCurrentUser } from '@/lib/auth';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -59,7 +60,7 @@ export default async function PresalesPage() {
       <div className='flex w-full flex-col gap-4'>
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <Heading
-            title={seesAll ? 'Sold jobs' : 'My presales'}
+            title={seesAll ? 'Job sales' : 'My job sales'}
             description={
               seesAll
                 ? 'Every job sold through the Presale form.'
@@ -68,7 +69,7 @@ export default async function PresalesPage() {
           />
           {permissions.has('presale.submit') && (
             <Button asChild>
-              <Link href='/dashboard/presales/new'>New presale</Link>
+              <Link href='/dashboard/presales/new'>New job sold</Link>
             </Button>
           )}
         </div>
@@ -80,64 +81,97 @@ export default async function PresalesPage() {
             action={
               permissions.has('presale.submit') && (
                 <Button asChild size='sm'>
-                  <Link href='/dashboard/presales/new'>New presale</Link>
+                  <Link href='/dashboard/presales/new'>New job sold</Link>
                 </Button>
               )
             }
           />
         ) : (
-          <div className='overflow-x-auto rounded-lg border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Job</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Sold</TableHead>
-                  <TableHead>System</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className='text-right'>Agreed price</TableHead>
-                  <TableHead>Stage</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {jobs.map((job) => (
-                  <TableRow key={job.id}>
-                    <TableCell className='font-mono font-semibold whitespace-nowrap'>
-                      <Link
-                        className='decoration-primary underline decoration-2 underline-offset-4'
-                        href={`/dashboard/jobs/${job.id}`}
-                      >
+          <>
+            <ul className='flex flex-col gap-2 md:hidden'>
+              {jobs.map((job) => (
+                <li key={job.id} className='bg-card rounded-lg border p-3'>
+                  <Link
+                    href={`/dashboard/jobs/${job.id}`}
+                    className='flex items-start justify-between gap-2'
+                  >
+                    <span>
+                      <span className='font-mono font-semibold'>
                         {job.jobRef}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {job.customerName}
-                      <span className='text-muted-foreground block text-xs'>
-                        {job.postcode}
                       </span>
-                    </TableCell>
-                    <TableCell className='whitespace-nowrap'>
-                      {soldDate.format(new Date(job.soldAt))}
-                    </TableCell>
-                    <TableCell className='whitespace-nowrap'>
-                      {job.systemKwp === null
-                        ? '-'
-                        : `${job.systemKwp.toFixed(2)} kWp · ${job.netPanels} panels`}
-                    </TableCell>
-                    <TableCell>
-                      {FINANCE_LABEL[job.financeRoute] ?? job.financeRoute}
-                    </TableCell>
-                    <TableCell className='text-right font-mono tabular-nums'>
+                      <span className='text-muted-foreground block text-xs'>
+                        {job.customerName} · {job.postcode}
+                      </span>
+                    </span>
+                    <Badge variant='secondary'>
+                      {stageLabel(job.workflowStage)}
+                    </Badge>
+                  </Link>
+                  <p className='text-muted-foreground mt-2 text-xs'>
+                    Sold {soldDate.format(new Date(job.soldAt))} ·{' '}
+                    {FINANCE_LABEL[job.financeRoute] ?? job.financeRoute} ·{' '}
+                    <span className='text-foreground font-mono'>
                       {pounds.format(job.agreedPricePence / 100)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant='secondary'>{job.workflowStage}</Badge>
-                    </TableCell>
+                    </span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <div className='hidden overflow-x-auto rounded-lg border md:block'>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Sold</TableHead>
+                    <TableHead>System</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead className='text-right'>Agreed price</TableHead>
+                    <TableHead>Stage</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {jobs.map((job) => (
+                    <TableRow key={job.id}>
+                      <TableCell className='font-mono font-semibold whitespace-nowrap'>
+                        <Link
+                          className='decoration-primary underline decoration-2 underline-offset-4'
+                          href={`/dashboard/jobs/${job.id}`}
+                        >
+                          {job.jobRef}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {job.customerName}
+                        <span className='text-muted-foreground block text-xs'>
+                          {job.postcode}
+                        </span>
+                      </TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {soldDate.format(new Date(job.soldAt))}
+                      </TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {job.systemKwp === null
+                          ? '-'
+                          : `${job.systemKwp.toFixed(2)} kWp · ${job.netPanels} panels`}
+                      </TableCell>
+                      <TableCell>
+                        {FINANCE_LABEL[job.financeRoute] ?? job.financeRoute}
+                      </TableCell>
+                      <TableCell className='text-right font-mono tabular-nums'>
+                        {pounds.format(job.agreedPricePence / 100)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant='secondary'>
+                          {stageLabel(job.workflowStage)}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
     </PageContainer>
