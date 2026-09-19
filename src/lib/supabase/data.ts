@@ -18,7 +18,8 @@ const READ_RPCS = new Set([
   'execute_read',
   'execute_operations_read',
   'describe_command_error',
-  'describe_command_result'
+  'describe_command_result',
+  'cancellation_preview'
 ]);
 
 /** A client that carries the preview token and physically cannot write. */
