@@ -12,7 +12,7 @@ aliases: ["what can simplebot do", "can simplebot complete a task", "can simpleb
 related: ["simplebot-basics", "asking-simplebot", "simplebot-confirmations", "simplebot-permissions", "complete-a-task", "forms-overview"]
 common_task: false
 sort: 20
-sources: ["src/features/assistant/server/tools/index.ts", "src/features/assistant/server/tools/jobs.ts", "src/features/assistant/server/tools/tasks.ts", "src/features/assistant/server/tools/presale.ts", "src/features/assistant/server/tools/forms.ts", "src/features/assistant/server/tools/planned.ts", "src/features/assistant/server/system-prompt.ts", "src/features/assistant/components/assistant-panel.tsx (CapabilityList)"]
+sources: ["src/features/assistant/server/tools/index.ts", "src/features/assistant/server/tools/jobs.ts", "src/features/assistant/server/tools/tasks.ts", "src/features/assistant/server/tools/presale.ts", "src/features/assistant/server/tools/forms.ts", "src/features/assistant/server/tools/files.ts", "src/features/assistant/server/tools/planned.ts", "src/features/assistant/server/system-prompt.ts", "src/features/assistant/components/assistant-panel.tsx (CapabilityList)"]
 ---
 Today SimpleBot mainly looks things up. It cannot complete, book, move or cancel anything. The list below is what it can really do.
 
@@ -21,6 +21,7 @@ Today SimpleBot mainly looks things up. It cannot complete, book, move or cancel
 - **Find a job** by job reference, customer name or postcode.
 - **Read a job**: the customer, the sale, the system, the scope and how many tasks are open.
 - **List a job's tasks**.
+- **Find files**: a job's contract, photos, commissioning certificate or delivery note, or search files across jobs, with an **Open** link. Only files you are allowed to see. See [Files & documents](/help/files-library).
 - **List your open tasks**, or only the overdue ones or those due today.
 - **List the team's open tasks**, for one person or only the overdue ones. Only for staff who can see [Team tasks](/help/team-tasks).
 - **Explain the Presale (Job Sold) workflow** step by step.
