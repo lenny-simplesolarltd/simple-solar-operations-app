@@ -10,6 +10,7 @@ import {
   WorkTab
 } from '@/features/jobs/components/job-sections';
 import { JobTabNav, parseJobTab } from '@/features/jobs/components/job-tabs';
+import { OperationsTab } from '@/features/jobs/components/operations/operations-tab';
 import {
   getJobDetail,
   OPEN_TASK_STATUSES
@@ -131,6 +132,7 @@ export default async function JobPage({
 
         {tab === 'tasks' && <TaskTable tasks={tasks} showJob={false} />}
         {tab === 'work' && <WorkTab jobId={job.id} />}
+        {tab === 'operations' && <OperationsTab jobId={job.id} />}
         {tab === 'money' && <MoneyTab jobId={job.id} />}
         {tab === 'files' && (
           <Card>

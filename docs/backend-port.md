@@ -39,6 +39,7 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | evidence ownership, registered uploads, read authorization, metadata-based storage policies (see `docs/evidence.md`); replaces `app.ensure_evidence`, `app.job_evidence`, `app.iw_evidence` and the three path-parsing storage policies of `20260919150000` / `20260919165000` | `20260919183000_p0_evidence.sql` |
 | audit triggers lost in the drop/restore incident; audit coverage check | `20260919202000_p0_audit_integrity.sql` |
 | `backup/service.js` verify + restore rehearsal as recorded evidence, `s16/health.js` staleness, `s18` BKP/MAN-06/MAN-13, `s20` BACKUP_MISSING (see `docs/OPERATIONAL_HEALTH.md`) | `20260919202100_p0_operational_health.sql` |
+| `r1-appsheet/services.js` COMMISSIONING_RECORD (+ `s12/commissioning.js` office template), CALL_RECORD job-level calls, JOB_OPERATIONS read (Operations tab) | `20260919210000_r1_completion.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role
@@ -66,3 +67,20 @@ External senders (Google Calendar, Xero, email) are a future TypeScript worker u
    `app.*` functions (or `alter`s tables), with a comment citing the reference commit.
 4. Re-run the test suites against a local stack, then apply.
 5. Update the baseline commit at the top of this file.
+
+## R1 completion after booking (20260919210000)
+
+- `COMMISSIONING_RECORD` is the R1 route to an Accepted commissioning submission
+  (office-recorded evidence, `source_system = 'R1A-office-manual'`). It is what
+  lets a job with an Electrical work package pass the S10 operational-completion
+  gate in R1; the R3 route (`IW_COMMISSIONING_*` + `COMMISSIONING_REVIEW`) is
+  unchanged and still needs an approved template.
+- Evidence integration point: the command uses only `app.ensure_evidence(job,
+  'Commissioning', storage_path)` and `app.job_evidence(job, id_or_path, code)`,
+  then links `evidence.submission_id` once (never re-pointed). Changes to
+  evidence storage internals must keep those two signatures and that behaviour.
+- `CALL_RECORD` without `task_id` is a job-level call (no task, job or package
+  side effects; `expected_version` is the job's).
+- Open business decision (REF-03 §11.2): nothing moves a job to
+  `InProgress` / `Aftercare`. The server gate, not the stage, decides
+  completion; the Operations tab offers completion when the gate is ready.

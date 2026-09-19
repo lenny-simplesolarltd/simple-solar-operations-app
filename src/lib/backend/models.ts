@@ -544,3 +544,134 @@ export interface IntakeReviewRead {
   count: number;
   items: IntakeReviewItem[];
 }
+
+/**
+ * Availability of one action on JOB_OPERATIONS. `denied` says which kind of
+ * "no" it is, in the order the command checks it: ROLE (your role cannot),
+ * ACCESS (not assigned to this job), MODE (switched off for this release),
+ * STATE (not possible for the record right now; `reason` says why).
+ */
+export interface OpsFlag {
+  available: boolean;
+  denied?: 'ROLE' | 'ACCESS' | 'MODE' | 'STATE';
+  reason?: string;
+}
+
+export interface OpsAllocation {
+  id: string;
+  person_id: string;
+  person_name: string | null;
+  role: string;
+  start_at: string | null;
+  end_at: string | null;
+}
+
+export interface OpsSubmission {
+  id: string;
+  status: string;
+  source_system: 'InstallerApp' | 'R1A-office-manual';
+  office_reference: string | null;
+  review_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by_name: string | null;
+  submitted_at: string | null;
+  evidence: { id: string; filename: string }[];
+}
+
+export interface OpsPackage {
+  id: string;
+  trade: string;
+  status: string;
+  version: number;
+  revision: number;
+  required: boolean;
+  sequence: number;
+  planned_start: string | null;
+  planned_end: string | null;
+  actual_end: string | null;
+  installer_confirmation_at: string | null;
+  allocations: OpsAllocation[];
+  commissioning: {
+    required: boolean;
+    accepted: boolean;
+    installer_accepted: boolean;
+    current: OpsSubmission[];
+  };
+  actions: {
+    commissioning_record: OpsFlag;
+    planner_update: OpsFlag;
+    change_installer: OpsFlag;
+  };
+}
+
+export interface OpsIssue {
+  id: string;
+  type: 'Variation' | 'Remedial' | 'Complaint';
+  category: string;
+  description: string;
+  severity: string;
+  status: string;
+  blocks_completion: boolean;
+  raised_at: string;
+  raised_by_name: string | null;
+  owner_id: string;
+  owner_name: string | null;
+  resolution: string | null;
+  resolved_at: string | null;
+  closed_at: string | null;
+  version: number;
+  work_package_id: string | null;
+  actions: { resolve: OpsFlag; close: OpsFlag; reassign: OpsFlag };
+}
+
+/** A call on the job. Deliberately carries no customer contact details. */
+export interface OpsCall {
+  id: string;
+  attempted_at: string;
+  type: string;
+  outcome: string;
+  notes: string | null;
+  next_attempt_at: string | null;
+  attempted_by_name: string | null;
+  job_level: boolean;
+  task_id: string | null;
+  task_code: string | null;
+  task_title: string | null;
+  work_package_trade: string | null;
+}
+
+/** JOB_OPERATIONS (execute_operations_read): operating an R1 job after booking. */
+export interface JobOperationsRead {
+  job: {
+    id: string;
+    job_ref: string;
+    version: number;
+    workflow_stage: string;
+    operational_complete_at: string | null;
+    operational_complete_by_name: string | null;
+    customer_happy_at: string | null;
+    archived_at: string | null;
+    cancellation_at: string | null;
+    cancellation_reason: string | null;
+    cancellation_by_name: string | null;
+    open_cancellation_tasks: number;
+  };
+  packages: OpsPackage[];
+  issues: OpsIssue[];
+  calls: OpsCall[];
+  installers: { id: string; name: string }[];
+  completion: {
+    gate: {
+      status: 'Ready' | 'NeedsReview' | 'AlreadyComplete';
+      ready: boolean;
+      reasons: string[];
+    };
+    action: OpsFlag;
+  };
+  actions: {
+    call_record: OpsFlag;
+    issue_create: OpsFlag;
+    cancel_job: OpsFlag;
+    reinstate_job: OpsFlag;
+  };
+}
