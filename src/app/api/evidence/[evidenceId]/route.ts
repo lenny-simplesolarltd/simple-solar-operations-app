@@ -77,6 +77,10 @@ export async function GET(
     return say(403, 'Files cannot be opened while previewing another user.');
 
   const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return say(...REFUSALS.R1A_AUTHENTICATED_EMAIL_REQUIRED);
   const rpc = supabase as unknown as RpcClient;
   const { data, error } = await rpc.rpc('evidence_open', {
     p_evidence_id: evidenceId

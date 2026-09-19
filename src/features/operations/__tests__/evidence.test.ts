@@ -12,8 +12,9 @@ const rpc = vi.fn();
 const createSignedUrl = vi.fn();
 const createSignedUploadUrl = vi.fn();
 const from = vi.fn(() => ({ createSignedUrl, createSignedUploadUrl }));
+const getUser = vi.fn();
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({ rpc, storage: { from } })
+  createClient: async () => ({ rpc, storage: { from }, auth: { getUser } })
 }));
 
 import { GET } from '@/app/api/evidence/[evidenceId]/route';
@@ -44,6 +45,7 @@ const get = (id: string, query = '') =>
 beforeEach(() => {
   vi.clearAllMocks();
   previewWriteBlock.mockResolvedValue(null);
+  getUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -132,6 +134,13 @@ describe('GET /api/evidence/[id]', () => {
     expect(denied.status).toBe(404);
     expect(missing.status).toBe(404);
     expect(await denied.text()).toBe(await missing.text());
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it('refuses a signed-out request before asking the database', async () => {
+    getUser.mockResolvedValue({ data: { user: null }, error: null });
+    expect((await get(ID)).status).toBe(401);
+    expect(rpc).not.toHaveBeenCalled();
     expect(from).not.toHaveBeenCalled();
   });
 
