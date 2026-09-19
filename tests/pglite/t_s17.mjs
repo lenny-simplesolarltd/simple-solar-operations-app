@@ -207,6 +207,7 @@ d = data(await read('tanya', { read_type: 'ACTION_AVAILABILITY', job_id: job }),
 assert.equal(d.commands.call_record.reason, 'MODE_UNAVAILABLE'); assert.equal(d.commands.start_job_booking.reason, 'MODE_UNAVAILABLE');
 assert.equal(d.actions.record_call.mode, 'Disabled'); assert.equal(d.actions.record_call.available, false);
 await db.query(`update public.release_modes set mode='Automated' where function_id='FN-01'`);
+before = { ...before, a: before.a + 2 }; // the two release-mode switches above are audited (release_modes_audit); reads still write nothing
 
 // ---------------------------------------------------------------- TASK_ACTION_AVAILABILITY
 const pre01 = await one(`select * from public.tasks where job_id=$1 and template_code='PRE01'`, [job]);
