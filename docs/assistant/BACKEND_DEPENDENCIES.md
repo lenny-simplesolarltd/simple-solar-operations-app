@@ -57,36 +57,13 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
   `generate_document_pack(p_command_id, p_job_id, p_quote_revision_id, p_template_codes)`.
 - **Why:** `get_generated_documents`, `generate_document_pack`.
 
-## BD-07 Durable pending actions (PROPOSED TABLE, not created)
+## BD-07 Durable pending actions (IMPLEMENTED on feature/simplebot-conversations)
 
-**Status 2026-09-19:** the application half is built (`SupabasePendingActionStore`, selected with
-`ASSISTANT_PENDING_ACTIONS=database`; production refuses to propose or confirm any change through the
-in-memory store). The table and its three functions are specified for review in
-`docs/design/003-quotes-documents-files.md` section 9 and are still **not created**.
-
-- **Required capability:** single-use confirmation state shared across server instances.
-- **Proposed interface:**
-  ```sql
-  create table public.assistant_pending_actions (
-    id               uuid primary key,          -- also the command_id given to the domain command
-    actor_person_id  uuid not null references public.people (id),
-    thread_id        uuid not null,
-    tool             text not null,
-    args_hash        text not null,
-    expected_version integer,
-    status           text not null default 'pending'
-                     check (status in ('pending','confirmed','cancelled','expired')),
-    created_at       timestamptz not null default now(),
-    expires_at       timestamptz not null,
-    resolved_at      timestamptz
-  );
-  -- RLS: a person sees and resolves only their own rows.
-  -- claim = update ... set status = 'confirmed' where id = $1 and status = 'pending'
-  --         and actor_person_id = app.current_person_id() and expires_at > now() returning id;
-  ```
-  Implemented behind the existing `PendingActionStore` interface; no other code changes.
-- **Why:** the in-memory store is per-process and fails closed, which is correct but would reject valid
-  confirmations on a multi-instance deployment. **Needed before the first mutation tool ships.**
+- **Implemented as:** `public.assistant_pending_actions` + `assistant_register_pending_action`,
+  `assistant_claim_pending_action`, `assistant_release_pending_action`,
+  `assistant_complete_pending_action` (migration `20260919185000_assistant_pending_actions.sql`), owner-only
+  RLS, no direct writes. See ARCHITECTURE.md, "Mutations". Not yet applied to hosted.
+- **Still open:** retention of old pending-action rows (they hold proposal arguments).
 
 ## BD-08 Assistant attribution on audit
 

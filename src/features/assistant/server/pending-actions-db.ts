@@ -2,24 +2,25 @@ import 'server-only';
 
 import { createClient } from '@/lib/supabase/server';
 import type {
-  ConsumeOutcome,
+  ClaimResult,
   PendingActionDecision,
   PendingActionPayload,
   PendingActionStore
 } from './pending-actions';
 
 /**
- * Durable pending-action store (BD-07), written against the interface proposed
- * in docs/design/003-quotes-documents-files.md:
+ * Durable pending-action store (BD-07): public.assistant_pending_actions,
+ * migration 20260919185000_assistant_pending_actions.sql.
  *
- *   assistant_register_pending_action(p_id, p_thread_id, p_tool, p_args_hash, p_expected_version, p_expires_at)
- *   assistant_claim_pending_action(p_id, p_decision)  -> 'ok' | 'already_used' | 'unknown'
- *   assistant_release_pending_action(p_id)
+ *   assistant_register_pending_action(id, thread, tool, args, args_hash, expected_version, preview, expires_at)
+ *   assistant_claim_pending_action(id, decision) -> {outcome, tool?, args?, args_hash?, expected_version?, thread_id?}
+ *   assistant_release_pending_action(id)
+ *   assistant_complete_pending_action(id, succeeded, code)
  *
  * Every call runs as the signed-in user: the database derives the actor from
  * the session, so a claim can only ever succeed for the person the proposal was
- * made for. Until the reviewed migration is applied these functions do not
- * exist and every call fails - which leaves proposals unavailable (fail closed).
+ * made for, once, before it expires. If the functions are missing or error,
+ * every call fails - proposals are then unavailable (fail closed).
  */
 export type PendingActionRpc = (
   fn: string,
@@ -28,7 +29,6 @@ export type PendingActionRpc = (
 
 async function sessionRpc(): Promise<PendingActionRpc> {
   const supabase = await createClient();
-  // The generated Database types gain these functions when the migration lands.
   return (fn, args) =>
     (supabase.rpc as unknown as PendingActionRpc).call(supabase, fn, args);
 }
@@ -48,31 +48,67 @@ export class SupabasePendingActionStore implements PendingActionStore {
     return data;
   }
 
-  async register(action: PendingActionPayload) {
+  async register(action: PendingActionPayload, preview: unknown) {
     await this.call('assistant_register_pending_action', {
       p_id: action.id,
       p_thread_id: action.threadId,
       p_tool: action.tool,
-      // The hash only: the arguments themselves stay inside the signed token.
+      // The validated, normalised arguments: confirmation executes these.
+      p_args: action.args ?? {},
       p_args_hash: action.argsHash,
       p_expected_version: action.expectedVersion,
+      p_preview: preview ?? {},
       p_expires_at: new Date(action.expiresAt).toISOString()
     });
   }
 
-  async consume(
+  async claim(
     id: string,
     decision: PendingActionDecision
-  ): Promise<ConsumeOutcome> {
-    const outcome = await this.call('assistant_claim_pending_action', {
+  ): Promise<ClaimResult> {
+    const data = (await this.call('assistant_claim_pending_action', {
       p_id: id,
       p_decision: decision
-    });
+    })) as {
+      outcome?: string;
+      tool?: string;
+      args?: unknown;
+      args_hash?: string;
+      expected_version?: number | null;
+      thread_id?: string;
+    } | null;
+    if (
+      data?.outcome === 'ok' &&
+      data.tool &&
+      data.args_hash &&
+      data.thread_id
+    ) {
+      return {
+        outcome: 'ok',
+        action: {
+          tool: data.tool,
+          args: data.args,
+          argsHash: data.args_hash,
+          expectedVersion: data.expected_version ?? null,
+          threadId: data.thread_id
+        }
+      };
+    }
     // Anything unexpected is treated as not claimable.
-    return outcome === 'ok' || outcome === 'already_used' ? outcome : 'unknown';
+    return data?.outcome === 'already_used' || data?.outcome === 'expired'
+      ? { outcome: data.outcome }
+      : { outcome: 'unknown' };
   }
 
   async release(id: string) {
     await this.call('assistant_release_pending_action', { p_id: id });
+  }
+
+  async complete(id: string, succeeded: boolean, code?: string) {
+    await this.call('assistant_complete_pending_action', {
+      p_id: id,
+      p_succeeded: succeeded,
+      p_code: code ?? null
+    });
   }
 }

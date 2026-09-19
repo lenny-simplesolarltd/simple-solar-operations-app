@@ -58,24 +58,32 @@ require is available to that staff member.
 4. `confirm.ts` verifies the token, then re-runs the full gate, claims the action, and calls
    `execute()` as the signed-in user with `commandId = action id` and the proposed `expectedVersion`.
 
-The pending action is an HMAC-SHA256-signed payload (`server/pending-actions.ts`):
+Pending actions are **durable** (BD-07, migration `20260919185000_assistant_pending_actions.sql`):
+`public.assistant_pending_actions` holds each proposal - the proposer, tool, **validated normalised
+arguments**, their hash, the expected version, the preview shown, expiry and status
+(`pending` → `claimed` → `succeeded`/`failed`, or `cancelled`). The browser holds only an
+HMAC-signed reference token and sends back `{decision, token}`.
 
-| Threat                 | Defence                                                                                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Argument tampering     | tool + canonical args + args hash are inside the MAC; the browser never re-sends args                                                                       |
-| Acting as another user | proposer's person id is signed and must equal the session actor (checked before the action is claimed)                                                      |
-| Stale-version mutation | row version captured at proposal time is signed and passed as `expected_version`                                                                            |
-| Replay / duplicate     | single-use claim in `PendingActionStore`, **and** the action id is the domain `command_id`, so the existing `commands` idempotency is the durable guarantee |
-| Old proposals          | 10 minute expiry                                                                                                                                            |
-| Lost permission        | permission re-checked at confirmation                                                                                                                       |
+At confirmation (`server/confirm.ts`): verify the token → check the session actor is the proposer →
+pre-check permission (so a doomed attempt does not use the proposal up) → **atomically claim** the row
+(`assistant_claim_pending_action`: proposer only, `pending` only, unexpired, exactly one winner) →
+compare the stored arguments' hash with the token's → **re-authorize and re-validate the stored
+arguments** for the current actor → `execute()` with `commandId = action id` and the stored
+`expectedVersion` → record the outcome (`assistant_complete_pending_action`). A transport failure
+releases the claim; the command is idempotent on `command_id`, so a retry replays.
 
-The store is in-memory by default and **fails closed** (an id this process did not issue is rejected).
-**Production refuses to propose or confirm any change through a non-durable store**
-(`canHandleMutations`). The database-backed store is written (`pending-actions-db.ts`,
-`ASSISTANT_PENDING_ACTIONS=database`) and waits only for the reviewed BD-07 migration.
-A database-backed store is BD-07. There are **no available mutation tools yet**, because the backend
-exposes no assistant-safe mutation (see BACKEND_DEPENDENCIES.md); the mechanism is exercised by tests
-with a test-only tool.
+| Threat                 | Defence                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| Argument tampering     | the server executes its stored arguments; their hash must equal the signed token's      |
+| Acting as another user | signed proposer id must equal the session actor; the claim is also proposer-only in SQL |
+| Stale-version mutation | the stored expected version is passed to the domain command                             |
+| Replay / double click  | single-use atomic claim, **and** action id = `command_id` (ledger idempotency)          |
+| Old proposals          | 10 minute expiry (token and row); expired rows can never be claimed                     |
+| Lost permission        | permission and tool availability re-checked at confirmation with the stored arguments   |
+
+`ASSISTANT_PENDING_ACTIONS=memory` selects an in-memory store for development without the table;
+**production refuses to propose or confirm through a non-durable store** (`canHandleMutations`), and
+refuses without `ASSISTANT_ACTION_SECRET`.
 
 ## Model provider
 
