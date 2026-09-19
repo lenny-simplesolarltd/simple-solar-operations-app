@@ -24,7 +24,7 @@ const json = (status: number, code: string, message: string) =>
 export async function POST(request: Request) {
   const actor = await resolveAssistantActor();
   if (!actor)
-    return json(401, 'NOT_AUTHENTICATED', 'Sign in to use the assistant.');
+    return json(401, 'NOT_AUTHENTICATED', 'Sign in to use SimpleBot.');
 
   let body: unknown;
   try {
@@ -34,7 +34,11 @@ export async function POST(request: Request) {
   }
   const parsed = chatRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return json(400, 'INVALID_REQUEST', 'The assistant request was not valid.');
+    return json(
+      400,
+      'INVALID_REQUEST',
+      'That request to SimpleBot was not valid.'
+    );
   }
 
   const resolved = resolveProvider();

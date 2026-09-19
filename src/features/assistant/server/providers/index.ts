@@ -38,7 +38,7 @@ export function resolveProvider(
     return {
       ok: false,
       notice:
-        'The assistant is not switched on in this environment yet. An administrator needs to configure a language model provider (ASSISTANT_PROVIDER) on the server.'
+        'SimpleBot is not switched on in this environment yet. An administrator needs to configure a language model provider (ASSISTANT_PROVIDER) on the server.'
     };
   }
 
@@ -63,7 +63,7 @@ export function resolveProvider(
       return {
         ok: false,
         notice:
-          'The assistant is set to use Anthropic but no ANTHROPIC_API_KEY is configured on the server.'
+          'SimpleBot is set to use Anthropic but no ANTHROPIC_API_KEY is configured on the server.'
       };
     }
     return {
@@ -83,7 +83,7 @@ export function resolveProvider(
       return {
         ok: false,
         notice:
-          'The assistant is set to use Gemini but no GEMINI_API_KEY is configured on the server.'
+          'SimpleBot is set to use Gemini but no GEMINI_API_KEY is configured on the server.'
       };
     }
     return {

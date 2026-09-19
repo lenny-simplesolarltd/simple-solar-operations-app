@@ -49,7 +49,7 @@ export async function resolvePendingAction(
     return verified.reason === 'EXPIRED'
       ? reject(
           'ACTION_EXPIRED',
-          `This proposal has expired. Ask the assistant to prepare it again. ${NOTHING_CHANGED}`
+          `This proposal has expired. Ask SimpleBot to prepare it again. ${NOTHING_CHANGED}`
         )
       : reject(
           'ACTION_INVALID',
@@ -131,7 +131,7 @@ export async function resolvePendingAction(
         )
       : reject(
           'ACTION_UNKNOWN',
-          `This proposal is no longer available. Ask the assistant to prepare it again. ${NOTHING_CHANGED}`
+          `This proposal is no longer available. Ask SimpleBot to prepare it again. ${NOTHING_CHANGED}`
         );
   }
 

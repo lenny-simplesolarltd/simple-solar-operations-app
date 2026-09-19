@@ -15,7 +15,7 @@ export async function GET() {
       {
         error: {
           code: 'NOT_AUTHENTICATED',
-          message: 'Sign in to use the assistant.'
+          message: 'Sign in to use SimpleBot.'
         }
       },
       { status: 401 }

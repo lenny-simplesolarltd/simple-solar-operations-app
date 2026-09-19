@@ -110,7 +110,7 @@ export function AssistantDrawer() {
     return (
       <aside
         id='assistant-drawer'
-        aria-label='Simple Solar Assistant'
+        aria-label='SimpleBot'
         inert={!open}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && !e.defaultPrevented) setOpen(false);
@@ -137,7 +137,7 @@ export function AssistantDrawer() {
         }
         className='w-full gap-0 p-0 sm:max-w-[27.5rem] [&>button]:top-4.5'
       >
-        <SheetTitle className='sr-only'>Simple Solar Assistant</SheetTitle>
+        <SheetTitle className='sr-only'>SimpleBot</SheetTitle>
         <SheetDescription className='sr-only'>
           Ask about jobs, customers and tasks.
         </SheetDescription>

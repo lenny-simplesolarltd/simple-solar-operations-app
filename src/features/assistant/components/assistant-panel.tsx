@@ -131,7 +131,7 @@ export function AssistantPanel({
           id={headingId}
           className='min-w-0 flex-1 truncate text-sm font-semibold'
         >
-          Simple Solar Assistant
+          SimpleBot
         </h2>
         <Button
           variant='ghost'
@@ -152,7 +152,7 @@ export function AssistantPanel({
             onClick={onClose}
           >
             <IconX aria-hidden />
-            <span className='sr-only'>Close assistant</span>
+            <span className='sr-only'>Close SimpleBot</span>
           </Button>
         )}
       </header>
@@ -241,7 +241,7 @@ export function AssistantPanel({
           className='border-input focus-within:border-ring focus-within:ring-ring/40 bg-background flex items-end gap-2 rounded-lg border p-1.5 transition-shadow focus-within:ring-[3px]'
         >
           <label htmlFor='assistant-composer' className='sr-only'>
-            Message the assistant
+            Message SimpleBot
           </label>
           <textarea
             id='assistant-composer'
@@ -263,7 +263,7 @@ export function AssistantPanel({
             disabled={unavailable}
             placeholder={
               unavailable
-                ? 'The assistant is not available yet'
+                ? 'SimpleBot is not available yet'
                 : 'Ask about a job, a customer or your tasks'
             }
             className='placeholder:text-muted-foreground field-sizing-content max-h-36 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-base outline-none disabled:cursor-not-allowed md:text-sm'
@@ -349,7 +349,7 @@ function Welcome({
   if (capabilitiesError) {
     return (
       <Notice tone='error'>
-        The assistant could not load. Close and reopen it to try again.
+        SimpleBot could not load. Close and reopen it to try again.
       </Notice>
     );
   }
@@ -365,9 +365,7 @@ function Welcome({
     return (
       <div className='flex flex-col gap-3'>
         <Notice tone='info'>
-          <span className='font-medium'>
-            The assistant isn’t switched on yet.
-          </span>{' '}
+          <span className='font-medium'>SimpleBot isn’t switched on yet.</span>{' '}
           {capabilities.notice}
         </Notice>
         <CapabilityList capabilities={capabilities} />
@@ -409,7 +407,7 @@ function CapabilityList({
   return (
     <details className='group text-sm'>
       <summary className='text-muted-foreground hover:text-foreground focus-visible:ring-ring cursor-pointer rounded text-xs font-medium outline-none focus-visible:ring-2'>
-        What the assistant can do today
+        What SimpleBot can do today
       </summary>
       <ul className='mt-2 flex flex-col gap-1'>
         {capabilities.tools.map((tool) => (
@@ -490,7 +488,7 @@ function Item({
     case 'assistant':
       return (
         <div>
-          <span className='sr-only'>Assistant: </span>
+          <span className='sr-only'>SimpleBot: </span>
           <FormattedText text={item.text} />
         </div>
       );

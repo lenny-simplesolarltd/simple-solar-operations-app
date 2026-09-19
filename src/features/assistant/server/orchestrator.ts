@@ -228,7 +228,7 @@ export async function runAssistantTurn(
       code: known?.code ?? 'UNEXPECTED',
       message:
         known?.message ??
-        'The assistant hit an unexpected error. Nothing was changed.',
+        'SimpleBot hit an unexpected error. Nothing was changed.',
       retryable: known?.retryable ?? true
     });
     return;

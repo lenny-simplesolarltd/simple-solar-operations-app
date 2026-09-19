@@ -99,7 +99,7 @@ export function useAssistantConversation(
                 : {
                     code: 'UNEXPECTED',
                     message:
-                      'The assistant hit an unexpected error. Nothing was changed.',
+                      'SimpleBot hit an unexpected error. Nothing was changed.',
                     retryable: true
                   }
           });
@@ -158,8 +158,7 @@ export function useAssistantConversation(
             ok: false,
             error: {
               code: 'NETWORK',
-              message:
-                'The assistant could not be reached. Nothing was confirmed.',
+              message: 'SimpleBot could not be reached. Nothing was confirmed.',
               retryable: true
             }
           };

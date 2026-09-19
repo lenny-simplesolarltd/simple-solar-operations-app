@@ -32,8 +32,8 @@ export function AssistantTrigger() {
           />
         )}
       </span>
-      <span className='hidden sm:inline'>Assistant</span>
-      <span className='sr-only sm:hidden'>Assistant</span>
+      <span className='hidden sm:inline'>SimpleBot</span>
+      <span className='sr-only sm:hidden'>SimpleBot</span>
     </Button>
   );
 }
