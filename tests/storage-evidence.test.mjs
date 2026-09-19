@@ -6,7 +6,7 @@
 // has it:  SUPABASE_TEST_WORKDIR=<dir with supabase/config.toml> \
 //          node --test tests/storage-evidence.test.mjs
 // Without Storage the suite skips itself (and says so) instead of failing.
-// Named to run after identity.test.mjs, which expects a database with no logins yet.
+// Named to run after 00-identity.test.mjs (first by name), which expects a database with no logins yet.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { before, describe, test } from 'node:test';

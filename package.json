@@ -13,7 +13,7 @@
     "format:check": "prettier -c -w .",
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
-    "test:db": "supabase db reset && node scripts/dev-preview-install.mjs && node --test --test-concurrency=1 tests/identity.test.mjs && node --test --test-concurrency=1 $(ls tests/*.test.mjs | grep -v /identity.test.mjs)",
+    "test:db": "supabase db reset && node scripts/dev-preview-install.mjs && node --test --test-concurrency=1 'tests/*.test.mjs'",
     "test:unit": "vitest run",
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
     "dev:preview:install": "node scripts/dev-preview-install.mjs",

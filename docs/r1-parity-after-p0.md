@@ -83,15 +83,15 @@ Key:
 
 | # | area | capability | BEFORE | AFTER | evidence | note |
 |---|---|---|---|---|---|---|
-| 1 | Identity (A01) | Staff directory (People) | CDA | CDA | 120000:62-91; identity.test.mjs | unchanged |
+| 1 | Identity (A01) | Staff directory (People) | CDA | CDA | 120000:62-91; 00-identity.test.mjs | unchanged |
 | 2 | Identity (A02) | Staff/role administration | P | P | no command/UI; people/auth unchanged since 685039d | people/person_roles edits are row-audited; still no admin command or UI |
-| 3 | Identity (A03) | Auth identity → person linkage | CDA | CDA | 120000:357-382; identity.test.mjs | hosted sign-up/confirm settings still unverified |
+| 3 | Identity (A03) | Auth identity → person linkage | CDA | CDA | 120000:357-382; 00-identity.test.mjs | hosted sign-up/confirm settings still unverified |
 | 4 | Identity (A04) | Login provisioning (invite-only) | P | P | invite-staff.ts unchanged | audit insert still non-atomic/unchecked; no test |
 | 5 | Identity (A05) | Actor resolution, fail closed | CDA | CDA | 141000:326-354; t_s17 | — |
 | 6 | Identity (A06) | Role vocabulary + PersonRoles | C | C | 120000; roles now row-audited (202 audit_required) | improved |
 | 7 | Identity (A07) | Role classes | C | C | 141000:369-383 | — |
 | 8 | Identity (A10) | Skills (installer-only) | C | C | 164000 RP_SET_SKILL; skills row-audited (202) | — |
-| 9 | Identity (A11) | Deactivation immediate | C | C | identity.test.mjs; se "an inactive person opens nothing" | extended to evidence reads |
+| 9 | Identity (A11) | Deactivation immediate | C | C | 00-identity.test.mjs; se "an inactive person opens nothing" | extended to evidence reads |
 | 10 | Identity (A12) | Job access rule for commands | C | C | 141000:429-475; r1p0 "wrong role, wrong job access…" | spot-checked: JOB_ACCESS_DENIED on job-level call |
 | 11 | Identity (A13) | Read visibility + redaction | CDA | CDA | 170000; list_evidence/evidence_open 183 | — |
 | 12 | Identity (A15) | R1 command authorization matrix | P | P | 210:241-330 (job-level CALL_RECORD, COMMISSIONING_RECORD added) | remaining gap: `submit_presale` still has no FN-01 check (no recorded owner decision) |
@@ -132,7 +132,7 @@ Key:
 | 47 | Tooling (G05) | Migration / cutover (S19) | M | M | none | in-flight job import + no-dual-creator plan still absent |
 | 48 | Tooling (G06) | Release plan evaluation / config contract | M | M | none | — |
 | 49 | Tooling (G07) | Ownership / entitlement registers | U | U | none | — |
-| 50 | Tooling (G08) | Negative security suite | CDA | CDA | identity.test.mjs; se "knowing the path gains…nothing" | extended |
+| 50 | Tooling (G08) | Negative security suite | CDA | CDA | 00-identity.test.mjs; se "knowing the path gains…nothing" | extended |
 | 51 | Presale (B-C01) | Sold intake → customer + job + presale | CDA | CDA | 120000:1017-1220; r1p0 "Job Sold creates PRE01-PRE04" | not FN-01 gated (see #12) |
 | 52 | Presale (B-C02) | Finance routes → PRE sets | C | C | 143000:353-375 | Phoenix→ReadyToBook still untested |
 | 53 | Presale (B-C03) | Human Job ID | C | C | 120000:857-877 | — |
