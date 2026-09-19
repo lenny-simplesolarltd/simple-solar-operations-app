@@ -7,20 +7,8 @@ import type { GateSummary } from '@/lib/backend/models';
 import type { CommandFlag } from '@/lib/backend/types';
 import { IconCalendarCheck, IconRefresh } from '@tabler/icons-react';
 import { useState } from 'react';
+import { bookingReason } from '../booking-reasons';
 import { gateLabel } from '../labels';
-
-const REASON: Record<string, string> = {
-  NOT_ASSIGNED: 'You are not assigned to this job.',
-  OFFICE_OR_ADMIN_REQUIRED: 'Only office managers can confirm bookings.',
-  BOOKING_CHECKS_OUTSTANDING: 'Some booking checks are still outstanding.',
-  STAGE_NOT_ELIGIBLE: 'The job is not at this booking step.',
-  ALREADY_BOOKED: 'Already booked.',
-  MODE_UNAVAILABLE: 'Booking is switched off at the moment.',
-  JOB_NOT_ACTIONABLE: 'The job is cancelled or archived.'
-};
-
-export const bookingReason = (flag: CommandFlag | undefined) =>
-  flag?.reason ? (REASON[flag.reason] ?? flag.reason) : undefined;
 
 /**
  * CONFIRM_BOOKING: BookingInProgress -> Booked when every booking gate passes.

@@ -3,8 +3,8 @@ import { ReadFailureState } from '@/components/read-failure';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
+import { bookingReason } from '@/features/booking/booking-reasons';
 import {
-  bookingReason,
   ConfirmBookingButton,
   GateList
 } from '@/features/booking/components/booking-actions';
