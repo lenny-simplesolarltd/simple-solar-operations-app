@@ -172,7 +172,9 @@ assert.equal((await read('dan', { read_type: 'INTAKE_REVIEW' })).error, 'R1A_ROL
 // ---------------------------------------------------------------- admin reads
 assert.equal((await read('tanya', { read_type: 'RELEASE_MODE_STATUS' })).error, 'R1A_ROLE_DENIED');
 d = data(await read('ben', { read_type: 'RELEASE_MODE_STATUS' }), 'modes');
-assert.equal(d.length, 20); assert.ok(d.every(m => m.function_id && m.mode && m.target_release && m.authorised_job_scope));
+// FN-01..FN-20 from the reference; later modules may register more (Forms is FN-21).
+assert.ok(Array.from({ length: 20 }, (_, i) => `FN-${String(i + 1).padStart(2, '0')}`).every(id => d.some(m => m.function_id === id)));
+assert.ok(d.every(m => m.function_id && m.mode && m.target_release && m.authorised_job_scope));
 d = data(await read('tanya', { read_type: 'SYSTEM_STATUS' }), 'sys');
 assert.ok(d.health && d.commit_journal && d.outbox); assert.equal(d.not_configured_count, d.not_configured.length);
 assert.ok(d.not_configured.some(x => x.area === 'Scaffolder contacts'));
@@ -316,7 +318,7 @@ assert.equal(await count('inst_b', 'allocations'), 1, 'own (inactive) allocation
 assert.equal(await count('inst_b', 'work_packages'), 0);
 assert.equal(await count('tanya', 'work_packages'), 4); assert.equal(await count('tanya', 'allocations'), 2);
 // Reference data for any active actor; nothing for unknown users.
-assert.equal(await count('inst_a', 'release_modes'), 20); assert.equal(await count('ghost', 'release_modes'), 0);
+assert.ok(await count('inst_a', 'release_modes') >= 20); assert.equal(await count('ghost', 'release_modes'), 0);
 assert.equal(await count('store', 'companies'), 1);
 // Journals / settings / intake: admin only (office managers see Intake Review rows).
 assert.equal(await count('tanya', 'settings'), 0); assert.ok(await count('ben', 'settings') > 0);
