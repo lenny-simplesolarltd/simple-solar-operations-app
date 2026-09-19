@@ -77,8 +77,11 @@ assert.equal((await all(`select * from public.help_published_articles()`)).lengt
 
 // ---- the seeded standard articles ------------------------------------------------------
 {
-  const seeded = await all(`select * from public.help_articles where seed_version = 1`);
+  // Every standard article, at whatever seed version the latest seed migration
+  // brought it to (untouched articles follow newer seeds).
+  const seeded = await all(`select * from public.help_articles where seed_version is not null`);
   assert.ok(seeded.length >= 40, `seeded ${seeded.length}`);
+  assert.ok(seeded.some((a) => a.seed_version >= 2 && a.slug === 'issues-queue'), 'seed v2 articles installed');
   assert.ok(seeded.every((a) => a.status === 'published' && a.created_by === null && a.category));
   const everyone = (await published('ben')).length;
   const installer = (await published('inst_a')).map((r) => r.slug);
@@ -89,11 +92,12 @@ assert.equal((await all(`select * from public.help_published_articles()`)).lengt
   for (const who of ['inst_a', 'sam', 'store', 'dan']) {
     assert.ok((await published(who)).some((r) => r.slug === 'job-stages'), `${who}: general guides are for everyone`);
   }
-  // Re-running the seed migration is a no-op.
+  // Re-running a seed migration (the old one or the newest) is a no-op.
   const fs = await import('node:fs');
   const before = (await one(`select count(*)::int n from public.help_article_revisions`)).n;
   await as(null);
-  await db.exec(fs.readFileSync(new URL('../../supabase/migrations/20260920100100_help_center_seed.sql', import.meta.url), 'utf8'));
+  for (const f of ['20260920100100_help_center_seed.sql', '20260920130000_help_center_seed_v2.sql'])
+    await db.exec(fs.readFileSync(new URL(`../../supabase/migrations/${f}`, import.meta.url), 'utf8'));
   assert.equal((await one(`select count(*)::int n from public.help_article_revisions`)).n, before, 'seed re-run changes nothing');
 }
 
