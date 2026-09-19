@@ -54,6 +54,8 @@ export function canSee(
       return has(user, ['Admin', 'Manager', 'Office']);
     case 'resourcing':
       return isOfficeClass(user);
+    case 'forms':
+      return permissions.has('forms.read');
   }
 }
 
