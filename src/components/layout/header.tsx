@@ -6,10 +6,20 @@ import SearchInput from '../search-input';
 import { UserNav } from './user-nav';
 import { ModeToggle } from './ThemeToggle/theme-toggle';
 import type { AppUser } from '@/lib/auth';
+import { AssistantTrigger } from '@/features/assistant/components/assistant-trigger';
+import { PageHelpButton } from '@/features/help/components/page-help-button';
+import { PreviewSwitcher } from '@/features/dev-preview/preview-switcher';
+import type { PreviewTarget } from '@/features/dev-preview/queries';
 
-export default function Header({ user }: { user: AppUser }) {
+export default function Header({
+  user,
+  previewTargets = null
+}: {
+  user: AppUser;
+  previewTargets?: PreviewTarget[] | null;
+}) {
   return (
-    <header className='bg-card sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 md:px-4'>
+    <header className='bg-card flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 md:px-4'>
       <div className='flex min-w-0 items-center gap-2'>
         <SidebarTrigger className='-ml-1 size-9 md:size-8' />
         <Separator orientation='vertical' className='mr-1 h-4' />
@@ -22,6 +32,16 @@ export default function Header({ user }: { user: AppUser }) {
         <div className='hidden md:flex'>
           <SearchInput />
         </div>
+        {previewTargets && (
+          <PreviewSwitcher
+            targets={previewTargets}
+            current={
+              user.preview ? { name: user.fullName ?? user.email } : null
+            }
+          />
+        )}
+        <PageHelpButton />
+        <AssistantTrigger />
         <ModeToggle />
         <UserNav user={user} />
       </div>

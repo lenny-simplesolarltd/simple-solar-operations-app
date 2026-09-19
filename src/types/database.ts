@@ -338,6 +338,229 @@ export type Database = {
           }
         ];
       };
+      assistant_conversations: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          estimated_tokens: number;
+          id: string;
+          job_id: string | null;
+          last_message_at: string | null;
+          last_model: string | null;
+          last_prompt_tokens: number | null;
+          last_provider: string | null;
+          message_count: number;
+          person_id: string;
+          source_conversation_id: string | null;
+          summary: string | null;
+          summary_updated_at: string | null;
+          title: string | null;
+          title_source: string;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          estimated_tokens?: number;
+          id?: string;
+          job_id?: string | null;
+          last_message_at?: string | null;
+          last_model?: string | null;
+          last_prompt_tokens?: number | null;
+          last_provider?: string | null;
+          message_count?: number;
+          person_id?: string;
+          source_conversation_id?: string | null;
+          summary?: string | null;
+          summary_updated_at?: string | null;
+          title?: string | null;
+          title_source?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          estimated_tokens?: number;
+          id?: string;
+          job_id?: string | null;
+          last_message_at?: string | null;
+          last_model?: string | null;
+          last_prompt_tokens?: number | null;
+          last_provider?: string | null;
+          message_count?: number;
+          person_id?: string;
+          source_conversation_id?: string | null;
+          summary?: string | null;
+          summary_updated_at?: string | null;
+          title?: string | null;
+          title_source?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_conversations_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_source_conversation_id_fkey';
+            columns: ['source_conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistant_conversations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      assistant_messages: {
+        Row: {
+          content: Json;
+          conversation_id: string;
+          created_at: string;
+          estimated_tokens: number;
+          id: string;
+          model: string | null;
+          page_context: Json | null;
+          provider: string | null;
+          role: string;
+          run_id: string;
+          seq: number;
+          status: string;
+          ui: Json | null;
+        };
+        Insert: {
+          content: Json;
+          conversation_id: string;
+          created_at?: string;
+          estimated_tokens?: number;
+          id?: string;
+          model?: string | null;
+          page_context?: Json | null;
+          provider?: string | null;
+          role: string;
+          run_id: string;
+          seq: number;
+          status?: string;
+          ui?: Json | null;
+        };
+        Update: {
+          content?: Json;
+          conversation_id?: string;
+          created_at?: string;
+          estimated_tokens?: number;
+          id?: string;
+          model?: string | null;
+          page_context?: Json | null;
+          provider?: string | null;
+          role?: string;
+          run_id?: string;
+          seq?: number;
+          status?: string;
+          ui?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistant_conversations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      assistant_pending_actions: {
+        Row: {
+          args: Json;
+          args_hash: string;
+          cancelled_at: string | null;
+          claimed_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          expected_version: number | null;
+          expires_at: string;
+          id: string;
+          outcome_code: string | null;
+          person_id: string;
+          preview: Json;
+          status: string;
+          thread_id: string;
+          tool: string;
+        };
+        Insert: {
+          args: Json;
+          args_hash: string;
+          cancelled_at?: string | null;
+          claimed_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          expected_version?: number | null;
+          expires_at: string;
+          id: string;
+          outcome_code?: string | null;
+          person_id: string;
+          preview: Json;
+          status?: string;
+          thread_id: string;
+          tool: string;
+        };
+        Update: {
+          args?: Json;
+          args_hash?: string;
+          cancelled_at?: string | null;
+          claimed_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          expected_version?: number | null;
+          expires_at?: string;
+          id?: string;
+          outcome_code?: string | null;
+          person_id?: string;
+          preview?: Json;
+          status?: string;
+          thread_id?: string;
+          tool?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_pending_actions_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       audit_events: {
         Row: {
           action: string;
@@ -530,7 +753,7 @@ export type Database = {
           outcome: string;
           person_id: string | null;
           strip_authorised: boolean | null;
-          task_id: string;
+          task_id: string | null;
           type: string;
           work_package_id: string | null;
         };
@@ -548,7 +771,7 @@ export type Database = {
           outcome: string;
           person_id?: string | null;
           strip_authorised?: boolean | null;
-          task_id: string;
+          task_id?: string | null;
           type: string;
           work_package_id?: string | null;
         };
@@ -566,7 +789,7 @@ export type Database = {
           outcome?: string;
           person_id?: string | null;
           strip_authorised?: boolean | null;
-          task_id?: string;
+          task_id?: string | null;
           type?: string;
           work_package_id?: string | null;
         };
@@ -775,15 +998,17 @@ export type Database = {
       };
       commissioning_submissions: {
         Row: {
-          allocation_id: string;
+          allocation_id: string | null;
           created_at: string;
           created_by: string | null;
           id: string;
-          installer_id: string;
+          installer_id: string | null;
           job_id: string;
+          office_reference: string | null;
           review_notes: string | null;
           reviewed_at: string | null;
           reviewed_by: string | null;
+          source_system: string;
           status: string;
           submitted_at: string | null;
           supersedes_submission_id: string | null;
@@ -794,15 +1019,17 @@ export type Database = {
           work_package_id: string;
         };
         Insert: {
-          allocation_id: string;
+          allocation_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
-          installer_id: string;
+          installer_id?: string | null;
           job_id: string;
+          office_reference?: string | null;
           review_notes?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
+          source_system?: string;
           status?: string;
           submitted_at?: string | null;
           supersedes_submission_id?: string | null;
@@ -813,15 +1040,17 @@ export type Database = {
           work_package_id: string;
         };
         Update: {
-          allocation_id?: string;
+          allocation_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
-          installer_id?: string;
+          installer_id?: string | null;
           job_id?: string;
+          office_reference?: string | null;
           review_notes?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
+          source_system?: string;
           status?: string;
           submitted_at?: string | null;
           supersedes_submission_id?: string | null;
@@ -1331,7 +1560,7 @@ export type Database = {
           job_id: string;
           previous_value: string | null;
           reason: string | null;
-          resolution: string;
+          resolution: string | null;
           resolved_at: string | null;
           resolved_by: string | null;
           resolved_value: string | null;
@@ -1345,7 +1574,7 @@ export type Database = {
           job_id: string;
           previous_value?: string | null;
           reason?: string | null;
-          resolution: string;
+          resolution?: string | null;
           resolved_at?: string | null;
           resolved_by?: string | null;
           resolved_value?: string | null;
@@ -1359,7 +1588,7 @@ export type Database = {
           job_id?: string;
           previous_value?: string | null;
           reason?: string | null;
-          resolution?: string;
+          resolution?: string | null;
           resolved_at?: string | null;
           resolved_by?: string | null;
           resolved_value?: string | null;
@@ -1507,10 +1736,15 @@ export type Database = {
       };
       evidence: {
         Row: {
+          attached_at: string | null;
+          attached_by: string | null;
           captured_at: string | null;
           captured_by: string | null;
           category: string;
           checksum: string | null;
+          client_upload_id: string | null;
+          context_id: string | null;
+          context_type: string | null;
           created_at: string;
           customer_shareable: boolean;
           filename: string;
@@ -1518,17 +1752,28 @@ export type Database = {
           issue_id: string | null;
           job_id: string;
           mime_type: string | null;
+          original_filename: string | null;
           received_at: string | null;
+          registered_at: string | null;
+          size_bytes: number | null;
           storage_path: string;
           submission_id: string | null;
+          task_id: string | null;
           upload_status: string;
+          uploaded_by: string | null;
           version: number;
+          work_package_id: string | null;
         };
         Insert: {
+          attached_at?: string | null;
+          attached_by?: string | null;
           captured_at?: string | null;
           captured_by?: string | null;
           category: string;
           checksum?: string | null;
+          client_upload_id?: string | null;
+          context_id?: string | null;
+          context_type?: string | null;
           created_at?: string;
           customer_shareable?: boolean;
           filename: string;
@@ -1536,17 +1781,28 @@ export type Database = {
           issue_id?: string | null;
           job_id: string;
           mime_type?: string | null;
+          original_filename?: string | null;
           received_at?: string | null;
+          registered_at?: string | null;
+          size_bytes?: number | null;
           storage_path: string;
           submission_id?: string | null;
+          task_id?: string | null;
           upload_status: string;
+          uploaded_by?: string | null;
           version?: number;
+          work_package_id?: string | null;
         };
         Update: {
+          attached_at?: string | null;
+          attached_by?: string | null;
           captured_at?: string | null;
           captured_by?: string | null;
           category?: string;
           checksum?: string | null;
+          client_upload_id?: string | null;
+          context_id?: string | null;
+          context_type?: string | null;
           created_at?: string;
           customer_shareable?: boolean;
           filename?: string;
@@ -1554,13 +1810,26 @@ export type Database = {
           issue_id?: string | null;
           job_id?: string;
           mime_type?: string | null;
+          original_filename?: string | null;
           received_at?: string | null;
+          registered_at?: string | null;
+          size_bytes?: number | null;
           storage_path?: string;
           submission_id?: string | null;
+          task_id?: string | null;
           upload_status?: string;
+          uploaded_by?: string | null;
           version?: number;
+          work_package_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'evidence_attached_by_fkey';
+            columns: ['attached_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'evidence_captured_by_fkey';
             columns: ['captured_by'];
@@ -1587,6 +1856,27 @@ export type Database = {
             columns: ['submission_id'];
             isOneToOne: false;
             referencedRelation: 'commissioning_submissions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_task_id_fkey';
+            columns: ['task_id'];
+            isOneToOne: false;
+            referencedRelation: 'tasks';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_uploaded_by_fkey';
+            columns: ['uploaded_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_work_package_id_fkey';
+            columns: ['work_package_id'];
+            isOneToOne: false;
+            referencedRelation: 'work_packages';
             referencedColumns: ['id'];
           }
         ];
@@ -1685,6 +1975,325 @@ export type Database = {
           },
           {
             foreignKeyName: 'finance_plans_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      form_invitations: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          expires_at: string | null;
+          form_id: string;
+          id: string;
+          job_id: string | null;
+          person_id: string | null;
+          recipient_label: string | null;
+          recipient_type: string;
+          revision_id: string;
+          revoke_reason: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          submitted_at: string | null;
+          token_hash: string;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string | null;
+          form_id: string;
+          id: string;
+          job_id?: string | null;
+          person_id?: string | null;
+          recipient_label?: string | null;
+          recipient_type: string;
+          revision_id: string;
+          revoke_reason?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          submitted_at?: string | null;
+          token_hash: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string | null;
+          form_id?: string;
+          id?: string;
+          job_id?: string | null;
+          person_id?: string | null;
+          recipient_label?: string | null;
+          recipient_type?: string;
+          revision_id?: string;
+          revoke_reason?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          submitted_at?: string | null;
+          token_hash?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'form_invitations_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_form_id_fkey';
+            columns: ['form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_revision_id_fkey';
+            columns: ['revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'form_revisions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_revoked_by_fkey';
+            columns: ['revoked_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      form_revisions: {
+        Row: {
+          definition: Json;
+          description: string | null;
+          form_id: string;
+          id: string;
+          published_at: string;
+          published_by: string | null;
+          revision_number: number;
+          title: string;
+        };
+        Insert: {
+          definition: Json;
+          description?: string | null;
+          form_id: string;
+          id?: string;
+          published_at?: string;
+          published_by?: string | null;
+          revision_number: number;
+          title: string;
+        };
+        Update: {
+          definition?: Json;
+          description?: string | null;
+          form_id?: string;
+          id?: string;
+          published_at?: string;
+          published_by?: string | null;
+          revision_number?: number;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'form_revisions_form_id_fkey';
+            columns: ['form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_revisions_published_by_fkey';
+            columns: ['published_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      form_submissions: {
+        Row: {
+          answers: Json;
+          form_id: string;
+          id: string;
+          invitation_id: string;
+          revision_id: string;
+          submitted_at: string;
+        };
+        Insert: {
+          answers: Json;
+          form_id: string;
+          id: string;
+          invitation_id: string;
+          revision_id: string;
+          submitted_at?: string;
+        };
+        Update: {
+          answers?: Json;
+          form_id?: string;
+          id?: string;
+          invitation_id?: string;
+          revision_id?: string;
+          submitted_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'form_submissions_form_id_fkey';
+            columns: ['form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_submissions_invitation_id_fkey';
+            columns: ['invitation_id'];
+            isOneToOne: true;
+            referencedRelation: 'form_invitations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_submissions_revision_id_fkey';
+            columns: ['revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'form_revisions';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      forms: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          current_revision_id: string | null;
+          current_revision_number: number;
+          definition: Json;
+          description: string | null;
+          has_unpublished_changes: boolean;
+          id: string;
+          job_id: string | null;
+          kind: string;
+          source_form_id: string | null;
+          source_template_id: string | null;
+          status: string;
+          status_before_archive: string | null;
+          title: string;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          current_revision_id?: string | null;
+          current_revision_number?: number;
+          definition?: Json;
+          description?: string | null;
+          has_unpublished_changes?: boolean;
+          id?: string;
+          job_id?: string | null;
+          kind: string;
+          source_form_id?: string | null;
+          source_template_id?: string | null;
+          status: string;
+          status_before_archive?: string | null;
+          title: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          current_revision_id?: string | null;
+          current_revision_number?: number;
+          definition?: Json;
+          description?: string | null;
+          has_unpublished_changes?: boolean;
+          id?: string;
+          job_id?: string | null;
+          kind?: string;
+          source_form_id?: string | null;
+          source_template_id?: string | null;
+          status?: string;
+          status_before_archive?: string | null;
+          title?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'forms_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_current_revision_fkey';
+            columns: ['current_revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'form_revisions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_source_form_id_fkey';
+            columns: ['source_form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_source_template_id_fkey';
+            columns: ['source_template_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_updated_by_fkey';
             columns: ['updated_by'];
             isOneToOne: false;
             referencedRelation: 'people';
@@ -1871,6 +2480,7 @@ export type Database = {
           created_at: string;
           error_code: string | null;
           id: string;
+          idempotency_key: string | null;
           integration: string;
           last_success: string | null;
           next_action_task_id: string | null;
@@ -1881,6 +2491,7 @@ export type Database = {
           created_at?: string;
           error_code?: string | null;
           id?: string;
+          idempotency_key?: string | null;
           integration: string;
           last_success?: string | null;
           next_action_task_id?: string | null;
@@ -1891,6 +2502,7 @@ export type Database = {
           created_at?: string;
           error_code?: string | null;
           id?: string;
+          idempotency_key?: string | null;
           integration?: string;
           last_success?: string | null;
           next_action_task_id?: string | null;
@@ -1905,6 +2517,281 @@ export type Database = {
             referencedColumns: ['id'];
           }
         ];
+      };
+      help_article_revisions: {
+        Row: {
+          aliases: string[];
+          article_id: string;
+          audience_roles: string[];
+          body: string;
+          category: string | null;
+          change_note: string | null;
+          common_task: boolean;
+          created_at: string;
+          created_by: string | null;
+          event: string;
+          id: string;
+          keywords: string[];
+          related_slugs: string[];
+          release_functions: string[];
+          revision_number: number;
+          routes: string[];
+          seed_version: number | null;
+          slug: string;
+          sort_order: number;
+          status: string;
+          summary: string;
+          title: string;
+          tools: string[];
+        };
+        Insert: {
+          aliases: string[];
+          article_id: string;
+          audience_roles: string[];
+          body: string;
+          category?: string | null;
+          change_note?: string | null;
+          common_task: boolean;
+          created_at?: string;
+          created_by?: string | null;
+          event: string;
+          id?: string;
+          keywords: string[];
+          related_slugs: string[];
+          release_functions: string[];
+          revision_number: number;
+          routes: string[];
+          seed_version?: number | null;
+          slug: string;
+          sort_order: number;
+          status: string;
+          summary: string;
+          title: string;
+          tools: string[];
+        };
+        Update: {
+          aliases?: string[];
+          article_id?: string;
+          audience_roles?: string[];
+          body?: string;
+          category?: string | null;
+          change_note?: string | null;
+          common_task?: boolean;
+          created_at?: string;
+          created_by?: string | null;
+          event?: string;
+          id?: string;
+          keywords?: string[];
+          related_slugs?: string[];
+          release_functions?: string[];
+          revision_number?: number;
+          routes?: string[];
+          seed_version?: number | null;
+          slug?: string;
+          sort_order?: number;
+          status?: string;
+          summary?: string;
+          title?: string;
+          tools?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'help_article_revisions_article_id_fkey';
+            columns: ['article_id'];
+            isOneToOne: false;
+            referencedRelation: 'help_articles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'help_article_revisions_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      help_articles: {
+        Row: {
+          aliases: string[];
+          archived_at: string | null;
+          archived_by: string | null;
+          audience_roles: string[];
+          body: string;
+          category: string | null;
+          common_task: boolean;
+          created_at: string;
+          created_by: string | null;
+          has_unpublished_changes: boolean;
+          id: string;
+          keywords: string[];
+          published_at: string | null;
+          published_by: string | null;
+          published_revision_id: string | null;
+          published_revision_number: number | null;
+          related_slugs: string[];
+          release_functions: string[];
+          review_due_at: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          routes: string[];
+          seed_update_available: number | null;
+          seed_version: number | null;
+          slug: string;
+          sort_order: number;
+          status: string;
+          summary: string;
+          title: string;
+          tools: string[];
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          aliases?: string[];
+          archived_at?: string | null;
+          archived_by?: string | null;
+          audience_roles?: string[];
+          body?: string;
+          category?: string | null;
+          common_task?: boolean;
+          created_at?: string;
+          created_by?: string | null;
+          has_unpublished_changes?: boolean;
+          id?: string;
+          keywords?: string[];
+          published_at?: string | null;
+          published_by?: string | null;
+          published_revision_id?: string | null;
+          published_revision_number?: number | null;
+          related_slugs?: string[];
+          release_functions?: string[];
+          review_due_at?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          routes?: string[];
+          seed_update_available?: number | null;
+          seed_version?: number | null;
+          slug: string;
+          sort_order?: number;
+          status?: string;
+          summary?: string;
+          title: string;
+          tools?: string[];
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          aliases?: string[];
+          archived_at?: string | null;
+          archived_by?: string | null;
+          audience_roles?: string[];
+          body?: string;
+          category?: string | null;
+          common_task?: boolean;
+          created_at?: string;
+          created_by?: string | null;
+          has_unpublished_changes?: boolean;
+          id?: string;
+          keywords?: string[];
+          published_at?: string | null;
+          published_by?: string | null;
+          published_revision_id?: string | null;
+          published_revision_number?: number | null;
+          related_slugs?: string[];
+          release_functions?: string[];
+          review_due_at?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          routes?: string[];
+          seed_update_available?: number | null;
+          seed_version?: number | null;
+          slug?: string;
+          sort_order?: number;
+          status?: string;
+          summary?: string;
+          title?: string;
+          tools?: string[];
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'help_articles_archived_by_fkey';
+            columns: ['archived_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'help_articles_category_fkey';
+            columns: ['category'];
+            isOneToOne: false;
+            referencedRelation: 'help_categories';
+            referencedColumns: ['code'];
+          },
+          {
+            foreignKeyName: 'help_articles_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'help_articles_published_by_fkey';
+            columns: ['published_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'help_articles_published_revision_fkey';
+            columns: ['published_revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'help_article_revisions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'help_articles_reviewed_by_fkey';
+            columns: ['reviewed_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'help_articles_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      help_categories: {
+        Row: {
+          code: string;
+          description: string;
+          icon: string;
+          sort_order: number;
+          title: string;
+        };
+        Insert: {
+          code: string;
+          description: string;
+          icon: string;
+          sort_order: number;
+          title: string;
+        };
+        Update: {
+          code?: string;
+          description?: string;
+          icon?: string;
+          sort_order?: number;
+          title?: string;
+        };
+        Relationships: [];
       };
       holidays: {
         Row: {
@@ -2571,22 +3458,48 @@ export type Database = {
       };
       jobs: {
         Row: {
+          account_policy_version: string | null;
+          approved_change_pence: number | null;
+          archived_at: string | null;
+          booking_approved_at: string | null;
+          booking_approved_by: string | null;
+          booking_submission_id: string | null;
+          cancellation_at: string | null;
+          cancellation_by: string | null;
+          cancellation_reason: string | null;
+          contract_evidence_id: string | null;
+          contract_id: string | null;
+          contract_signed_at: string | null;
+          contract_status: string;
           created_at: string;
           created_by: string | null;
           current_contract_gross_pence: number;
+          customer_details_verified_at: string | null;
+          customer_details_verified_by: string | null;
+          customer_happy_at: string | null;
+          customer_happy_by: string | null;
           customer_id: string;
+          deposit_bank_confirmed_at: string | null;
+          deposit_bank_confirmed_by: string | null;
+          deposit_bank_reference: string | null;
           display_name: string;
           electrical_required: boolean;
           finance_route: string;
+          financial_status: string;
+          handover_status: string;
           id: string;
           job_ref: string;
           lead_source: string | null;
+          next_action_at: string | null;
+          operational_complete_at: string | null;
+          operational_complete_by: string | null;
           original_gross_pence: number;
           quote_reference: string | null;
           roof_required: boolean;
           salesperson_id: string;
           scaffold_required: boolean;
           sold_at: string;
+          sold_booking_match_status: string;
           updated_at: string;
           updated_by: string | null;
           valuation_basis: string | null;
@@ -2594,22 +3507,48 @@ export type Database = {
           workflow_stage: string;
         };
         Insert: {
+          account_policy_version?: string | null;
+          approved_change_pence?: number | null;
+          archived_at?: string | null;
+          booking_approved_at?: string | null;
+          booking_approved_by?: string | null;
+          booking_submission_id?: string | null;
+          cancellation_at?: string | null;
+          cancellation_by?: string | null;
+          cancellation_reason?: string | null;
+          contract_evidence_id?: string | null;
+          contract_id?: string | null;
+          contract_signed_at?: string | null;
+          contract_status?: string;
           created_at?: string;
           created_by?: string | null;
           current_contract_gross_pence: number;
+          customer_details_verified_at?: string | null;
+          customer_details_verified_by?: string | null;
+          customer_happy_at?: string | null;
+          customer_happy_by?: string | null;
           customer_id: string;
+          deposit_bank_confirmed_at?: string | null;
+          deposit_bank_confirmed_by?: string | null;
+          deposit_bank_reference?: string | null;
           display_name: string;
           electrical_required: boolean;
           finance_route: string;
+          financial_status?: string;
+          handover_status?: string;
           id?: string;
           job_ref: string;
           lead_source?: string | null;
+          next_action_at?: string | null;
+          operational_complete_at?: string | null;
+          operational_complete_by?: string | null;
           original_gross_pence: number;
           quote_reference?: string | null;
           roof_required: boolean;
           salesperson_id: string;
           scaffold_required: boolean;
           sold_at: string;
+          sold_booking_match_status?: string;
           updated_at?: string;
           updated_by?: string | null;
           valuation_basis?: string | null;
@@ -2617,22 +3556,48 @@ export type Database = {
           workflow_stage?: string;
         };
         Update: {
+          account_policy_version?: string | null;
+          approved_change_pence?: number | null;
+          archived_at?: string | null;
+          booking_approved_at?: string | null;
+          booking_approved_by?: string | null;
+          booking_submission_id?: string | null;
+          cancellation_at?: string | null;
+          cancellation_by?: string | null;
+          cancellation_reason?: string | null;
+          contract_evidence_id?: string | null;
+          contract_id?: string | null;
+          contract_signed_at?: string | null;
+          contract_status?: string;
           created_at?: string;
           created_by?: string | null;
           current_contract_gross_pence?: number;
+          customer_details_verified_at?: string | null;
+          customer_details_verified_by?: string | null;
+          customer_happy_at?: string | null;
+          customer_happy_by?: string | null;
           customer_id?: string;
+          deposit_bank_confirmed_at?: string | null;
+          deposit_bank_confirmed_by?: string | null;
+          deposit_bank_reference?: string | null;
           display_name?: string;
           electrical_required?: boolean;
           finance_route?: string;
+          financial_status?: string;
+          handover_status?: string;
           id?: string;
           job_ref?: string;
           lead_source?: string | null;
+          next_action_at?: string | null;
+          operational_complete_at?: string | null;
+          operational_complete_by?: string | null;
           original_gross_pence?: number;
           quote_reference?: string | null;
           roof_required?: boolean;
           salesperson_id?: string;
           scaffold_required?: boolean;
           sold_at?: string;
+          sold_booking_match_status?: string;
           updated_at?: string;
           updated_by?: string | null;
           valuation_basis?: string | null;
@@ -2641,8 +3606,50 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: 'jobs_booking_approved_by_fkey';
+            columns: ['booking_approved_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_booking_submission_id_fkey';
+            columns: ['booking_submission_id'];
+            isOneToOne: false;
+            referencedRelation: 'intake';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_cancellation_by_fkey';
+            columns: ['cancellation_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_contract_evidence_id_fkey';
+            columns: ['contract_evidence_id'];
+            isOneToOne: false;
+            referencedRelation: 'evidence';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'jobs_created_by_fkey';
             columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_customer_details_verified_by_fkey';
+            columns: ['customer_details_verified_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_customer_happy_by_fkey';
+            columns: ['customer_happy_by'];
             isOneToOne: false;
             referencedRelation: 'people';
             referencedColumns: ['id'];
@@ -2652,6 +3659,20 @@ export type Database = {
             columns: ['customer_id'];
             isOneToOne: false;
             referencedRelation: 'customers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_deposit_bank_confirmed_by_fkey';
+            columns: ['deposit_bank_confirmed_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_operational_complete_by_fkey';
+            columns: ['operational_complete_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           },
           {
@@ -2675,6 +3696,7 @@ export type Database = {
           amount_pence: number;
           checked_at: string;
           checked_by: string;
+          command_id: string | null;
           created_at: string;
           evidence_reference: string | null;
           id: string;
@@ -2686,6 +3708,7 @@ export type Database = {
           amount_pence: number;
           checked_at: string;
           checked_by: string;
+          command_id?: string | null;
           created_at?: string;
           evidence_reference?: string | null;
           id?: string;
@@ -2697,6 +3720,7 @@ export type Database = {
           amount_pence?: number;
           checked_at?: string;
           checked_by?: string;
+          command_id?: string | null;
           created_at?: string;
           evidence_reference?: string | null;
           id?: string;
@@ -2809,7 +3833,7 @@ export type Database = {
           id: string;
           job_id: string;
           merchant_id: string | null;
-          need_by_date: string;
+          need_by_date: string | null;
           notes: string | null;
           order_line_id: string | null;
           product_id: string | null;
@@ -2820,7 +3844,7 @@ export type Database = {
           updated_at: string;
           updated_by: string | null;
           version: number;
-          work_package_id: string;
+          work_package_id: string | null;
         };
         Insert: {
           already_ordered_reference?: string | null;
@@ -2831,7 +3855,7 @@ export type Database = {
           id?: string;
           job_id: string;
           merchant_id?: string | null;
-          need_by_date: string;
+          need_by_date?: string | null;
           notes?: string | null;
           order_line_id?: string | null;
           product_id?: string | null;
@@ -2842,7 +3866,7 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           version?: number;
-          work_package_id: string;
+          work_package_id?: string | null;
         };
         Update: {
           already_ordered_reference?: string | null;
@@ -2853,7 +3877,7 @@ export type Database = {
           id?: string;
           job_id?: string;
           merchant_id?: string | null;
-          need_by_date?: string;
+          need_by_date?: string | null;
           notes?: string | null;
           order_line_id?: string | null;
           product_id?: string | null;
@@ -2864,7 +3888,7 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           version?: number;
-          work_package_id?: string;
+          work_package_id?: string | null;
         };
         Relationships: [
           {
@@ -2914,6 +3938,62 @@ export type Database = {
             columns: ['work_package_id'];
             isOneToOne: false;
             referencedRelation: 'work_packages';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      operational_evidence: {
+        Row: {
+          command_id: string | null;
+          evidence_reference: string;
+          executing_service: string;
+          id: string;
+          kind: string;
+          method: string;
+          notes: string | null;
+          outcome: string;
+          performed_at: string;
+          recorded_at: string;
+          recorded_by: string | null;
+          source: string;
+          subject_at: string | null;
+        };
+        Insert: {
+          command_id?: string | null;
+          evidence_reference: string;
+          executing_service: string;
+          id?: string;
+          kind: string;
+          method: string;
+          notes?: string | null;
+          outcome: string;
+          performed_at: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          source: string;
+          subject_at?: string | null;
+        };
+        Update: {
+          command_id?: string | null;
+          evidence_reference?: string;
+          executing_service?: string;
+          id?: string;
+          kind?: string;
+          method?: string;
+          notes?: string | null;
+          outcome?: string;
+          performed_at?: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          source?: string;
+          subject_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'operational_evidence_recorded_by_fkey';
+            columns: ['recorded_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           }
         ];
@@ -3102,6 +4182,7 @@ export type Database = {
         Row: {
           action_type: string;
           attempt_count: number;
+          claimed_at: string | null;
           correlation_id: string | null;
           created_at: string;
           external_id: string | null;
@@ -3117,6 +4198,7 @@ export type Database = {
         Insert: {
           action_type: string;
           attempt_count?: number;
+          claimed_at?: string | null;
           correlation_id?: string | null;
           created_at?: string;
           external_id?: string | null;
@@ -3132,6 +4214,7 @@ export type Database = {
         Update: {
           action_type?: string;
           attempt_count?: number;
+          claimed_at?: string | null;
           correlation_id?: string | null;
           created_at?: string;
           external_id?: string | null;
@@ -4129,7 +5212,7 @@ export type Database = {
         Row: {
           access_notes: string | null;
           actual_cost_pence: number | null;
-          company_id: string;
+          company_id: string | null;
           confirmed_revision: number | null;
           created_at: string;
           created_by: string | null;
@@ -4157,7 +5240,7 @@ export type Database = {
         Insert: {
           access_notes?: string | null;
           actual_cost_pence?: number | null;
-          company_id: string;
+          company_id?: string | null;
           confirmed_revision?: number | null;
           created_at?: string;
           created_by?: string | null;
@@ -4185,7 +5268,7 @@ export type Database = {
         Update: {
           access_notes?: string | null;
           actual_cost_pence?: number | null;
-          company_id?: string;
+          company_id?: string | null;
           confirmed_revision?: number | null;
           created_at?: string;
           created_by?: string | null;
@@ -4471,36 +5554,45 @@ export type Database = {
       stocktake_lines: {
         Row: {
           adjustment_movement_id: string | null;
-          counted_quantity: number;
+          count_basis: string | null;
+          counted_at: string | null;
+          counted_by: string | null;
+          counted_quantity: number | null;
           created_at: string;
           expected_quantity_at_cutoff: number;
           id: string;
           product_id: string;
           reason: string | null;
           stocktake_id: string;
-          variance: number;
+          variance: number | null;
         };
         Insert: {
           adjustment_movement_id?: string | null;
-          counted_quantity: number;
+          count_basis?: string | null;
+          counted_at?: string | null;
+          counted_by?: string | null;
+          counted_quantity?: number | null;
           created_at?: string;
           expected_quantity_at_cutoff: number;
           id?: string;
           product_id: string;
           reason?: string | null;
           stocktake_id: string;
-          variance: number;
+          variance?: number | null;
         };
         Update: {
           adjustment_movement_id?: string | null;
-          counted_quantity?: number;
+          count_basis?: string | null;
+          counted_at?: string | null;
+          counted_by?: string | null;
+          counted_quantity?: number | null;
           created_at?: string;
           expected_quantity_at_cutoff?: number;
           id?: string;
           product_id?: string;
           reason?: string | null;
           stocktake_id?: string;
-          variance?: number;
+          variance?: number | null;
         };
         Relationships: [
           {
@@ -4508,6 +5600,13 @@ export type Database = {
             columns: ['adjustment_movement_id'];
             isOneToOne: false;
             referencedRelation: 'stock_movements';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stocktake_lines_counted_by_fkey';
+            columns: ['counted_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           },
           {
@@ -4707,7 +5806,7 @@ export type Database = {
       task_events: {
         Row: {
           action: string;
-          actor: string;
+          actor: string | null;
           created_at: string;
           id: string;
           new_due: string | null;
@@ -4722,7 +5821,7 @@ export type Database = {
         };
         Insert: {
           action: string;
-          actor: string;
+          actor?: string | null;
           created_at?: string;
           id?: string;
           new_due?: string | null;
@@ -4737,7 +5836,7 @@ export type Database = {
         };
         Update: {
           action?: string;
-          actor?: string;
+          actor?: string | null;
           created_at?: string;
           id?: string;
           new_due?: string | null;
@@ -4962,6 +6061,13 @@ export type Database = {
             columns: ['created_by'];
             isOneToOne: false;
             referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_evidence_id_fkey';
+            columns: ['evidence_id'];
+            isOneToOne: false;
+            referencedRelation: 'evidence';
             referencedColumns: ['id'];
           },
           {
@@ -5354,6 +6460,64 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      assistant_append_turn: {
+        Args: {
+          p_conversation_id: string;
+          p_job_id?: string;
+          p_messages: Json;
+          p_model?: string;
+          p_prompt_tokens?: number;
+          p_provider?: string;
+          p_run_id: string;
+          p_title?: string;
+        };
+        Returns: {
+          appended: boolean;
+          conversation_id: string;
+          estimated_tokens: number;
+          message_count: number;
+          title: string;
+          version: number;
+        }[];
+      };
+      assistant_claim_pending_action: {
+        Args: { p_decision: string; p_id: string };
+        Returns: Json;
+      };
+      assistant_complete_pending_action: {
+        Args: { p_code?: string; p_id: string; p_succeeded: boolean };
+        Returns: undefined;
+      };
+      assistant_register_pending_action: {
+        Args: {
+          p_args: Json;
+          p_args_hash: string;
+          p_expected_version: number;
+          p_expires_at: string;
+          p_id: string;
+          p_preview: Json;
+          p_thread_id: string;
+          p_tool: string;
+        };
+        Returns: undefined;
+      };
+      assistant_release_pending_action: {
+        Args: { p_id: string };
+        Returns: undefined;
+      };
+      assistant_start_handoff: {
+        Args: { p_source_id: string; p_summary?: string };
+        Returns: string;
+      };
+      calendar_drift_candidates: { Args: { p_limit?: number }; Returns: Json };
+      calendar_record_drift: {
+        Args: { p_link_id: string; p_observed: Json };
+        Returns: Json;
+      };
+      cancellation_preview: {
+        Args: { p_effective_date?: string; p_job_id: string };
+        Returns: Json;
+      };
       current_actor: {
         Args: never;
         Returns: {
@@ -5363,10 +6527,109 @@ export type Database = {
           roles: string[];
         }[];
       };
+      describe_command_error: {
+        Args: { p_command_id?: string; p_error: string; p_field?: string };
+        Returns: Json;
+      };
+      describe_command_result: {
+        Args: { p_command_type: string; p_result: Json };
+        Returns: Json;
+      };
+      describe_command_result_pre_r1_completion: {
+        Args: { p_command_type: string; p_result: Json };
+        Returns: Json;
+      };
+      evidence_consistency: { Args: never; Returns: Json };
+      evidence_open: { Args: { p_evidence_id: string }; Returns: Json };
+      evidence_report_missing: {
+        Args: { p_evidence_id: string };
+        Returns: Json;
+      };
+      evidence_upload_begin: { Args: { p_request: Json }; Returns: Json };
+      evidence_upload_complete: {
+        Args: { p_evidence_id: string };
+        Returns: Json;
+      };
+      execute_command: { Args: { p_request: Json }; Returns: Json };
+      execute_operations_read: { Args: { p_request: Json }; Returns: Json };
+      execute_read: { Args: { p_request: Json }; Returns: Json };
+      forms_enabled: { Args: never; Returns: boolean };
+      forms_public_open: { Args: { p_token: string }; Returns: Json };
+      forms_public_submit: {
+        Args: { p_answers: Json; p_submission_id: string; p_token: string };
+        Returns: Json;
+      };
+      health_ping: { Args: never; Returns: Json };
+      help_health: { Args: never; Returns: Json };
+      help_published_articles: {
+        Args: { p_slug?: string };
+        Returns: {
+          aliases: string[];
+          audience_roles: string[];
+          body: string;
+          category: string;
+          common_task: boolean;
+          keywords: string[];
+          published_at: string;
+          related_slugs: string[];
+          release_functions: string[];
+          release_names: string[];
+          release_on: boolean;
+          reviewed_at: string;
+          revision_number: number;
+          routes: string[];
+          slug: string;
+          sort_order: number;
+          summary: string;
+          title: string;
+          tools: string[];
+          updated_at: string;
+        }[];
+      };
+      list_evidence: { Args: { p_request: Json }; Returns: Json };
+      outbound_guard: {
+        Args: {
+          p_bcc?: string[];
+          p_calendar_id?: string;
+          p_cc?: string[];
+          p_kind: string;
+          p_to: string[];
+        };
+        Returns: Json;
+      };
+      outbox_claim: {
+        Args: { p_action_types: string[]; p_limit?: number };
+        Returns: Json;
+      };
+      outbox_record_failure: {
+        Args: {
+          p_backoff_minutes?: number[];
+          p_error: string;
+          p_max_attempts?: number;
+          p_outbox_id: string;
+          p_transient: boolean;
+        };
+        Returns: Json;
+      };
+      outbox_record_success: {
+        Args: { p_external_id: string; p_outbox_id: string; p_summary: string };
+        Returns: Json;
+      };
+      outbox_record_uncertain: {
+        Args: { p_outbox_id: string; p_summary: string };
+        Returns: Json;
+      };
+      outbox_release_stalled: {
+        Args: { p_action_types?: string[]; p_minutes?: number };
+        Returns: Json;
+      };
+      resilience_review_queue: { Args: never; Returns: Json };
+      search_evidence: { Args: { p_request: Json }; Returns: Json };
       submit_presale: {
         Args: { p_command_id: string; p_payload: Json };
         Returns: Json;
       };
+      system_health: { Args: never; Returns: Json };
     };
     Enums: {
       [_ in never]: never;

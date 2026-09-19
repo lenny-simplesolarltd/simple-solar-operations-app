@@ -1,6 +1,7 @@
 'use server';
 
 import { getCurrentUser } from '@/lib/auth';
+import { previewWriteBlock } from '@/lib/preview/guard';
 import { isAdmin } from '@/lib/roles';
 import { getSiteUrl } from '@/lib/site-url';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -20,6 +21,9 @@ export interface InviteResult {
  * person_roles.
  */
 export async function inviteStaff(personId: string): Promise<InviteResult> {
+  const blocked = await previewWriteBlock();
+  if (blocked) return { ok: false, message: blocked };
+
   // 1. Authorize the signed-in actor BEFORE touching the service-role client.
   const actor = await getCurrentUser();
   if (!actor || !isAdmin(actor)) {

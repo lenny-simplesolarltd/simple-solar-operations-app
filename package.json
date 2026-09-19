@@ -13,9 +13,11 @@
     "format:check": "prettier -c -w .",
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
-    "test:db": "supabase db reset && node --test --test-concurrency=1 'tests/*.test.mjs'",
+    "test:db": "supabase db reset && node scripts/dev-preview-install.mjs && node --test --test-concurrency=1 'tests/*.test.mjs'",
     "test:unit": "vitest run",
-    "db:types": "supabase gen types typescript --local > src/types/database.ts"
+    "db:types": "supabase gen types typescript --local > src/types/database.ts",
+    "dev:preview:install": "node scripts/dev-preview-install.mjs",
+    "test:db:pglite": "node tests/pglite/run.mjs"
   },
   "lint-staged": {
     "**/*.{js,jsx,tsx,ts,css,less,scss,sass}": [
@@ -23,6 +25,7 @@
     ]
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -88,6 +91,7 @@
     "zod": "^4.1.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "22.10.2",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",

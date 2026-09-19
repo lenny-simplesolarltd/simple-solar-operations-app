@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createDataClient } from '@/lib/supabase/data';
 
 export const OPEN_TASK_STATUSES = [
   'Open',
@@ -62,7 +62,7 @@ const toItem = (t: TaskRow): TaskListItem => ({
 
 /** Open tasks visible to the current user under RLS: their own/backup tasks, or every task with task.read.all. */
 export async function getOpenTasks(): Promise<TaskListItem[]> {
-  const supabase = await createClient();
+  const supabase = await createDataClient();
   const { data, error } = await supabase
     .from('tasks')
     .select(TASK_SELECT)
@@ -75,7 +75,7 @@ export async function getOpenTasks(): Promise<TaskListItem[]> {
 }
 
 export async function getJobDetail(jobId: string) {
-  const supabase = await createClient();
+  const supabase = await createDataClient();
   const { data: job, error } = await supabase
     .from('jobs')
     .select(

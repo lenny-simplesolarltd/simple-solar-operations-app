@@ -2,7 +2,14 @@
 
 import { getSiteUrl } from '@/lib/site-url';
 import { getSupabaseEnv } from '@/lib/supabase/env';
+import { PREVIEW_COOKIE } from '@/lib/preview/config';
+import { previewWriteBlock } from '@/lib/preview/guard';
 import { createClient } from '@/lib/supabase/server';
+import {
+  KEEP_SIGNED_IN_COOKIE,
+  markerCookieOptions
+} from '@/lib/supabase/session-persistence';
+import { cookies } from 'next/headers';
 import { createClient as createPlainClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -14,8 +21,44 @@ export interface AuthFormState {
 
 const signInSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
-  password: z.string().min(1)
+  password: z.string().min(1),
+  remember: z.enum(['on']).optional()
 });
+
+/**
+ * Staff-facing wording for Supabase Auth failures. "Incorrect email or password"
+ * is reserved for genuinely wrong credentials, so a rate limit or an unreachable
+ * Auth server is never misreported as a bad password.
+ */
+function signInErrorMessage(error: {
+  code?: string;
+  status?: number;
+  message: string;
+}) {
+  switch (error.code) {
+    case 'invalid_credentials':
+      return 'Incorrect email or password.';
+    case 'email_not_confirmed':
+      return 'This email address has not been confirmed yet. Use the link in your invite email.';
+    case 'user_banned':
+      return 'This account has been suspended. Ask an administrator.';
+    case 'over_request_rate_limit':
+    case 'over_email_send_rate_limit':
+      return 'Too many sign-in attempts. Wait a minute and try again.';
+  }
+  if (error.status === 429)
+    return 'Too many sign-in attempts. Wait a minute and try again.';
+  return 'Sign-in is unavailable right now (the authentication service could not be reached). Try again shortly.';
+}
+
+/** Records the "Keep me signed in" choice for this browser. */
+async function rememberChoice(keep: boolean) {
+  (await cookies()).set(
+    KEEP_SIGNED_IN_COOKIE,
+    keep ? '1' : '0',
+    markerCookieOptions(keep, process.env.NODE_ENV === 'production')
+  );
+}
 
 export async function signIn(
   _prev: AuthFormState,
@@ -24,16 +67,57 @@ export async function signIn(
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'Enter your email and password.' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { error: 'Incorrect email or password.' };
+  const keep = parsed.data.remember === 'on';
+  await rememberChoice(keep);
+  const supabase = await createClient({ keep });
+  const { error } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email,
+    password: parsed.data.password
+  });
+  if (error) {
+    if (error.code !== 'invalid_credentials') {
+      console.error('sign-in failed', {
+        code: error.code,
+        status: error.status,
+        message: error.message
+      });
+    }
+    return { error: signInErrorMessage(error) };
+  }
 
   redirect('/dashboard');
 }
 
+/**
+ * Google sign-in (Supabase OAuth, PKCE). Supabase links a Google identity to the
+ * EXISTING account with the same verified email, so a person never gets a second
+ * account; /auth/callback then refuses anyone who is not active staff.
+ */
+export async function signInWithGoogle(formData: FormData) {
+  const keep = formData.get('remember') === 'on';
+  await rememberChoice(keep);
+  const supabase = await createClient({ keep });
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${await getSiteUrl()}/auth/callback`,
+      queryParams: { prompt: 'select_account' }
+    }
+  });
+  if (error || !data.url) {
+    console.error('google sign-in could not start', error);
+    redirect('/auth/sign-in?notice=google-unavailable');
+  }
+  redirect(data.url);
+}
+
 export async function signOut() {
+  const cookieStore = await cookies();
+  // Preview never outlives the session that started it.
+  cookieStore.delete(PREVIEW_COOKIE);
   const supabase = await createClient();
   await supabase.auth.signOut();
+  cookieStore.delete(KEEP_SIGNED_IN_COOKIE);
   redirect('/auth/sign-in');
 }
 
@@ -48,6 +132,9 @@ export async function updatePassword(
   _prev: AuthFormState,
   formData: FormData
 ): Promise<AuthFormState> {
+  const blocked = await previewWriteBlock();
+  if (blocked) return { error: blocked };
+
   const parsed = passwordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
