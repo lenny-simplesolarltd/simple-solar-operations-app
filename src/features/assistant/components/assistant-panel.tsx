@@ -6,6 +6,7 @@ import {
   IconAlertTriangle,
   IconArrowUp,
   IconCheck,
+  IconHistory,
   IconInfoCircle,
   IconLoader2,
   IconPlayerStopFilled,
@@ -19,6 +20,10 @@ import type { ConversationItem, ConversationState } from '../lib/conversation';
 import type { AssistantCapabilities } from '../protocol';
 import { suggestionsFor, type AssistantSuggestion } from '../suggestions';
 import { ActionCard } from './action-card';
+import {
+  ConversationHistory,
+  type ConversationHistoryProps
+} from './conversation-history';
 import { FormattedText } from './formatted-text';
 import { ResultCard } from './result-cards';
 
@@ -39,6 +44,12 @@ export interface AssistantPanelProps {
   /** Focus the composer when this becomes true. */
   active?: boolean;
   headingId?: string;
+  /** Saved conversations. Omit to hide history (e.g. in isolated previews). */
+  history?: Omit<ConversationHistoryProps, 'activeId' | 'onNew'>;
+  /** Start a new conversation from this one, optionally carrying a summary. */
+  onHandoff?(withSummary: boolean): Promise<boolean>;
+  /** "Keep going" on the long-conversation prompt. */
+  onDismissLong?(): void;
 }
 
 /** The assistant surface. Presentational: every behaviour arrives through props. */
@@ -55,9 +66,13 @@ export function AssistantPanel({
   onClose,
   onNavigate,
   active,
-  headingId = 'assistant-heading'
+  headingId = 'assistant-heading',
+  history,
+  onHandoff,
+  onDismissLong
 }: AssistantPanelProps) {
   const [draft, setDraft] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -75,6 +90,11 @@ export function AssistantPanel({
   useEffect(() => {
     if (active) composerRef.current?.focus({ preventScroll: true });
   }, [active]);
+
+  // Another conversation was opened (or started): show it from the bottom.
+  useEffect(() => {
+    pinnedRef.current = true;
+  }, [conversation.threadId]);
 
   // Follow the conversation while the reader is at the bottom; leave them be if they scrolled up.
   useLayoutEffect(() => {
@@ -103,6 +123,16 @@ export function AssistantPanel({
     });
   };
 
+  const blank =
+    conversation.items.length === 0 &&
+    !conversation.summary &&
+    conversation.load === 'new';
+  const startNew = () => {
+    setShowHistory(false);
+    onReset();
+    requestAnimationFrame(() => composerRef.current?.focus());
+  };
+
   const last = conversation.items[conversation.items.length - 1];
   const showThinking =
     working &&
@@ -127,18 +157,37 @@ export function AssistantPanel({
         >
           <IconSunElectricity className='size-4' />
         </span>
-        <h2
-          id={headingId}
-          className='min-w-0 flex-1 truncate text-sm font-semibold'
-        >
-          Simple Solar Assistant
-        </h2>
+        <div className='min-w-0 flex-1'>
+          <h2 id={headingId} className='truncate text-sm font-semibold'>
+            SimpleBot
+          </h2>
+          {conversation.title && !showHistory && (
+            <p
+              className='text-muted-foreground truncate text-xs leading-tight'
+              title={conversation.title}
+            >
+              {conversation.title}
+            </p>
+          )}
+        </div>
+        {history && (
+          <Button
+            variant={showHistory ? 'secondary' : 'ghost'}
+            size='icon'
+            className='text-muted-foreground size-8'
+            aria-pressed={showHistory}
+            onClick={() => setShowHistory((v) => !v)}
+          >
+            <IconHistory aria-hidden />
+            <span className='sr-only'>Conversation history</span>
+          </Button>
+        )}
         <Button
           variant='ghost'
           size='sm'
           className='text-muted-foreground h-8 px-2'
-          onClick={onReset}
-          disabled={conversation.items.length === 0}
+          onClick={startNew}
+          disabled={blank && !showHistory}
         >
           <IconPlus aria-hidden />
           New
@@ -152,7 +201,7 @@ export function AssistantPanel({
             onClick={onClose}
           >
             <IconX aria-hidden />
-            <span className='sr-only'>Close assistant</span>
+            <span className='sr-only'>Close SimpleBot</span>
           </Button>
         )}
       </header>
@@ -174,51 +223,123 @@ export function AssistantPanel({
         )}
       </div>
 
-      <div
-        ref={logRef}
-        role='log'
-        aria-label='Conversation'
-        aria-live='polite'
-        aria-relevant='additions'
-        tabIndex={0}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          pinnedRef.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-        }}
-        className='focus-visible:ring-ring min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 outline-none focus-visible:ring-2 focus-visible:ring-inset'
-      >
-        {conversation.items.length === 0 ? (
-          <Welcome
-            capabilities={capabilities}
-            capabilitiesError={capabilitiesError}
-            suggestions={suggestions}
-            onChoose={choose}
+      {showHistory && history ? (
+        <div
+          role='region'
+          aria-label='Conversation history'
+          className='min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4'
+        >
+          <ConversationHistory
+            {...history}
+            activeId={conversation.threadId}
+            onNew={startNew}
+            onOpen={(id) => {
+              setShowHistory(false);
+              history.onOpen(id);
+            }}
           />
-        ) : (
-          <ol className='flex flex-col gap-3'>
-            {conversation.items.map((item) => (
-              <li key={item.id}>
-                <Item
-                  item={item}
-                  onRetry={onRetry}
-                  onDecide={onDecide}
-                  onNavigate={onNavigate}
-                  busy={working}
-                />
-              </li>
-            ))}
-            {showThinking && (
-              <li className='text-muted-foreground flex items-center gap-2 text-sm'>
-                <IconLoader2 aria-hidden className='size-4 animate-spin' />
-                Working…
-              </li>
-            )}
-          </ol>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div
+          ref={logRef}
+          role='log'
+          aria-label='Conversation'
+          aria-live='polite'
+          aria-relevant='additions'
+          tabIndex={0}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            pinnedRef.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          }}
+          className='focus-visible:ring-ring min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 outline-none focus-visible:ring-2 focus-visible:ring-inset'
+        >
+          {conversation.summary && (
+            <details className='bg-muted/60 mb-3 rounded-lg px-3 py-2 text-sm'>
+              <summary className='focus-visible:ring-ring cursor-pointer rounded text-xs font-medium outline-none focus-visible:ring-2'>
+                Continuing from an earlier conversation
+              </summary>
+              <p className='text-muted-foreground mt-2 text-xs break-words whitespace-pre-wrap'>
+                {conversation.summary}
+              </p>
+              <p className='text-muted-foreground/80 mt-2 text-[11px]'>
+                Background only: SimpleBot checks live data again before relying
+                on it.
+              </p>
+            </details>
+          )}
+          {conversation.load === 'loading' ? (
+            <p className='text-muted-foreground flex items-center gap-2 text-sm'>
+              <IconLoader2 aria-hidden className='size-4 animate-spin' />
+              Opening conversation…
+            </p>
+          ) : conversation.load === 'error' ? (
+            <Notice
+              tone='error'
+              action={
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='text-foreground h-7 shrink-0'
+                  onClick={startNew}
+                >
+                  New
+                </Button>
+              }
+            >
+              This conversation could not be opened.
+            </Notice>
+          ) : conversation.items.length === 0 ? (
+            conversation.summary ? (
+              <p className='text-muted-foreground text-sm'>
+                Ask your next question. The background above came with you; the
+                original conversation is still in your history.
+              </p>
+            ) : (
+              <Welcome
+                capabilities={capabilities}
+                capabilitiesError={capabilitiesError}
+                suggestions={suggestions}
+                onChoose={choose}
+              />
+            )
+          ) : (
+            <ol className='flex flex-col gap-3'>
+              {conversation.items.map((item) => (
+                <li key={item.id}>
+                  <Item
+                    item={item}
+                    onRetry={onRetry}
+                    onDecide={onDecide}
+                    onNavigate={onNavigate}
+                    busy={working}
+                  />
+                </li>
+              ))}
+              {showThinking && (
+                <li className='text-muted-foreground flex items-center gap-2 text-sm'>
+                  <IconLoader2 aria-hidden className='size-4 animate-spin' />
+                  Working…
+                </li>
+              )}
+            </ol>
+          )}
+        </div>
+      )}
 
-      <footer className='shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'>
+      <footer
+        hidden={showHistory}
+        className='shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+      >
+        {conversation.contextState?.level === 'long' &&
+          !conversation.longDismissed &&
+          !working &&
+          onHandoff && (
+            <LongConversationPrompt
+              onHandoff={onHandoff}
+              onKeepGoing={() => onDismissLong?.()}
+            />
+          )}
         {conversation.items.length > 0 &&
           suggestions.length > 0 &&
           !working && (
@@ -241,7 +362,7 @@ export function AssistantPanel({
           className='border-input focus-within:border-ring focus-within:ring-ring/40 bg-background flex items-end gap-2 rounded-lg border p-1.5 transition-shadow focus-within:ring-[3px]'
         >
           <label htmlFor='assistant-composer' className='sr-only'>
-            Message the assistant
+            Message SimpleBot
           </label>
           <textarea
             id='assistant-composer'
@@ -263,7 +384,7 @@ export function AssistantPanel({
             disabled={unavailable}
             placeholder={
               unavailable
-                ? 'The assistant is not available yet'
+                ? 'SimpleBot is not available yet'
                 : 'Ask about a job, a customer or your tasks'
             }
             className='placeholder:text-muted-foreground field-sizing-content max-h-36 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-base outline-none disabled:cursor-not-allowed md:text-sm'
@@ -309,6 +430,72 @@ export function AssistantPanel({
   );
 }
 
+/**
+ * Shown when a conversation has grown large enough that answers may suffer.
+ * Never blocks: the staff member can keep going.
+ */
+function LongConversationPrompt({
+  onHandoff,
+  onKeepGoing
+}: {
+  onHandoff(withSummary: boolean): Promise<boolean>;
+  onKeepGoing(): void;
+}) {
+  const [withSummary, setWithSummary] = useState(true);
+  const [state, setState] = useState<'idle' | 'working' | 'failed'>('idle');
+  return (
+    <div
+      role='status'
+      className='bg-info-soft text-info mb-2 rounded-lg px-3 py-2.5 text-sm'
+    >
+      <p className='font-medium'>This conversation is getting long</p>
+      <p className='mt-0.5 text-xs'>
+        Starting a fresh conversation gives SimpleBot more room to work. You can
+        carry a summary of this conversation into the new one.
+      </p>
+      <label className='mt-2 flex items-center gap-2 text-xs'>
+        <input
+          type='checkbox'
+          checked={withSummary}
+          onChange={(e) => setWithSummary(e.target.checked)}
+          className='size-3.5 accent-current'
+        />
+        Carry a summary into the new conversation
+      </label>
+      {state === 'failed' && (
+        <p className='text-destructive mt-1 text-xs' role='alert'>
+          A new conversation could not be started. Try again.
+        </p>
+      )}
+      <div className='mt-2 flex flex-wrap gap-2'>
+        <Button
+          size='sm'
+          className='h-7'
+          disabled={state === 'working'}
+          onClick={async () => {
+            setState('working');
+            setState((await onHandoff(withSummary)) ? 'idle' : 'failed');
+          }}
+        >
+          {state === 'working' && (
+            <IconLoader2 aria-hidden className='animate-spin' />
+          )}
+          Start new conversation
+        </Button>
+        <Button
+          size='sm'
+          variant='outline'
+          className='text-foreground h-7'
+          disabled={state === 'working'}
+          onClick={onKeepGoing}
+        >
+          Keep going
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function SuggestionChip({
   suggestion,
   onChoose,
@@ -349,7 +536,7 @@ function Welcome({
   if (capabilitiesError) {
     return (
       <Notice tone='error'>
-        The assistant could not load. Close and reopen it to try again.
+        SimpleBot could not load. Close and reopen it to try again.
       </Notice>
     );
   }
@@ -365,9 +552,7 @@ function Welcome({
     return (
       <div className='flex flex-col gap-3'>
         <Notice tone='info'>
-          <span className='font-medium'>
-            The assistant isn’t switched on yet.
-          </span>{' '}
+          <span className='font-medium'>SimpleBot isn’t switched on yet.</span>{' '}
           {capabilities.notice}
         </Notice>
         <CapabilityList capabilities={capabilities} />
@@ -409,7 +594,7 @@ function CapabilityList({
   return (
     <details className='group text-sm'>
       <summary className='text-muted-foreground hover:text-foreground focus-visible:ring-ring cursor-pointer rounded text-xs font-medium outline-none focus-visible:ring-2'>
-        What the assistant can do today
+        What SimpleBot can do today
       </summary>
       <ul className='mt-2 flex flex-col gap-1'>
         {capabilities.tools.map((tool) => (
@@ -490,7 +675,7 @@ function Item({
     case 'assistant':
       return (
         <div>
-          <span className='sr-only'>Assistant: </span>
+          <span className='sr-only'>SimpleBot: </span>
           <FormattedText text={item.text} />
         </div>
       );

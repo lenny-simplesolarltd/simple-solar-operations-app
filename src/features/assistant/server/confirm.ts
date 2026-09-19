@@ -49,7 +49,7 @@ export async function resolvePendingAction(
     return verified.reason === 'EXPIRED'
       ? reject(
           'ACTION_EXPIRED',
-          `This proposal has expired. Ask the assistant to prepare it again. ${NOTHING_CHANGED}`
+          `This proposal has expired. Ask SimpleBot to prepare it again. ${NOTHING_CHANGED}`
         )
       : reject(
           'ACTION_INVALID',
@@ -80,9 +80,38 @@ export async function resolvePendingAction(
     );
   }
 
+  const notClaimable = (outcome: 'already_used' | 'expired' | 'unknown') => {
+    void audit.record({
+      ...base,
+      event: 'action_rejected',
+      outcome: 'error',
+      code:
+        outcome === 'already_used'
+          ? 'ACTION_ALREADY_USED'
+          : outcome === 'expired'
+            ? 'ACTION_EXPIRED'
+            : 'ACTION_UNKNOWN'
+    });
+    return outcome === 'already_used'
+      ? reject(
+          'ACTION_ALREADY_USED',
+          'This proposal has already been confirmed or cancelled. It was not run again.'
+        )
+      : outcome === 'expired'
+        ? reject(
+            'ACTION_EXPIRED',
+            `This proposal has expired. Ask SimpleBot to prepare it again. ${NOTHING_CHANGED}`
+          )
+        : reject(
+            'ACTION_UNKNOWN',
+            `This proposal is no longer available. Ask SimpleBot to prepare it again. ${NOTHING_CHANGED}`
+          );
+  };
+
   if (decision === 'cancel') {
     // Claiming it is what makes a cancelled proposal unusable afterwards.
-    await pendingActions.store.consume(action.id, 'cancel');
+    const cancelled = await pendingActions.store.claim(action.id, 'cancel');
+    if (cancelled.outcome !== 'ok') return notClaimable(cancelled.outcome);
     void audit.record({ ...base, event: 'action_cancelled', outcome: 'ok' });
     return {
       ok: true,
@@ -98,51 +127,66 @@ export async function resolvePendingAction(
     };
   }
 
-  const resolved = resolveToolCall(registry, actor, action.tool, action.args);
-  if (!resolved.ok) {
+  // A permission or availability check before claiming, so an attempt that
+  // cannot succeed does not use the proposal up.
+  const precheck = resolveToolCall(registry, actor, action.tool, action.args);
+  if (!precheck.ok) {
     void audit.record({
       ...base,
       event: 'action_rejected',
       outcome: 'error',
-      code: resolved.code
+      code: precheck.code
     });
-    return reject(resolved.code, `${resolved.message} ${NOTHING_CHANGED}`);
-  }
-  const { tool, input: args } = resolved;
-  if (tool.kind !== 'mutation' || hashArgs(action.args) !== action.argsHash) {
-    return reject(
-      'ACTION_INVALID',
-      `This proposal could not be verified. ${NOTHING_CHANGED}`
-    );
+    return reject(precheck.code, `${precheck.message} ${NOTHING_CHANGED}`);
   }
 
-  const claim = await pendingActions.store.consume(action.id, 'confirm');
-  if (claim !== 'ok') {
+  // Atomic, single-use, proposer-only, unexpired. The store returns the action
+  // it recorded when proposing; that - not the token - is what runs.
+  const claim = await pendingActions.store.claim(action.id, 'confirm');
+  if (claim.outcome !== 'ok') return notClaimable(claim.outcome);
+  const stored = claim.action;
+  const finish = (succeeded: boolean, code?: string) =>
+    pendingActions.store
+      .complete(action.id, succeeded, code)
+      .catch((error: unknown) => {
+        // eslint-disable-next-line no-console -- the outcome stands; the ledger row stays claimed
+        console.error('assistant action outcome not recorded', error);
+      });
+
+  // Re-authorize and re-validate the STORED arguments for the current actor.
+  const resolved =
+    stored.tool === action.tool &&
+    stored.argsHash === action.argsHash &&
+    hashArgs(stored.args) === stored.argsHash
+      ? resolveToolCall(registry, actor, stored.tool, stored.args)
+      : null;
+  if (!resolved?.ok || resolved.tool.kind !== 'mutation') {
+    const code = resolved && !resolved.ok ? resolved.code : 'ACTION_INVALID';
+    await finish(false, code);
     void audit.record({
       ...base,
       event: 'action_rejected',
       outcome: 'error',
-      code: claim === 'already_used' ? 'ACTION_ALREADY_USED' : 'ACTION_UNKNOWN'
+      code
     });
-    return claim === 'already_used'
-      ? reject(
-          'ACTION_ALREADY_USED',
-          'This proposal has already been confirmed or cancelled. It was not run again.'
-        )
-      : reject(
-          'ACTION_UNKNOWN',
-          `This proposal is no longer available. Ask the assistant to prepare it again. ${NOTHING_CHANGED}`
-        );
+    return reject(
+      code,
+      resolved && !resolved.ok
+        ? `${resolved.message} ${NOTHING_CHANGED}`
+        : `This proposal could not be verified. ${NOTHING_CHANGED}`
+    );
   }
+  const { tool, input: args } = resolved;
 
   try {
     const result = await tool.execute(args, {
       actor,
       threadId: action.threadId,
       commandId: action.id,
-      expectedVersion: action.expectedVersion,
+      expectedVersion: stored.expectedVersion,
       initiatedVia: 'assistant'
     });
+    await finish(result.ok, result.ok ? undefined : result.code);
     if (!result.ok) {
       // A business rejection (stale version, permission, validation) is final for this proposal.
       void audit.record({

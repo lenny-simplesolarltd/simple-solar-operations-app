@@ -24,7 +24,7 @@ const fail = (status: number, code: string, message: string) =>
 export async function POST(request: Request) {
   const actor = await resolveAssistantActor();
   if (!actor)
-    return fail(401, 'NOT_AUTHENTICATED', 'Sign in to use the assistant.');
+    return fail(401, 'NOT_AUTHENTICATED', 'Sign in to use SimpleBot.');
   // The confirm endpoint is the assistant's write boundary: refuse outright in preview.
   if (actor.previewing)
     return fail(403, 'PREVIEW_MODE_READ_ONLY', PREVIEW_READ_ONLY_MESSAGE);

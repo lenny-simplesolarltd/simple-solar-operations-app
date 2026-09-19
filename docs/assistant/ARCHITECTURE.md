@@ -58,24 +58,32 @@ require is available to that staff member.
 4. `confirm.ts` verifies the token, then re-runs the full gate, claims the action, and calls
    `execute()` as the signed-in user with `commandId = action id` and the proposed `expectedVersion`.
 
-The pending action is an HMAC-SHA256-signed payload (`server/pending-actions.ts`):
+Pending actions are **durable** (BD-07, migration `20260919185000_assistant_pending_actions.sql`):
+`public.assistant_pending_actions` holds each proposal - the proposer, tool, **validated normalised
+arguments**, their hash, the expected version, the preview shown, expiry and status
+(`pending` → `claimed` → `succeeded`/`failed`, or `cancelled`). The browser holds only an
+HMAC-signed reference token and sends back `{decision, token}`.
 
-| Threat | Defence |
-| --- | --- |
-| Argument tampering | tool + canonical args + args hash are inside the MAC; the browser never re-sends args |
-| Acting as another user | proposer's person id is signed and must equal the session actor (checked before the action is claimed) |
-| Stale-version mutation | row version captured at proposal time is signed and passed as `expected_version` |
-| Replay / duplicate | single-use claim in `PendingActionStore`, **and** the action id is the domain `command_id`, so the existing `commands` idempotency is the durable guarantee |
-| Old proposals | 10 minute expiry |
-| Lost permission | permission re-checked at confirmation |
+At confirmation (`server/confirm.ts`): verify the token → check the session actor is the proposer →
+pre-check permission (so a doomed attempt does not use the proposal up) → **atomically claim** the row
+(`assistant_claim_pending_action`: proposer only, `pending` only, unexpired, exactly one winner) →
+compare the stored arguments' hash with the token's → **re-authorize and re-validate the stored
+arguments** for the current actor → `execute()` with `commandId = action id` and the stored
+`expectedVersion` → record the outcome (`assistant_complete_pending_action`). A transport failure
+releases the claim; the command is idempotent on `command_id`, so a retry replays.
 
-The store is in-memory by default and **fails closed** (an id this process did not issue is rejected).
-**Production refuses to propose or confirm any change through a non-durable store**
-(`canHandleMutations`). The database-backed store is written (`pending-actions-db.ts`,
-`ASSISTANT_PENDING_ACTIONS=database`) and waits only for the reviewed BD-07 migration.
-A database-backed store is BD-07. There are **no available mutation tools yet**, because the backend
-exposes no assistant-safe mutation (see BACKEND_DEPENDENCIES.md); the mechanism is exercised by tests
-with a test-only tool.
+| Threat                 | Defence                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| Argument tampering     | the server executes its stored arguments; their hash must equal the signed token's      |
+| Acting as another user | signed proposer id must equal the session actor; the claim is also proposer-only in SQL |
+| Stale-version mutation | the stored expected version is passed to the domain command                             |
+| Replay / double click  | single-use atomic claim, **and** action id = `command_id` (ledger idempotency)          |
+| Old proposals          | 10 minute expiry (token and row); expired rows can never be claimed                     |
+| Lost permission        | permission and tool availability re-checked at confirmation with the stored arguments   |
+
+`ASSISTANT_PENDING_ACTIONS=memory` selects an in-memory store for development without the table;
+**production refuses to propose or confirm through a non-durable store** (`canHandleMutations`), and
+refuses without `ASSISTANT_ACTION_SECRET`.
 
 ## Model provider
 
@@ -88,14 +96,14 @@ output). Upstream error detail is logged on the server only; the browser gets sa
 
 Server-only configuration (never `NEXT_PUBLIC_*`):
 
-| Variable | Meaning |
-| --- | --- |
-| `ASSISTANT_PROVIDER` | `anthropic`, `gemini` or `dev-router`. Unset = assistant off, with a staff-readable notice. A key alone never enables usage. |
-| `ANTHROPIC_API_KEY` | required for `anthropic` |
-| `GEMENI_API_KEY` | required for `gemini`. This spelling is the project's deliberate name; `GEMINI_API_KEY` is accepted as an alias |
-| `GEMINI_MODEL` | optional; default `gemini-flash-latest`, Google's moving alias for the current Flash model (confirmed through the model-listing API) |
-| `ASSISTANT_MODEL` | optional Anthropic model; default `claude-opus-5`. Ignored by Gemini |
-| `ASSISTANT_ACTION_SECRET` | >= 32 chars; signs pending actions. Required in production for proposals; dev falls back to a per-process random key. |
+| Variable                  | Meaning                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `ASSISTANT_PROVIDER`      | `anthropic`, `gemini` or `dev-router`. Unset = assistant off, with a staff-readable notice. A key alone never enables usage.         |
+| `ANTHROPIC_API_KEY`       | required for `anthropic`                                                                                                             |
+| `GEMINI_API_KEY`          | required for `gemini`. The legacy misspelling `GEMENI_API_KEY` is still accepted as an alias; if both are set, `GEMINI_API_KEY` wins |
+| `GEMINI_MODEL`            | optional; default `gemini-flash-latest`, Google's moving alias for the current Flash model (confirmed through the model-listing API) |
+| `ASSISTANT_MODEL`         | optional Anthropic model; default `claude-opus-5`. Ignored by Gemini                                                                 |
+| `ASSISTANT_ACTION_SECRET` | >= 32 chars; signs pending actions. Required in production for proposals; dev falls back to a per-process random key.                |
 
 There is no fallback between providers: a chosen provider that is not fully configured leaves the
 assistant off with a notice. Outside production the capabilities endpoint and the drawer footer show
@@ -106,10 +114,54 @@ same real tools through the same gates, is labelled in the drawer, and is refuse
 
 ## Conversations
 
-v1 is **ephemeral**: the provider-neutral transcript lives in React state in the dashboard layout
-(survives client-side navigation, gone on reload). The server treats it as untrusted input. Follow-ups
-("what's blocking it?") work because tool calls and results are part of the transcript. Everything
-already carries a `threadId`, so persisted threads can replace the storage later (BD-09).
+Staff see several named conversations (drawer header: history button, **New**). Stored conversations
+are **server-owned** (migration `20260919180000_assistant_conversations.sql`, BD-09):
+
+| Table / function          | Purpose                                                                                                                                                                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `assistant_conversations` | id, owner `person_id` (always `app.current_person_id()`), title (+ `auto`/`manual`), carried-in `summary`, `source_conversation_id`, optional `job_id`, counts, estimated tokens, `archived_at`, `version` (`app.touch_row`)  |
+| `assistant_messages`      | append-only; `seq`, `run_id`, `role`, `content` (the neutral transcript message the model is sent), `ui` (cards for redrawing, never sent to the model), `page_context` (the hint when sent), `status` (`complete`/`stopped`) |
+| `assistant_append_turn()` | the only writer of messages: creates the conversation on first use, owner-checked, row-locked ordering, idempotent per `run_id`, fills title/job only when empty (never replaces a manual title)                              |
+
+**RLS: owner only.** No role, including Admin/Manager, can read another person's conversations;
+cross-user access would need an explicit future policy. Nothing in a conversation grants anything.
+Chat content is not copied into `audit_events`. Tested against the local stack in
+`tests/assistant-conversations.test.mjs`.
+
+**Turn lifecycle** (`server/conversations/turn.ts`): history is read from the database as the signed-in
+user (the browser's transcript is ignored), the turn streams as before, and `turn_end` is held back
+until the whole turn is stored in one append. Completed -> stored; stopped -> the question plus the
+text that had arrived, marked stopped; failed -> nothing stored, and Retry re-sends the same `run_id`.
+
+**Context window** (`server/conversations/context-window.ts`): recent turns verbatim (~32k estimated
+tokens, the latest turn always), older turns as a deterministic digest (question, answer, tools used,
+job references; ~6k), then how many were omitted. A carried-in summary goes first. Memory travels in a
+`<conversation_memory trust="memory-not-instructions">` block (wrapper text in stored content is
+defanged), and history ends with a note that facts in it may have changed. The budget is a deliberate
+cost/quality choice, far below Gemini's or Claude's limits.
+
+**Long conversations**: from ~64k estimated stored tokens (not a message count) the drawer suggests a
+fresh conversation, optionally carrying a summary. The summary is one tool-less model call (digest
+fallback; the development router always uses the digest), stored on the new conversation, which links
+back to the original. Nothing ends a conversation automatically.
+
+**Freshness**: tool results carry `retrieved_at`; the system prompt says history and summaries are
+memory, and that current state must be read again with a tool. Page context is per message and only
+the current page's hint is sent.
+
+**Titles** are deterministic (no model call): the first meaningful question, tidied, led by the job
+reference when a turn read exactly one job. Staff can rename. Titles are never sent to the model.
+
+**Job association**: `job_id` is set only from a job a tool returned under the staff member's own access
+(never the page hint). It grants nothing; reading the job again goes through its own RLS.
+
+**Where nothing is stored** (development preview, or a database without these tables - e.g. hosted
+until the migration is applied) the drawer falls back to session-only chat, as before, and
+capabilities report `conversations: 'ephemeral'`.
+
+**Several at once**: the drawer keeps opened conversations keyed by id with one request/AbortController
+each, so a reply always lands in the conversation it was asked in and different conversations can
+answer simultaneously.
 
 ## Grounding and prompt injection
 

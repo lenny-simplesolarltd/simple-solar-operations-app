@@ -95,7 +95,7 @@ function toProviderError(error: unknown): AssistantProviderError {
   ) {
     return new AssistantProviderError(
       'AUTH',
-      'The assistant’s model credentials were rejected. Ask an administrator to check the configuration.',
+      'SimpleBot’s model credentials were rejected. Ask an administrator to check the configuration.',
       false,
       { cause: error }
     );
@@ -103,7 +103,7 @@ function toProviderError(error: unknown): AssistantProviderError {
   if (error instanceof Anthropic.RateLimitError) {
     return new AssistantProviderError(
       'RATE_LIMITED',
-      'The assistant is handling too many requests. Try again in a moment.',
+      'SimpleBot is handling too many requests. Try again in a moment.',
       true,
       { cause: error }
     );
@@ -111,7 +111,7 @@ function toProviderError(error: unknown): AssistantProviderError {
   if (error instanceof Anthropic.BadRequestError) {
     return new AssistantProviderError(
       'BAD_REQUEST',
-      'The assistant could not process that conversation. Start a new conversation and try again.',
+      'SimpleBot could not process that conversation. Start a new conversation and try again.',
       false,
       { cause: error }
     );
@@ -119,7 +119,7 @@ function toProviderError(error: unknown): AssistantProviderError {
   if (error instanceof Anthropic.APIConnectionError) {
     return new AssistantProviderError(
       'NETWORK',
-      'The assistant could not reach its language model. Check the connection and try again.',
+      'SimpleBot could not reach its language model. Check the connection and try again.',
       true,
       { cause: error }
     );
@@ -129,15 +129,15 @@ function toProviderError(error: unknown): AssistantProviderError {
     return new AssistantProviderError(
       overloaded ? 'OVERLOADED' : 'UNKNOWN',
       overloaded
-        ? 'The assistant’s language model is temporarily unavailable. Try again shortly.'
-        : 'The assistant hit an unexpected error.',
+        ? 'SimpleBot’s language model is temporarily unavailable. Try again shortly.'
+        : 'SimpleBot hit an unexpected error.',
       overloaded,
       { cause: error }
     );
   }
   return new AssistantProviderError(
     'UNKNOWN',
-    'The assistant hit an unexpected error.',
+    'SimpleBot hit an unexpected error.',
     false,
     { cause: error }
   );

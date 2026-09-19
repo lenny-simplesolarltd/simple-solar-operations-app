@@ -12,8 +12,8 @@ import {
 } from 'react';
 import type { AssistantContext, AssistantPageContext } from '../context';
 import {
-  useAssistantConversation,
-  type AssistantConversation
+  useAssistantConversations,
+  type AssistantConversations
 } from '../hooks/use-assistant-conversation';
 import type { AssistantCapabilities } from '../protocol';
 
@@ -26,7 +26,8 @@ interface AssistantShellValue {
   publishPage(page: AssistantPageContext | null): void;
   capabilities: AssistantCapabilities | null;
   capabilitiesError: boolean;
-  conversation: AssistantConversation;
+  /** The open conversation (and, through it, the staff member's others). */
+  conversation: AssistantConversations;
 }
 
 const AssistantShellContext = createContext<AssistantShellValue | null>(null);
@@ -64,7 +65,6 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     contextRef.current = { route: pathname, page };
   }, [pathname, page]);
   const getContext = useCallback(() => contextRef.current, []);
-  const conversation = useAssistantConversation(getContext);
 
   const publishPage = useCallback(
     (next: AssistantPageContext | null) => {
@@ -88,6 +88,11 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
         setCapabilitiesError(true);
       });
   }, [open]);
+
+  const conversation = useAssistantConversations(
+    getContext,
+    capabilities?.conversations ?? 'ephemeral'
+  );
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
 

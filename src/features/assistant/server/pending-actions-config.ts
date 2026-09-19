@@ -7,17 +7,18 @@ import {
 import { SupabasePendingActionStore } from './pending-actions-db';
 
 /**
- * ASSISTANT_PENDING_ACTIONS = 'database' | 'memory' (default).
+ * ASSISTANT_PENDING_ACTIONS = 'database' (default) | 'memory'.
  *
- * 'memory' stays the default until the reviewed BD-07 migration is applied. It
- * is never enough for production: see canHandleMutations().
+ * 'database' is the durable store (BD-07). 'memory' is for development
+ * without the table; production refuses to propose or confirm through it
+ * (see canHandleMutations).
  */
 export function resolvePendingActions(
   env: Record<string, string | undefined> = process.env
 ): PendingActionService | null {
-  const durable =
-    env.ASSISTANT_PENDING_ACTIONS?.trim().toLowerCase() === 'database';
+  const memory =
+    env.ASSISTANT_PENDING_ACTIONS?.trim().toLowerCase() === 'memory';
   return getPendingActionService(
-    durable ? () => new SupabasePendingActionStore() : undefined
+    memory ? undefined : () => new SupabasePendingActionStore()
   );
 }

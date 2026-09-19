@@ -13,7 +13,7 @@ export class AssistantRequestError extends Error {
 const NETWORK_ERROR: AssistantErrorInfo = {
   code: 'NETWORK',
   message:
-    'The assistant could not be reached. Check your connection and try again.',
+    'SimpleBot could not be reached. Check your connection and try again.',
   retryable: true
 };
 
@@ -42,8 +42,8 @@ export async function* streamAssistantTurn(
       message:
         payload?.error?.message ??
         (response.status === 401
-          ? 'Your session has ended. Sign in again to use the assistant.'
-          : 'The assistant hit an unexpected error. Nothing was changed.'),
+          ? 'Your session has ended. Sign in again to use SimpleBot.'
+          : 'SimpleBot hit an unexpected error. Nothing was changed.'),
       retryable: response.status >= 500 && response.status !== 503
     });
   }
