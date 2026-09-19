@@ -6624,6 +6624,7 @@ export type Database = {
         Returns: Json;
       };
       resilience_review_queue: { Args: never; Returns: Json };
+      search_evidence: { Args: { p_request: Json }; Returns: Json };
       submit_presale: {
         Args: { p_command_id: string; p_payload: Json };
         Returns: Json;

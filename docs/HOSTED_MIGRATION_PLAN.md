@@ -8,7 +8,7 @@ applied, changed or deleted on hosted.
 
 | | Hosted | Repository (`feature/dev` after convergence) |
 |---|---|---|
-| Migrations | 23 (`20260918200000` .. `20260919150000`) | 46 |
+| Migrations | 23 (`20260918200000` .. `20260919150000`) | 47 |
 | Applied migrations that differ from the repository file | none (all 23 identical after removing comments and whitespace) | |
 | Migrations on hosted but not in the repository | none | |
 | Data | 2 jobs, 7 tasks, 22 people, 1 login, 0 evidence rows, 0 Storage objects, 147 audit rows | |
@@ -20,7 +20,7 @@ applied, changed or deleted on hosted.
 This is why the owner's local app (pointed at hosted) shows "needs a backend
 update that is not deployed to this database yet": every registry read
 (`execute_operations_read`, TASKS, JOBS, OFFICE_DASHBOARD ...) is created by
-`20260919160000` or later. Against a database with all 46 migrations no such
+`20260919160000` or later. Against a database with all 47 migrations no such
 message appears (see `FINAL_ROUTE_ACCEPTANCE.md`).
 
 ## Pending migrations, in order
@@ -92,7 +92,7 @@ rewrite".
 4. `supabase db push` (applies in one go; each migration is its own
    transaction).
 5. Verify read only:
-   - `select count(*) from supabase_migrations.schema_migrations` = 47 (46 + v2 help seed);
+   - `select count(*) from supabase_migrations.schema_migrations` = 47 (23 applied + 24 pending);
    - `select mode, count(*) from public.release_modes group by 1` = `Disabled | 21`;
    - `select app.audit_coverage()->>'state'` = `Verified`;
    - `select jobname, schedule, active from cron.job` shows the 5 jobs.

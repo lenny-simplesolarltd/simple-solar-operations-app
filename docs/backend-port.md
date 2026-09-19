@@ -36,11 +36,17 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
 | view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
 | view-port resourcing reads (STAFF_AVAILABILITY, INSTALLER_SKILLS, SCAFFOLD_BOARD, COMMISSIONING_QUEUE) | `20260919173000_view_port_resourcing_reads.sql` |
+| SimpleBot persistent owner-only conversations (BD-09) | `20260919180000_assistant_conversations.sql` |
+| SimpleBot durable pending actions (BD-07) | `20260919185000_assistant_pending_actions.sql` |
+| Forms v1 (FN-21, Disabled by default) | `20260919190000_forms.sql` |
 | evidence ownership, registered uploads, read authorization, metadata-based storage policies (see `docs/evidence.md`); replaces `app.ensure_evidence`, `app.job_evidence`, `app.iw_evidence` and the three path-parsing storage policies of `20260919150000` / `20260919165000` | `20260919183000_p0_evidence.sql` |
 | audit triggers lost in the drop/restore incident; audit coverage check | `20260919202000_p0_audit_integrity.sql` |
 | `backup/service.js` verify + restore rehearsal as recorded evidence, `s16/health.js` staleness, `s18` BKP/MAN-06/MAN-13, `s20` BACKUP_MISSING (see `docs/OPERATIONAL_HEALTH.md`) | `20260919202100_p0_operational_health.sql` |
 | `r1-appsheet/services.js` COMMISSIONING_RECORD (+ `s12/commissioning.js` office template), CALL_RECORD job-level calls, JOB_OPERATIONS read (Operations tab) | `20260919210000_r1_completion.sql` |
 | P0 integration: catalogue grants, COMMISSIONING_RECORD on the Evidence model, one audit trail for the office template, Director SYSTEM_STATUS, cancellation work in JOB_OPERATIONS, TASK_EVIDENCE_ATTACH audit reason (see `docs/p0-r1-integration.md`) | `20260919220000_p0_r1_integration.sql` |
+| Help Center (articles, revisions, categories, search) and its standard articles (seed v1) | `20260920100000_help_center.sql`, `20260920100100_help_center_seed.sql` |
+| Final convergence: ISSUES read, issue files, RELEASE_MODE_SET / RELEASE_CONTROL / RELEASE_READINESS (S20 replacement), staff access commands, TASK_REASSIGN, search_evidence (see `docs/FINAL_CONVERGENCE_REPORT.md`) | `20260920120000_convergence_operations.sql` |
+| Help Center standard articles seed v2 | `20260920130000_help_center_seed_v2.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role
@@ -49,8 +55,8 @@ External senders (Google Calendar, Xero, email) are a future TypeScript worker u
 ## Deployment status
 
 - `20260919140000`–`20260919150000` (core + R1): applied to the hosted project.
-- `20260919160000` onwards: **not yet applied** — waiting for the other stream's reconciliation
-  migration. Before applying: re-read `supabase_migrations.schema_migrations`, renumber after any
+- `20260919160000` onwards: **not yet applied** (24 migrations; read-only comparison and exact plan in
+  `docs/HOSTED_MIGRATION_PLAN.md`). Before applying: re-read `supabase_migrations.schema_migrations`, renumber after any
   newer hosted version if needed, dry-run in a rolled-back transaction, apply.
 - Seeds: `supabase/seeds/003_backend_task_assignment_rules.sql` gives every template an owner; run it
   after the migrations.

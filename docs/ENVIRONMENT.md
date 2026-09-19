@@ -24,6 +24,6 @@ Never commit values. Server-only variables must never be prefixed `NEXT_PUBLIC_`
 | `ASSISTANT_PENDING_ACTIONS`            | server | `memory` for development without the pending-actions table; production refuses it |
 | `NEXT_PUBLIC_SENTRY_*`                 | public | error reporting                                                                   |
 
-Database migrations the application expects (apply in order, after review):
-`20260919180000_assistant_conversations.sql`, `20260919185000_assistant_pending_actions.sql`,
-`20260919190000_forms.sql` (Forms stays switched off until release mode FN-21 is set to Manual).
+Database: the application expects every migration in `supabase/migrations` (47 at the final
+convergence). Hosted is behind; see `docs/HOSTED_MIGRATION_PLAN.md`. Forms stays switched off until
+FN-21 is switched on in Release control.

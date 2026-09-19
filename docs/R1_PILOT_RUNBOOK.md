@@ -103,6 +103,27 @@ for alerting once backups/drills/schedules are all green.
 | GHL | not configured (ids `NOT_CONFIGURED`, FN-11 Disabled) | GHL01 / S15-CAN-GHL are human tasks; GHL cancellation tasks are tracked when a cancellation is closed |
 | Email to customers / merchants | not implemented (no sender) | phone / own mailbox; record calls in the app |
 
+## 8a. Existing jobs, the old job creator, training (owner decisions)
+
+The old Sheets system never ran live, but the business runs today on
+Jotform, Google Calendar and Trello. Before switching R1 on, record these
+decisions (in the Release control reason of FN-01 and here):
+
+1. **Existing jobs**: either *pilot = new sales only* (jobs sold before the
+   pilot date stay in the current process until finished) or a list of open
+   jobs to re-enter through **New job sold** (no import tool exists; each is a
+   normal sale, then PRE tasks as usual).
+2. **Stop the old creator**: from the pilot date, jobs sold for the pilot are
+   entered only through **New job sold**; the Jotform -> Calendar job
+   creation is switched off or restricted to non-pilot work, so no job is
+   created twice.
+3. **Training checklist** (each pilot person, recorded by name and date):
+   signing in and navigation; My tasks and Team tasks; Job Sold and PRE01-PRE05;
+   booking and installers; Calls, Issues and Cancellations queues; moving
+   dates and changing installers; commissioning; operational completion;
+   Files & documents; SimpleBot and the Help Center; for Admin / Manager:
+   People & access, Release control, System health and backup checks.
+
 ## 9. Switching R1 on (pilot)
 
 In **Release control** (Admin / Manager), with a reason naming the approver:
