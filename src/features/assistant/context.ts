@@ -83,6 +83,21 @@ export const operationsPageContextSchema = z.strictObject({
   view: shortText(60).optional()
 });
 
+/** The Forms area; `view` is Forms / Templates / Responses. */
+export const formsPageContextSchema = z.strictObject({
+  kind: z.literal('forms'),
+  view: z.enum(['forms', 'templates', 'responses'])
+});
+
+/** One form or template open in the builder. A hint: tools re-read it by id. */
+export const formPageContextSchema = z.strictObject({
+  kind: z.literal('form'),
+  formId: z.uuid(),
+  formKind: z.enum(['form', 'template']),
+  title: shortText(200),
+  status: shortText(20)
+});
+
 const simplePage = <K extends string>(kind: K) =>
   z.strictObject({ kind: z.literal(kind) });
 
@@ -93,6 +108,8 @@ export const pageContextSchema = z.discriminatedUnion('kind', [
   presalesPageContextSchema,
   jobsPageContextSchema,
   operationsPageContextSchema,
+  formsPageContextSchema,
+  formPageContextSchema,
   simplePage('requests'),
   simplePage('presale-new'),
   simplePage('people'),
@@ -130,6 +147,20 @@ export function describeContext(page: AssistantPageContext): {
       return { label: 'Job search', detail: page.query };
     case 'operations':
       return { label: SURFACE_LABELS[page.surface], detail: page.view };
+    case 'forms':
+      return {
+        label: 'Forms',
+        detail: {
+          forms: 'Forms',
+          templates: 'Templates',
+          responses: 'Responses'
+        }[page.view]
+      };
+    case 'form':
+      return {
+        label: page.formKind === 'template' ? 'Template' : 'Form',
+        detail: `${page.title} · ${page.status}`
+      };
     case 'requests':
       return { label: 'My requests' };
     case 'presales':

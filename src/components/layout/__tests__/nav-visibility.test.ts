@@ -88,3 +88,32 @@ describe('visibleNavGroups', () => {
     expect(urls(['Director'])).not.toContain('/dashboard/people');
   });
 });
+
+describe('Forms behind its release gate', () => {
+  const formsUrls = (released: boolean, permissions: string[]) =>
+    visibleNavGroups(navGroups, user(['Office']), new Set(permissions), {
+      forms: released
+    })
+      .flatMap((g) => g.items.map((i) => i.url))
+      .filter((u) => u.startsWith('/dashboard/forms'));
+
+  it('is hidden while Forms is switched off, even with forms.read', () => {
+    expect(formsUrls(false, ['forms.read'])).toEqual([]);
+  });
+
+  it('shows once switched on, only with forms.read', () => {
+    expect(formsUrls(true, ['forms.read'])).toEqual(['/dashboard/forms']);
+    expect(formsUrls(true, [])).toEqual([]);
+  });
+
+  it('defaults to hidden when the gate is not supplied (fails closed)', () => {
+    const all = visibleNavGroups(
+      navGroups,
+      user(['Admin']),
+      new Set(['forms.read'])
+    );
+    expect(all.flatMap((g) => g.items.map((i) => i.url))).not.toContain(
+      '/dashboard/forms'
+    );
+  });
+});

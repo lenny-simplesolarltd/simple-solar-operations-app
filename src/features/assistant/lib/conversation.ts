@@ -39,6 +39,8 @@ export type ConversationItem =
       display?: DisplayCard;
     }
   | { id: string; kind: 'error'; error: AssistantErrorInfo; retryText: string }
+  /** A decision recorded in the app (e.g. a proposal confirmed or cancelled). */
+  | { id: string; kind: 'note'; text: string }
   | { id: string; kind: 'stopped' };
 
 export interface ConversationState {

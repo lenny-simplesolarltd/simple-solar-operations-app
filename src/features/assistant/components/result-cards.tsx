@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { IconChevronRight } from '@tabler/icons-react';
 import Link from 'next/link';
 import type { DisplayCard, JobCardData, TaskCardData } from '../protocol';
+import { FormCardBody, FormLinkRow } from './form-cards';
 
 // Structured tool results. These show exactly what the application returned,
 // so staff can check the assistant's wording against the data.
@@ -137,6 +138,53 @@ export function ResultCard({
   onNavigate?: () => void;
 }) {
   switch (card.kind) {
+    case 'form':
+      return (
+        <CardShell title={card.form.kind === 'template' ? 'Template' : 'Form'}>
+          <FormCardBody
+            form={card.form}
+            note={card.note}
+            onNavigate={onNavigate}
+          />
+        </CardShell>
+      );
+
+    case 'form_list':
+      return (
+        <CardShell title={card.title} meta={count(card.total, 'item')}>
+          {card.forms.length === 0 ? (
+            <p className='text-muted-foreground px-3 py-3 text-sm'>None yet.</p>
+          ) : (
+            <ul className='divide-y'>
+              {card.forms.map((form) => (
+                <li key={form.id}>
+                  <FormCardBody form={form} onNavigate={onNavigate} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardShell>
+      );
+
+    case 'form_links':
+      return (
+        <CardShell title={card.title} meta={count(card.total, 'link')}>
+          {card.links.length === 0 ? (
+            <p className='text-muted-foreground px-3 py-3 text-sm'>No links.</p>
+          ) : (
+            <ul className='divide-y'>
+              {card.links.map((link) => (
+                <FormLinkRow
+                  key={link.invitationId}
+                  link={link}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </ul>
+          )}
+        </CardShell>
+      );
+
     case 'job_list':
       return (
         <CardShell

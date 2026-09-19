@@ -17,10 +17,16 @@ import type { NavAccess, NavGroup, VisibleNavGroup } from '@/types';
 const has = (user: AppUser, roles: RoleCode[]) =>
   user.roles.some((r) => roles.includes(r));
 
+/** Modules behind a release gate (release_modes), as the server read them. */
+export interface Released {
+  forms: boolean;
+}
+
 export function canSee(
   access: NavAccess,
   user: AppUser,
-  permissions: Set<string>
+  permissions: Set<string>,
+  released: Released = { forms: false }
 ): boolean {
   switch (access) {
     case 'any':
@@ -57,19 +63,23 @@ export function canSee(
       return has(user, ['Admin', 'Manager', 'Office']);
     case 'resourcing':
       return isOfficeClass(user);
+    case 'forms':
+      // Hidden, not merely disabled, while Forms is switched off.
+      return released.forms && permissions.has('forms.read');
   }
 }
 
 export function visibleNavGroups(
   groups: NavGroup[],
   user: AppUser,
-  permissions: Set<string>
+  permissions: Set<string>,
+  released: Released = { forms: false }
 ): VisibleNavGroup[] {
   return groups
     .map((g) => ({
       label: g.label,
       items: g.items
-        .filter((i) => canSee(i.access, user, permissions))
+        .filter((i) => canSee(i.access, user, permissions, released))
         .map((i) => ({
           title: i.title,
           url: i.url,

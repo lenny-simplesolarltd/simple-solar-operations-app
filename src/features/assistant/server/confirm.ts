@@ -117,6 +117,8 @@ export async function resolvePendingAction(
       ok: true,
       decision: 'cancel',
       commandId: action.id,
+      threadId: action.threadId,
+      tool: action.tool,
       message: `Cancelled. ${NOTHING_CHANGED}`,
       transcript: [
         {
@@ -205,6 +207,8 @@ export async function resolvePendingAction(
       ok: true,
       decision: 'confirm',
       commandId: action.id,
+      threadId: action.threadId,
+      tool: action.tool,
       message: 'Done.',
       display: result.display,
       transcript: [

@@ -1,3 +1,4 @@
+import { formsEnabled } from '@/features/forms/server/service';
 import { DashboardLayoutClient } from '@/components/layout/dashboard-layout-client';
 import { visibleNavGroups } from '@/components/layout/nav-visibility';
 import { navGroups } from '@/constants/data';
@@ -29,7 +30,9 @@ export default async function DashboardLayout({
 
   // The menu is decided here, from roles AND role_permissions, so the sidebar
   // and Cmd-K offer exactly what the server will allow (it still re-checks).
-  const nav = visibleNavGroups(navGroups, user, await getPermissions(user));
+  const nav = visibleNavGroups(navGroups, user, await getPermissions(user), {
+    forms: await formsEnabled()
+  });
 
   return (
     <DashboardLayoutClient

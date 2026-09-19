@@ -166,7 +166,43 @@ export type DisplayCard =
       title: string;
       steps: { label: string; detail?: string }[];
       footnote?: string;
+    }
+  /** A form as it stood when shown; the buttons open its live state. */
+  | { kind: 'form'; form: FormCardData; note?: string }
+  | { kind: 'form_list'; title: string; forms: FormCardData[]; total: number }
+  /**
+   * Recipient links. Never carries a link or token: "Copy link" fetches the
+   * link from the server when pressed, for staff allowed to send forms.
+   */
+  | {
+      kind: 'form_links';
+      title: string;
+      links: FormLinkCardData[];
+      total: number;
     };
+
+export interface FormCardData {
+  id: string;
+  kind: 'form' | 'template';
+  title: string;
+  status: string;
+  revision: number;
+  questionCount: number;
+  hasUnpublishedChanges: boolean;
+  jobRef: string | null;
+}
+
+export interface FormLinkCardData {
+  invitationId: string;
+  formId: string;
+  formTitle: string;
+  recipient: string;
+  jobRef: string | null;
+  revision: number;
+  status: string;
+  expiresAt: string | null;
+  submissionId: string | null;
+}
 
 /** What the confirmation card shows for a proposed mutation. Nothing has run yet. */
 export interface PendingActionView {
@@ -224,6 +260,9 @@ export type ActionResponse =
       commandId: string;
       /** Appended to the transcript so the next turn knows what happened. */
       transcript: TranscriptMessage[];
+      /** From the server-signed proposal (never from the request): where it was proposed, and by which tool. */
+      threadId?: string;
+      tool?: string;
     }
   | { ok: false; error: AssistantErrorInfo };
 

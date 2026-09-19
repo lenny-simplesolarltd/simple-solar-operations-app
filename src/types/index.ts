@@ -29,7 +29,8 @@ export type NavAccess =
   | 'stock'
   | 'installer'
   | 'commissioning'
-  | 'resourcing';
+  | 'resourcing'
+  | 'forms';
 
 export interface NavEntry {
   title: string;

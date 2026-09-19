@@ -34,6 +34,325 @@ export type Database = {
   };
   public: {
     Tables: {
+      form_invitations: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          expires_at: string | null;
+          form_id: string;
+          id: string;
+          job_id: string | null;
+          person_id: string | null;
+          recipient_label: string | null;
+          recipient_type: string;
+          revision_id: string;
+          revoke_reason: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          submitted_at: string | null;
+          token_hash: string;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string | null;
+          form_id: string;
+          id: string;
+          job_id?: string | null;
+          person_id?: string | null;
+          recipient_label?: string | null;
+          recipient_type: string;
+          revision_id: string;
+          revoke_reason?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          submitted_at?: string | null;
+          token_hash: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string | null;
+          form_id?: string;
+          id?: string;
+          job_id?: string | null;
+          person_id?: string | null;
+          recipient_label?: string | null;
+          recipient_type?: string;
+          revision_id?: string;
+          revoke_reason?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          submitted_at?: string | null;
+          token_hash?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'form_invitations_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_form_id_fkey';
+            columns: ['form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_revision_id_fkey';
+            columns: ['revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'form_revisions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_revoked_by_fkey';
+            columns: ['revoked_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_invitations_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      form_revisions: {
+        Row: {
+          definition: Json;
+          description: string | null;
+          form_id: string;
+          id: string;
+          published_at: string;
+          published_by: string | null;
+          revision_number: number;
+          title: string;
+        };
+        Insert: {
+          definition: Json;
+          description?: string | null;
+          form_id: string;
+          id?: string;
+          published_at?: string;
+          published_by?: string | null;
+          revision_number: number;
+          title: string;
+        };
+        Update: {
+          definition?: Json;
+          description?: string | null;
+          form_id?: string;
+          id?: string;
+          published_at?: string;
+          published_by?: string | null;
+          revision_number?: number;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'form_revisions_form_id_fkey';
+            columns: ['form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_revisions_published_by_fkey';
+            columns: ['published_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      form_submissions: {
+        Row: {
+          answers: Json;
+          form_id: string;
+          id: string;
+          invitation_id: string;
+          revision_id: string;
+          submitted_at: string;
+        };
+        Insert: {
+          answers: Json;
+          form_id: string;
+          id: string;
+          invitation_id: string;
+          revision_id: string;
+          submitted_at?: string;
+        };
+        Update: {
+          answers?: Json;
+          form_id?: string;
+          id?: string;
+          invitation_id?: string;
+          revision_id?: string;
+          submitted_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'form_submissions_form_id_fkey';
+            columns: ['form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_submissions_invitation_id_fkey';
+            columns: ['invitation_id'];
+            isOneToOne: true;
+            referencedRelation: 'form_invitations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'form_submissions_revision_id_fkey';
+            columns: ['revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'form_revisions';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      forms: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          current_revision_id: string | null;
+          current_revision_number: number;
+          definition: Json;
+          description: string | null;
+          has_unpublished_changes: boolean;
+          id: string;
+          job_id: string | null;
+          kind: string;
+          source_form_id: string | null;
+          source_template_id: string | null;
+          status: string;
+          status_before_archive: string | null;
+          title: string;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          current_revision_id?: string | null;
+          current_revision_number?: number;
+          definition?: Json;
+          description?: string | null;
+          has_unpublished_changes?: boolean;
+          id?: string;
+          job_id?: string | null;
+          kind: string;
+          source_form_id?: string | null;
+          source_template_id?: string | null;
+          status: string;
+          status_before_archive?: string | null;
+          title: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          current_revision_id?: string | null;
+          current_revision_number?: number;
+          definition?: Json;
+          description?: string | null;
+          has_unpublished_changes?: boolean;
+          id?: string;
+          job_id?: string | null;
+          kind?: string;
+          source_form_id?: string | null;
+          source_template_id?: string | null;
+          status?: string;
+          status_before_archive?: string | null;
+          title?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'forms_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_current_revision_fkey';
+            columns: ['current_revision_id'];
+            isOneToOne: false;
+            referencedRelation: 'form_revisions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_source_form_id_fkey';
+            columns: ['source_form_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_source_template_id_fkey';
+            columns: ['source_template_id'];
+            isOneToOne: false;
+            referencedRelation: 'forms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'forms_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       assistant_conversations: {
         Row: {
           archived_at: string | null;
@@ -5811,6 +6130,12 @@ export type Database = {
       };
       cancellation_preview: {
         Args: { p_effective_date?: string; p_job_id: string };
+        Returns: Json;
+      };
+      forms_enabled: { Args: never; Returns: boolean };
+      forms_public_open: { Args: { p_token: string }; Returns: Json };
+      forms_public_submit: {
+        Args: { p_answers: Json; p_submission_id: string; p_token: string };
         Returns: Json;
       };
       assistant_start_handoff: {

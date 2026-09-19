@@ -176,6 +176,18 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Forms',
+    items: [
+      {
+        title: 'Forms',
+        url: '/dashboard/forms',
+        icon: 'forms',
+        shortcut: ['f', 'f'],
+        access: 'forms'
+      }
+    ]
+  },
+  {
     label: 'Admin',
     items: [
       {

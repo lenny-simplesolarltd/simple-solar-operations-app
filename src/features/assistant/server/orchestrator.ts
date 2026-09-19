@@ -27,6 +27,7 @@ import {
   type ToolResult
 } from './registry';
 import { stableSystemPrompt, volatileSystemPrompt } from './system-prompt';
+import { FORMS_TOOL_LABELS } from './tools/forms';
 
 /** Model round-trips allowed in one staff turn. A lookup rarely needs more than three. */
 const MAX_STEPS = 6;
@@ -38,7 +39,8 @@ const TOOL_LABELS: Record<string, string> = {
   get_job_tasks: 'Reading the job’s tasks',
   get_my_tasks: 'Reading your tasks',
   get_team_tasks: 'Reading team tasks',
-  get_presale_workflow: 'Looking up the Presale workflow'
+  get_presale_workflow: 'Looking up the Presale workflow',
+  ...FORMS_TOOL_LABELS
 };
 
 export interface AssistantTurnInput {

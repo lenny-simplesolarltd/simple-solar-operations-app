@@ -1,6 +1,8 @@
 import 'server-only';
 
-import { ToolRegistry } from '../registry';
+import { formsEnabled } from '@/features/forms/server/service';
+import { ToolRegistry, type PlannedTool } from '../registry';
+import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
 import { PLANNED_TOOLS } from './planned';
 import { getPresaleWorkflowTool } from './presale';
@@ -11,7 +13,9 @@ import { getMyTasksTool, getTeamTasksTool } from './tasks';
  * application already exposes the operation safely; everything else is
  * registered as planned.
  */
-export function createToolRegistry(): ToolRegistry {
+export function createToolRegistry(
+  options: { forms: boolean } = { forms: true }
+): ToolRegistry {
   const registry = new ToolRegistry()
     .register(findJobTool)
     .register(getJobTool)
@@ -19,6 +23,29 @@ export function createToolRegistry(): ToolRegistry {
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
     .register(getPresaleWorkflowTool);
+  // Forms: the same service the manual builder uses. Mutations are proposals
+  // a staff member confirms; see tools/forms.ts.
+  // While Forms is switched off (release gate FN-21) its tools are only
+  // planned: the model is told they are unavailable and none can execute.
+  for (const tool of [...FORMS_READ_TOOLS, ...FORMS_MUTATION_TOOLS]) {
+    registry.register(
+      options.forms
+        ? (tool as Parameters<ToolRegistry['register']>[0])
+        : ({
+            name: tool.name,
+            summary: tool.summary,
+            domain: tool.domain,
+            kind: tool.kind,
+            status: 'planned',
+            dependsOn: 'Forms is switched off (release gate FN-21)'
+          } satisfies PlannedTool)
+    );
+  }
   for (const tool of PLANNED_TOOLS) registry.register(tool);
   return registry;
+}
+
+/** The registry for one request: Forms tools only while Forms is switched on. */
+export async function createRequestToolRegistry(): Promise<ToolRegistry> {
+  return createToolRegistry({ forms: await formsEnabled() });
 }
