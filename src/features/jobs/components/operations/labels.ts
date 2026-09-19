@@ -21,7 +21,14 @@ const STATE: Record<string, string> = {
   RESOLVE_FIRST: 'Resolve the issue first.',
   ISSUE_CLOSED: 'The issue is closed.',
   ALREADY_COMPLETE: 'The job is already operationally complete.',
-  COMPLETION_GATE_OPEN: 'Completion checks are outstanding.'
+  COMPLETION_GATE_OPEN: 'Completion checks are outstanding.',
+  CANCELLATION_NOT_ACTIVE: 'The job is not being cancelled.',
+  NO_OPEN_CANCELLATION_TASKS: 'No cancellation tasks are open.',
+  CANCELLATION_NOT_IN_PROGRESS: 'Only while the cancellation is in progress.',
+  CONFIRMATION_OUTSTANDING:
+    'Resolve the confirmation tasks (merchant, scaffold, calendar) first.',
+  NO_REOPEN_REVIEW: 'No reopen review is open.',
+  CANCELLATION_ACTIVE: 'The job is being cancelled.'
 };
 
 export function flagText(flag: OpsFlag | undefined): string | undefined {

@@ -674,4 +674,37 @@ export interface JobOperationsRead {
     cancel_job: OpsFlag;
     reinstate_job: OpsFlag;
   };
+  cancellation: OpsCancellation;
+}
+
+/** An open S15 cancellation task (JOB_OPERATIONS cancellation.tasks). */
+export interface OpsCancellationTask {
+  id: string;
+  template_code: string;
+  title: string;
+  status: string;
+  version: number;
+  blocking_reason: string | null;
+  owner_name: string | null;
+  /** Merchant / scaffold / strip / calendar: confirmed against a revision. */
+  confirmation: boolean;
+  needs_actual_date: boolean;
+  confirm_revision: number | null;
+  /** False for a GHL task with no GHL IDs configured: track it at close. */
+  resolvable: boolean;
+}
+
+export interface OpsCancellation {
+  tasks: OpsCancellationTask[];
+  reopen_review: {
+    id: string;
+    title: string;
+    status: string;
+    version: number;
+  } | null;
+  actions: {
+    resolve: OpsFlag;
+    close: OpsFlag;
+    reopen_review_complete: OpsFlag;
+  };
 }

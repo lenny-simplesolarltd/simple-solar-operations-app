@@ -17,6 +17,11 @@ import {
   ReinstateJob
 } from './actions';
 import { CancelJob } from './cancel-job';
+import {
+  CloseCancellation,
+  CompleteReopenReview,
+  ResolveCancellationTask
+} from './cancellation-work';
 import { flagText, gateReasonText } from './labels';
 
 // Operating an R1 job after booking: completion checks, commissioning per
@@ -60,8 +65,16 @@ export async function OperationsTab({ jobId }: { jobId: string }) {
     job_id: jobId
   });
   if (!result.ok) return <ReadFailureState failure={result.error} />;
-  const { job, packages, issues, calls, installers, completion, actions } =
-    result.data;
+  const {
+    job,
+    packages,
+    issues,
+    calls,
+    installers,
+    completion,
+    actions,
+    cancellation
+  } = result.data;
   const reasons = completion.gate.reasons;
   const required = packages.filter(
     (p) => p.required && p.status !== 'Cancelled'
@@ -337,11 +350,51 @@ export async function OperationsTab({ jobId }: { jobId: string }) {
                 {job.cancellation_by_name ?? 'staff'}
               </p>
               {job.cancellation_reason && <p>{job.cancellation_reason}</p>}
-              <p className='text-muted-foreground text-xs'>
-                {job.open_cancellation_tasks} cancellation task
-                {job.open_cancellation_tasks === 1 ? '' : 's'} still open (see
-                the Tasks tab).
-              </p>
+              {cancellation.tasks.length === 0 ? (
+                <p className='text-muted-foreground text-xs'>
+                  No cancellation tasks open.
+                </p>
+              ) : (
+                <ul className='flex flex-col gap-2'>
+                  {cancellation.tasks.map((t) => (
+                    <li
+                      key={t.id}
+                      className='flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-b-0'
+                    >
+                      <span>
+                        {t.title}
+                        <span className='text-muted-foreground block text-xs'>
+                          {t.status}
+                          {t.confirmation && ' · needs their confirmation'}
+                          {t.owner_name && ` · ${t.owner_name}`}
+                          {!t.resolvable && ' · track it when closing'}
+                        </span>
+                      </span>
+                      {t.resolvable && (
+                        <ResolveCancellationTask
+                          jobId={job.id}
+                          jobVersion={job.version}
+                          task={t}
+                          flag={cancellation.actions.resolve}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {job.workflow_stage === 'CancellationInProgress' && (
+                <div className='flex flex-col gap-1'>
+                  <div>
+                    <CloseCancellation
+                      jobId={job.id}
+                      jobVersion={job.version}
+                      tasks={cancellation.tasks}
+                      flag={cancellation.actions.close}
+                    />
+                  </div>
+                  <Why flag={cancellation.actions.close} />
+                </div>
+              )}
               {job.workflow_stage === 'Cancelled' && (
                 <div className='flex flex-col gap-1'>
                   <div>
@@ -357,7 +410,28 @@ export async function OperationsTab({ jobId }: { jobId: string }) {
             </CardContent>
           </Card>
         ) : (
-          <div className='flex flex-col gap-1'>
+          <div className='flex flex-col gap-3'>
+            {cancellation.reopen_review && (
+              <Card>
+                <CardContent className='flex flex-col gap-2 pt-6 text-sm'>
+                  <p>
+                    Reinstated. Normal work is paused until the reopen review is
+                    complete.
+                  </p>
+                  <p className='text-muted-foreground text-xs'>
+                    {cancellation.reopen_review.title}
+                  </p>
+                  <div>
+                    <CompleteReopenReview
+                      jobId={job.id}
+                      review={cancellation.reopen_review}
+                      flag={cancellation.actions.reopen_review_complete}
+                    />
+                  </div>
+                  <Why flag={cancellation.actions.reopen_review_complete} />
+                </CardContent>
+              </Card>
+            )}
             <div>
               <CancelJob
                 jobId={job.id}

@@ -190,7 +190,7 @@ export const navGroups: NavGroup[] = [
         url: '/dashboard/system',
         icon: 'system',
         shortcut: ['s', 'h'],
-        access: 'officeManager'
+        access: 'systemHealth'
       }
     ]
   }

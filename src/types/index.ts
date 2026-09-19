@@ -18,6 +18,7 @@ export type NavAccess =
   | 'any'
   | 'office'
   | 'officeManager'
+  | 'systemHealth'
   | 'teamTasks'
   | 'jobs'
   | 'jobSales'

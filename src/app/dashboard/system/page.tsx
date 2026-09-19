@@ -74,14 +74,18 @@ export default async function SystemPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/auth/sign-in');
   const admin = isAdmin(user);
+  const canResolve = isOfficeManager(user);
+  // Director reads System Health to record backup evidence; the calendar
+  // outbox is office work (CALENDAR_STATUS: Admin / Manager / Office).
   const [status, modes, calendar] = await Promise.all([
     readR1<SystemStatus>('SYSTEM_STATUS'),
     admin
       ? readR1<ReleaseMode[]>('RELEASE_MODE_STATUS')
       : Promise.resolve(null),
-    readOps<CalendarStatus>('CALENDAR_STATUS')
+    canResolve
+      ? readOps<CalendarStatus>('CALENDAR_STATUS')
+      : Promise.resolve(null)
   ]);
-  const canResolve = isOfficeManager(user);
   const canRecordEvidence = isDirectorClass(user);
   const operational = normalizeOperational(
     status.ok ? status.data.operational : undefined

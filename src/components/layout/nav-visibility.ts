@@ -30,6 +30,9 @@ export function canSee(
     case 'officeManager':
     case 'intakeReview':
       return isOfficeManager(user);
+    case 'systemHealth':
+      // Director records backup / restore evidence there (read only otherwise).
+      return isOfficeManager(user) || has(user, ['Director']);
     case 'teamTasks':
       return permissions.has('task.read.all') || isOfficeManager(user);
     case 'jobs':

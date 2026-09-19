@@ -96,8 +96,11 @@ export function RecordCommissioning({
           )
         }
       >
+        {/* A Job upload (office, assigned to the job): the WorkPackage
+            context is the R3 installer route and needs FN-06. */}
         <EvidenceField
-          jobId={jobId}
+          context={{ type: 'Job', id: jobId }}
+          category='Commissioning'
           label='Certificate or evidence'
           required
           onUploaded={setPath}
