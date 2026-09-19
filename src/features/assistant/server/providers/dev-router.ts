@@ -171,7 +171,9 @@ function helpFollowUp(
     return null;
   }
   const offered = new Set(request.tools.map((t) => t.name));
-  const list = (data.results as { slug: string; title: string }[]) ?? [];
+  const list = (
+    (data.results as { slug: string; title: string; match?: string }[]) ?? []
+  ).filter((a) => r.name !== 'search_help_articles' || a.match === 'strong');
   if (r.name === 'search_help_articles' || r.name === 'get_help_for_route') {
     if (list.length === 0 || !offered.has('get_help_article')) {
       return {

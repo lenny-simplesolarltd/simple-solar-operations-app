@@ -108,14 +108,22 @@ export default async function HelpPage({
   const forRoute =
     route && isAppRoute(route) ? articlesForRouteIn(articles, route) : null;
 
+  const common = articles.filter((a) => a.commonTask).slice(0, 10);
+  // Guides written for this person's roles, most specific first (a guide for
+  // Installers only before one for five roles), not repeating common tasks.
   const mine = articles
     .filter(
       (a) =>
         a.audienceRoles.length > 0 &&
-        a.audienceRoles.some((r) => access.user.roles.includes(r as never))
+        a.audienceRoles.some((r) => access.user.roles.includes(r as never)) &&
+        !common.includes(a)
+    )
+    .sort(
+      (a, b) =>
+        a.audienceRoles.length - b.audienceRoles.length ||
+        a.sortOrder - b.sortOrder
     )
     .slice(0, 6);
-  const common = articles.filter((a) => a.commonTask).slice(0, 10);
   const recent = [...articles]
     .filter((a) => a.publishedAt)
     .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))

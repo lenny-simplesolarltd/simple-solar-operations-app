@@ -25,6 +25,12 @@ export interface SearchableArticle {
 export interface SearchHit<T extends SearchableArticle> {
   article: T;
   score: number;
+  /**
+   * 'strong': the guide's phrases, title or headline fields cover the whole
+   * question. 'weak': a partial or body-only match - a "might help", never
+   * something to present as THE answer.
+   */
+  strength: 'strong' | 'weak';
   /** Which alias matched, when one did - useful when explaining a result. */
   matchedAlias: string | null;
 }
@@ -276,6 +282,7 @@ export function searchIndex<T extends SearchableArticle>(
   for (const entry of index.entries) {
     let score = 0;
     let matched = 0;
+    let weakest = Infinity;
     for (const q of queryTerms) {
       let best = 0;
       for (const { word, factor } of expanded.get(q) ?? []) {
@@ -286,11 +293,14 @@ export function searchIndex<T extends SearchableArticle>(
         }
       }
       if (best > 0) matched++;
+      weakest = Math.min(weakest, best);
       score += best;
     }
     if (matched === 0) continue;
 
     const coverage = matched / queryTerms.length;
+    // Less than half the question found: not about this guide.
+    if (queryTerms.length >= 2 && coverage < 0.5) continue;
     score *= 0.5 + coverage;
 
     // Phrase matches: the staff member typed (most of) an alias or the title.
@@ -322,12 +332,20 @@ export function searchIndex<T extends SearchableArticle>(
     score += phrase;
     if (entry.article.commonTask) score += 0.5;
 
-    hits.push({ article: entry.article, score, matchedAlias });
+    // Strong: a staff phrase / the title matched, or every word of the
+    // question is in the guide's headline fields (summary or better).
+    const strength =
+      phrase >= 12 || (coverage === 1 && weakest >= WEIGHTS.summary * 0.7)
+        ? 'strong'
+        : 'weak';
+    hits.push({ article: entry.article, score, matchedAlias, strength });
   }
   return hits
     .sort(
       (a, b) =>
-        b.score - a.score || a.article.title.localeCompare(b.article.title)
+        Number(b.strength === 'strong') - Number(a.strength === 'strong') ||
+        b.score - a.score ||
+        a.article.title.localeCompare(b.article.title)
     )
     .slice(0, limit);
 }

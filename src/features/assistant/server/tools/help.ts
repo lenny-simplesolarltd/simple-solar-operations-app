@@ -76,7 +76,7 @@ export const searchHelpArticlesTool: ReadTool<{
   name: 'search_help_articles',
   summary: 'Search the Help Center guides',
   description:
-    "Search the company's Help Center: the maintained, published staff guides to how this application works (how to move a job, cancel a job, record commissioning, what Ready to Book means, etc.). Use it FIRST for any 'how do I...', 'what does X mean', 'why can't I...' or 'where do I find...' question about using the app. Pass the staff member's own words. Returns the best matching guides (title, url, summary); then call get_help_article on the best match to read it before answering.",
+    "Search the company's Help Center: the maintained, published staff guides to how this application works (how to move a job, cancel a job, record commissioning, what Ready to Book means, etc.). Use it FIRST for any 'how do I...', 'what does X mean', 'why can't I...' or 'where do I find...' question about using the app. Pass the staff member's own words. Returns the best matching guides (title, url, summary, match 'strong' or 'weak'); then call get_help_article on the best STRONG match to read it before answering. Weak matches are only possibly related.",
   domain: 'help',
   kind: 'read',
   status: 'available',
@@ -99,15 +99,22 @@ export const searchHelpArticlesTool: ReadTool<{
         query,
         results: hits.map((h) => ({
           ...brief(h.article),
+          match: h.strength,
           matched_phrase: h.matchedAlias
         })),
-        ...(hits.length === 0 && {
-          note: 'No guide matched. Tell the staff member you could not find an internal guide for this; do not present general knowledge as company procedure.'
+        ...(!hits.some((h) => h.strength === 'strong') && {
+          note: hits.length
+            ? 'No guide clearly covers this question (only weak matches). Tell the staff member you could not find a guide that covers it; you may mention a weak match as "might be related", never as the answer. Do not present general knowledge as company procedure.'
+            : 'No guide matched. Tell the staff member you could not find an internal guide for this; do not present general knowledge as company procedure.'
         })
       },
       display: {
         kind: 'help_articles',
-        title: hits.length ? 'Help Center guides' : 'No matching guide',
+        title: hits.some((h) => h.strength === 'strong')
+          ? 'Help Center guides'
+          : hits.length
+            ? 'Guides that might be related'
+            : 'No matching guide',
         articles: hits.map((h) => card(h.article))
       }
     };

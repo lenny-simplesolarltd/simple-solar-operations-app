@@ -154,6 +154,26 @@ describe('search quality (real articles)', () => {
     expect(top).not.toContain('cancel-a-job');
   });
 
+  it('never presents an off-topic guide as a strong answer', () => {
+    for (const q of [
+      'How do I order new printer toner?',
+      'where is the nearest train station',
+      'what is the wifi password'
+    ]) {
+      const strong = searchArticles(corpus, q, 5).filter(
+        (h) => h.strength === 'strong'
+      );
+      expect(
+        strong.map((h) => h.article.slug),
+        q
+      ).toEqual([]);
+    }
+    // ...while the real questions are strong matches.
+    for (const [q] of SEARCH_EXPECTATIONS.slice(0, 12)) {
+      expect(searchArticles(corpus, q, 1)[0]?.strength, q).toBe('strong');
+    }
+  });
+
   it('returns nothing for noise and stop words', () => {
     expect(searchArticles(corpus, 'the and of', 5)).toEqual([]);
     expect(searchArticles(corpus, '', 5)).toEqual([]);
