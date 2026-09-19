@@ -35,6 +35,7 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
 | view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
 | view-port resourcing reads (STAFF_AVAILABILITY, INSTALLER_SKILLS, SCAFFOLD_BOARD, COMMISSIONING_QUEUE) | `20260919173000_view_port_resourcing_reads.sql` |
+| `r1-appsheet/services.js` COMMISSIONING_RECORD (+ `s12/commissioning.js` office template), CALL_RECORD job-level calls, JOB_OPERATIONS read (Operations tab) | `20260919210000_r1_completion.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role
@@ -62,3 +63,20 @@ External senders (Google Calendar, Xero, email) are a future TypeScript worker u
    `app.*` functions (or `alter`s tables), with a comment citing the reference commit.
 4. Re-run the test suites against a local stack, then apply.
 5. Update the baseline commit at the top of this file.
+
+## R1 completion after booking (20260919210000)
+
+- `COMMISSIONING_RECORD` is the R1 route to an Accepted commissioning submission
+  (office-recorded evidence, `source_system = 'R1A-office-manual'`). It is what
+  lets a job with an Electrical work package pass the S10 operational-completion
+  gate in R1; the R3 route (`IW_COMMISSIONING_*` + `COMMISSIONING_REVIEW`) is
+  unchanged and still needs an approved template.
+- Evidence integration point: the command uses only `app.ensure_evidence(job,
+  'Commissioning', storage_path)` and `app.job_evidence(job, id_or_path, code)`,
+  then links `evidence.submission_id` once (never re-pointed). Changes to
+  evidence storage internals must keep those two signatures and that behaviour.
+- `CALL_RECORD` without `task_id` is a job-level call (no task, job or package
+  side effects; `expected_version` is the job's).
+- Open business decision (REF-03 §11.2): nothing moves a job to
+  `InProgress` / `Aftercare`. The server gate, not the stage, decides
+  completion; the Operations tab offers completion when the gate is ready.
