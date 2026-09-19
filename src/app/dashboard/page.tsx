@@ -184,8 +184,21 @@ export default async function DashboardPage() {
         : undefined,
       tone: 'warning'
     },
-    { label: 'Open issues', value: ops.open_issues },
-    { label: 'Blocking issues', value: ops.blocking_issues, tone: 'danger' },
+    {
+      label: 'Open issues',
+      value: ops.open_issues,
+      href: canSee('office', user, permissions)
+        ? '/dashboard/issues'
+        : undefined
+    },
+    {
+      label: 'Blocking issues',
+      value: ops.blocking_issues,
+      href: canSee('office', user, permissions)
+        ? '/dashboard/issues'
+        : undefined,
+      tone: 'danger'
+    },
     {
       label: 'Draft orders',
       value: ops.draft_orders,

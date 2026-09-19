@@ -261,13 +261,19 @@ export function RaiseIssue({
   );
 }
 
-/** ISSUE_UPDATE TRANSITION: Resolved (with resolution) / Closed (customer confirmed). */
+/**
+ * ISSUE_UPDATE: Resolve (resolution + optional photo / PDF), Close (customer
+ * confirmed) and Reassign (another office person). Each is offered only when
+ * the issue's action flag says so; the command re-checks everything.
+ */
 export function IssueActions({
   jobId,
-  issue
+  issue,
+  officePeople
 }: {
   jobId: string;
   issue: OpsIssue;
+  officePeople: { id: string; name: string }[];
 }) {
   const request = {
     command_type: 'ISSUE_UPDATE',
@@ -275,28 +281,11 @@ export function IssueActions({
     issue_id: issue.id,
     expected_version: issue.version
   };
+  const others = officePeople.filter((p) => p.id !== issue.owner_id);
   return (
     <div className='flex flex-wrap gap-2'>
       {issue.actions.resolve.available && (
-        <SimpleCommand
-          label='Resolve'
-          icon={<IconCheck />}
-          title='Resolve issue'
-          request={request}
-          fields={[
-            {
-              key: 'resolution',
-              label: 'How it was resolved',
-              kind: 'note',
-              required: true
-            }
-          ]}
-          payload={(v) => ({
-            action: 'TRANSITION',
-            status: 'Resolved',
-            resolution: v.resolution.trim()
-          })}
-        />
+        <ResolveIssue jobId={jobId} issue={issue} />
       )}
       {issue.actions.close.available && (
         <SimpleCommand
@@ -313,7 +302,122 @@ export function IssueActions({
           })}
         />
       )}
+      {issue.actions.reassign.available && others.length > 0 && (
+        <SimpleCommand
+          label='Reassign'
+          icon={<IconUserEdit />}
+          title='Reassign issue'
+          description={`Currently owned by ${issue.owner_name ?? 'nobody'}. The new owner is responsible for getting it resolved.`}
+          request={request}
+          fields={[
+            {
+              key: 'owner_id',
+              label: 'New owner',
+              kind: 'select',
+              required: true,
+              options: others.map((p) => ({ value: p.id, label: p.name }))
+            }
+          ]}
+          payload={(v) => ({ action: 'REASSIGN', owner_id: v.owner_id })}
+        />
+      )}
     </div>
+  );
+}
+
+/** ISSUE_UPDATE TRANSITION Resolved. A quoted file is linked to the issue. */
+function ResolveIssue({ jobId, issue }: { jobId: string; issue: OpsIssue }) {
+  const [open, setOpen] = useState(false);
+  const [resolution, setResolution] = useState('');
+  const [path, setPath] = useState<string | null>(null);
+  // A chosen file that has not finished uploading must not be dropped
+  // silently: wait for it, or remove it and resolve without it.
+  const [chosen, setChosen] = useState(false);
+  const [fieldKey, setFieldKey] = useState(0);
+  const { run, pending, outcome, reset } = useCommand();
+  const clearFile = () => {
+    setPath(null);
+    setChosen(false);
+    setFieldKey((k) => k + 1);
+  };
+  const close = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      reset();
+      setResolution('');
+      clearFile();
+    }
+  };
+  const waiting = chosen && !path;
+  return (
+    <>
+      <Button size='sm' variant='outline' onClick={() => setOpen(true)}>
+        <IconCheck />
+        Resolve
+      </Button>
+      <CommandDialog
+        open={open}
+        onOpenChange={close}
+        title='Resolve issue'
+        description='Say how it was put right. Close it once the customer has confirmed.'
+        submitLabel='Resolve'
+        pending={pending}
+        outcome={outcome}
+        canSubmit={!!resolution.trim() && !waiting}
+        onSubmit={() =>
+          run(
+            {
+              command_type: 'ISSUE_UPDATE',
+              job_id: jobId,
+              issue_id: issue.id,
+              expected_version: issue.version,
+              payload: {
+                action: 'TRANSITION',
+                status: 'Resolved',
+                resolution: resolution.trim(),
+                ...(path ? { evidence_id: path } : {})
+              }
+            },
+            (r) => r.ok && close(false)
+          )
+        }
+      >
+        <NoteField
+          label='How it was resolved'
+          required
+          value={resolution}
+          onChange={setResolution}
+        />
+        <div
+          onChange={(e) => {
+            const input = e.target as HTMLInputElement;
+            if (input.type === 'file') setChosen(!!input.files?.length);
+          }}
+        >
+          <EvidenceField
+            key={fieldKey}
+            context={{ type: 'Job', id: jobId }}
+            category='Problem'
+            label='Photo or PDF (optional)'
+            onUploaded={setPath}
+          />
+        </div>
+        {waiting && (
+          <p className='text-muted-foreground flex flex-wrap items-center gap-2 text-xs'>
+            The file has not finished uploading.
+            <Button
+              type='button'
+              size='sm'
+              variant='ghost'
+              className='h-6 px-2'
+              onClick={clearFile}
+            >
+              Remove file
+            </Button>
+          </p>
+        )}
+      </CommandDialog>
+    </>
   );
 }
 

@@ -9,7 +9,12 @@ import {
 import { useUrlFilters } from '@/features/operations/use-url-filters';
 import { TASK_QUEUES } from '@/lib/backend/models';
 import { IconLoader2, IconX } from '@tabler/icons-react';
-import { DUE_OPTIONS, QUEUE_LABELS, STATUS_OPTIONS } from '../filters';
+import {
+  DUE_OPTIONS,
+  QUEUE_LABELS,
+  STATUS_OPTIONS,
+  TEAM_QUEUE_CHIPS
+} from '../filters';
 
 const DEFAULTS = { scope: 'my', status: 'open', due: 'any' };
 
@@ -37,7 +42,8 @@ export function TaskFilterBar({
             onChange={(v) => set({ scope: v, owner: null })}
             options={[
               { value: 'my', label: 'My tasks' },
-              { value: 'team', label: 'Team tasks' }
+              { value: 'team', label: 'Team tasks' },
+              { value: 'all', label: 'Everyone' }
             ]}
           />
         )}
@@ -51,6 +57,20 @@ export function TaskFilterBar({
           <IconLoader2 className='text-muted-foreground size-4 animate-spin' />
         )}
       </div>
+      {scope === 'all' && canViewTeam && (
+        <SegmentedFilter
+          label='Queue'
+          value={get('queue')}
+          onChange={(v) => set({ queue: v })}
+          options={[
+            { value: '', label: 'All queues' },
+            ...TEAM_QUEUE_CHIPS.map((q) => ({
+              value: q,
+              label: QUEUE_LABELS[q]
+            }))
+          ]}
+        />
+      )}
       <div className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'>
         <SearchFilter
           className='sm:w-64'
@@ -74,10 +94,10 @@ export function TaskFilterBar({
             label: QUEUE_LABELS[q]
           }))}
         />
-        {scope === 'team' && staff.length > 0 && (
+        {scope !== 'my' && staff.length > 0 && (
           <SelectFilter
             label='Owner'
-            allLabel='Everyone'
+            allLabel='Any owner'
             value={get('owner')}
             onChange={(v) => set({ owner: v })}
             options={staff.map((p) => ({ value: p.id, label: p.name }))}

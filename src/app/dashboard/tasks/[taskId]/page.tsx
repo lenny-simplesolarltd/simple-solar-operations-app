@@ -10,9 +10,12 @@ import { DueLabel } from '@/features/tasks/components/due-label';
 import { EvidenceList } from '@/features/operations/evidence-list';
 import { TaskActions } from '@/features/tasks/components/task-actions';
 import { getCurrentUser } from '@/lib/auth';
-import type { TaskDetailRead } from '@/lib/backend/models';
+import type {
+  TaskDetailRead,
+  TaskReassignCandidates
+} from '@/lib/backend/models';
 import { readOps } from '@/lib/backend/read';
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isOfficeClass } from '@/lib/roles';
 import { IconArrowLeft } from '@tabler/icons-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -61,9 +64,16 @@ export default async function TaskPage({
 
   // The read decides visibility: job tasks need job read access, job-less
   // tasks belong to their owner/backup (or an admin).
-  const result = await readOps<TaskDetailRead>('TASK_DETAIL', {
-    task_id: taskId
-  });
+  const [result, candidates] = await Promise.all([
+    readOps<TaskDetailRead>('TASK_DETAIL', { task_id: taskId }),
+    // Who the task can move to; only office roles may read it. A refusal just
+    // means Reassign is not offered.
+    isOfficeClass(user)
+      ? readOps<TaskReassignCandidates>('TASK_REASSIGN_CANDIDATES', {
+          task_id: taskId
+        })
+      : null
+  ]);
   if (!result.ok) {
     if (result.error.kind === 'not_found') notFound();
     return (
@@ -115,7 +125,11 @@ export default async function TaskPage({
               <DueLabel task={task} />
             </div>
           </div>
-          <TaskActions detail={result.data} isAdmin={isAdmin(user)} />
+          <TaskActions
+            detail={result.data}
+            isAdmin={isAdmin(user)}
+            reassign={candidates?.ok ? candidates.data : null}
+          />
         </div>
 
         {task.blocking_reason && (

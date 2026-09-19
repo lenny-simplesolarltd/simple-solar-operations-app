@@ -17,7 +17,7 @@ describe('parseTaskFilters', () => {
 
   it('keeps only values the TASKS read accepts', () => {
     const f = parseTaskFilters({
-      scope: 'all',
+      scope: 'everyone',
       status: 'Complete',
       due: 'yesterday',
       queue: 'drop table',
@@ -51,6 +51,13 @@ describe('parseTaskFilters', () => {
       q: 'SS-AB-001'
     });
     expect(hasActiveFilters(f)).toBe(true);
+  });
+
+  it('reads the whole-team queue view', () => {
+    expect(parseTaskFilters({ scope: 'all', queue: 'calls' })).toMatchObject({
+      scope: 'all',
+      queue: 'calls'
+    });
   });
 
   it('caps the search text', () => {

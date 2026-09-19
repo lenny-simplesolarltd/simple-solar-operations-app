@@ -73,7 +73,8 @@ export async function OperationsTab({ jobId }: { jobId: string }) {
     installers,
     completion,
     actions,
-    cancellation
+    cancellation,
+    office_people: officePeople = []
   } = result.data;
   const reasons = completion.gate.reasons;
   const required = packages.filter(
@@ -281,7 +282,11 @@ export async function OperationsTab({ jobId }: { jobId: string }) {
                   <p className='mt-1 text-xs'>Resolution: {i.resolution}</p>
                 )}
                 <div className='mt-2'>
-                  <IssueActions jobId={job.id} issue={i} />
+                  <IssueActions
+                    jobId={job.id}
+                    issue={i}
+                    officePeople={officePeople}
+                  />
                   {!i.actions.resolve.available &&
                     !i.actions.close.available &&
                     i.status !== 'Closed' && <Why flag={i.actions.resolve} />}

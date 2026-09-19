@@ -675,6 +675,8 @@ export interface JobOperationsRead {
     reinstate_job: OpsFlag;
   };
   cancellation: OpsCancellation;
+  /** Active office people an issue can be reassigned to (ISSUE_UPDATE REASSIGN). */
+  office_people: { id: string; name: string }[];
 }
 
 /** An open S15 cancellation task (JOB_OPERATIONS cancellation.tasks). */
@@ -707,4 +709,35 @@ export interface OpsCancellation {
     close: OpsFlag;
     reopen_review_complete: OpsFlag;
   };
+}
+
+export type IssueStatusFilter = 'open' | 'resolved' | 'all';
+
+/** One ISSUES row: the issue, its job and the ISSUE_UPDATE availability. */
+export interface IssueQueueRow extends OpsIssue {
+  job_id: string;
+  job_ref: string;
+  job_version: number;
+  workflow_stage: string;
+  customer_name: string | null;
+  postcode: string | null;
+  due_at: string | null;
+}
+
+/** ISSUES (execute_operations_read): the cross-job issue queue. */
+export interface IssuesRead {
+  status: IssueStatusFilter;
+  counts: { open: number; blocking: number; resolved_awaiting_close: number };
+  issues: IssueQueueRow[];
+  office_people: { id: string; name: string }[];
+}
+
+/** TASK_REASSIGN_CANDIDATES: who may own the task and whether the actor may move it. */
+export interface TaskReassignCandidates {
+  task_id: string;
+  version: number;
+  owner_id: string | null;
+  backup_id: string | null;
+  available: OpsFlag;
+  people: { id: string; name: string }[];
 }
