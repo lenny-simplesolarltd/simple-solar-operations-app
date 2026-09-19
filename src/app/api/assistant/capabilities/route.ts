@@ -1,5 +1,6 @@
 import type { AssistantCapabilities } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
+import { openConversationStore } from '@/features/assistant/server/conversations/store';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { resolveProvider } from '@/features/assistant/server/providers';
 import { createToolRegistry } from '@/features/assistant/server/tools';
@@ -24,10 +25,12 @@ export async function GET() {
 
   const registry = createToolRegistry();
   const provider = resolveProvider();
+  const store = await openConversationStore(actor).catch(() => null);
   const capabilities: AssistantCapabilities = {
     configured: provider.ok,
     developmentMode: provider.ok && provider.developmentMode,
     notice: provider.ok ? undefined : provider.notice,
+    conversations: store ? 'persistent' : 'ephemeral',
     preview: actor.previewing
       ? { name: actor.user.fullName ?? 'Staff member', roles: actor.user.roles }
       : undefined,
