@@ -76,6 +76,13 @@ export function OrderActions({ data }: { data: OrderViewRead }) {
             },
             { key: 'response_text', label: 'Their reply', kind: 'note' }
           ]}
+          // The merchant's written confirmation, attached to the job and
+          // passed as evidence_id (app.job_evidence: same job, file stored).
+          evidence={{
+            context: { type: 'Job', id: order.job_id },
+            category: 'Other',
+            label: 'Their confirmation (optional)'
+          }}
           payload={(v) => ({
             order_id: order.id,
             supplier_reference: v.supplier_reference,

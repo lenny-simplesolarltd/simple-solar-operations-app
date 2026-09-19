@@ -98,6 +98,19 @@ export function AssistantDrawer() {
         onRetry={conversation.retry}
         onReset={conversation.reset}
         onDecide={conversation.decide}
+        onHandoff={conversation.handoff}
+        onDismissLong={conversation.dismissLong}
+        history={{
+          mode: conversation.mode,
+          list: conversation.list,
+          archived: conversation.archived,
+          workingIds: conversation.workingIds,
+          onOpen: conversation.open,
+          onRefresh: conversation.refreshList,
+          onRename: conversation.rename,
+          onArchive: conversation.setArchived,
+          onDelete: conversation.remove
+        }}
         onClose={mode === 'docked' ? () => setOpen(false) : undefined}
         onNavigate={mode === 'sheet' ? () => setOpen(false) : undefined}
         active={open}
@@ -110,7 +123,7 @@ export function AssistantDrawer() {
     return (
       <aside
         id='assistant-drawer'
-        aria-label='Simple Solar Assistant'
+        aria-label='SimpleBot'
         inert={!open}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && !e.defaultPrevented) setOpen(false);
@@ -137,7 +150,7 @@ export function AssistantDrawer() {
         }
         className='w-full gap-0 p-0 sm:max-w-[27.5rem] [&>button]:top-4.5'
       >
-        <SheetTitle className='sr-only'>Simple Solar Assistant</SheetTitle>
+        <SheetTitle className='sr-only'>SimpleBot</SheetTitle>
         <SheetDescription className='sr-only'>
           Ask about jobs, customers and tasks.
         </SheetDescription>

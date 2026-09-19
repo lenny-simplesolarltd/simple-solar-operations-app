@@ -82,6 +82,14 @@ const BY_PAGE: Record<AssistantPageContext['kind'], AssistantSuggestion[]> = {
     }
   ],
   operations: [],
+  help: [
+    {
+      label: 'Ask how to do something',
+      prompt: 'How do I ',
+      mode: 'prefill',
+      requires: ['search_help_articles']
+    }
+  ],
   requests: [],
   presales: [
     {
@@ -103,6 +111,34 @@ const BY_PAGE: Record<AssistantPageContext['kind'], AssistantSuggestion[]> = {
       prompt: 'Explain the Presale workflow.',
       mode: 'send',
       requires: ['get_presale_workflow']
+    }
+  ],
+  forms: [
+    {
+      label: 'List my forms',
+      prompt: 'List the forms.',
+      mode: 'send',
+      requires: ['list_forms']
+    },
+    {
+      label: 'Create a form',
+      prompt: 'Create a form asking ',
+      mode: 'prefill',
+      requires: ['create_form']
+    }
+  ],
+  form: [
+    {
+      label: 'Describe this form',
+      prompt: 'Describe this form and its questions.',
+      mode: 'send',
+      requires: ['get_form']
+    },
+    {
+      label: 'Add a question',
+      prompt: 'Add a question to this form asking ',
+      mode: 'prefill',
+      requires: ['edit_form_draft']
     }
   ],
   people: [],

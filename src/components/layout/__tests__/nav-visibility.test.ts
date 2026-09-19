@@ -17,17 +17,20 @@ const urls = (roles: RoleCode[], permissions: string[] = []) =>
   );
 
 describe('visibleNavGroups', () => {
-  it('gives an installer home, tasks, requests and their installs', () => {
+  it('gives an installer home, tasks, requests, their installs, files and help', () => {
     expect(urls(['Installer'])).toEqual([
       '/dashboard',
       '/dashboard/tasks',
       '/dashboard/requests',
-      '/dashboard/installs'
+      '/dashboard/installs',
+      '/dashboard/files',
+      '/dashboard/help'
     ]);
     expect(urls(['ReadOnly'])).toEqual([
       '/dashboard',
       '/dashboard/tasks',
-      '/dashboard/requests'
+      '/dashboard/requests',
+      '/dashboard/help'
     ]);
   });
 
@@ -54,10 +57,33 @@ describe('visibleNavGroups', () => {
 
   it('drops empty groups and never exposes access rules to the client', () => {
     const groups = visibleNavGroups(navGroups, user(['Installer']), new Set());
-    expect(groups.map((g) => g.label)).toEqual(['Home', 'Work', 'Installs']);
+    expect(groups.map((g) => g.label)).toEqual([
+      'Home',
+      'Work',
+      'Installs',
+      'Files',
+      'Help'
+    ]);
     for (const item of groups.flatMap((g) => g.items)) {
       expect(item).not.toHaveProperty('access');
     }
+  });
+
+  it('offers the office queues, files and release control to the right roles', () => {
+    expect(urls(['Office'])).toEqual(
+      expect.arrayContaining([
+        '/dashboard/issues',
+        '/dashboard/tasks?scope=all&queue=calls',
+        '/dashboard/tasks?scope=all&queue=cancellation',
+        '/dashboard/files'
+      ])
+    );
+    expect(urls(['Installer'])).not.toContain('/dashboard/issues');
+    expect(urls(['Surveyor'])).not.toContain('/dashboard/issues');
+    expect(urls(['ReadOnly'])).not.toContain('/dashboard/files');
+    expect(urls(['Admin'])).toContain('/dashboard/release');
+    expect(urls(['Director'])).toContain('/dashboard/release');
+    expect(urls(['Office'])).not.toContain('/dashboard/release');
   });
 
   it('offers booking to the office and intake review to office managers', () => {
@@ -86,5 +112,34 @@ describe('visibleNavGroups', () => {
   it('shows admin only to admins', () => {
     expect(urls(['Manager'])).toContain('/dashboard/people');
     expect(urls(['Director'])).not.toContain('/dashboard/people');
+  });
+});
+
+describe('Forms behind its release gate', () => {
+  const formsUrls = (released: boolean, permissions: string[]) =>
+    visibleNavGroups(navGroups, user(['Office']), new Set(permissions), {
+      forms: released
+    })
+      .flatMap((g) => g.items.map((i) => i.url))
+      .filter((u) => u.startsWith('/dashboard/forms'));
+
+  it('is hidden while Forms is switched off, even with forms.read', () => {
+    expect(formsUrls(false, ['forms.read'])).toEqual([]);
+  });
+
+  it('shows once switched on, only with forms.read', () => {
+    expect(formsUrls(true, ['forms.read'])).toEqual(['/dashboard/forms']);
+    expect(formsUrls(true, [])).toEqual([]);
+  });
+
+  it('defaults to hidden when the gate is not supplied (fails closed)', () => {
+    const all = visibleNavGroups(
+      navGroups,
+      user(['Admin']),
+      new Set(['forms.read'])
+    );
+    expect(all.flatMap((g) => g.items.map((i) => i.url))).not.toContain(
+      '/dashboard/forms'
+    );
   });
 });

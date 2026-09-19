@@ -172,11 +172,14 @@ assert.equal((await read('dan', { read_type: 'INTAKE_REVIEW' })).error, 'R1A_ROL
 // ---------------------------------------------------------------- admin reads
 assert.equal((await read('tanya', { read_type: 'RELEASE_MODE_STATUS' })).error, 'R1A_ROLE_DENIED');
 d = data(await read('ben', { read_type: 'RELEASE_MODE_STATUS' }), 'modes');
-assert.equal(d.length, 20); assert.ok(d.every(m => m.function_id && m.mode && m.target_release && m.authorised_job_scope));
+// FN-01..FN-20 from the reference; later modules may register more (Forms is FN-21).
+assert.ok(Array.from({ length: 20 }, (_, i) => `FN-${String(i + 1).padStart(2, '0')}`).every(id => d.some(m => m.function_id === id)));
+assert.ok(d.every(m => m.function_id && m.mode && m.target_release && m.authorised_job_scope));
 d = data(await read('tanya', { read_type: 'SYSTEM_STATUS' }), 'sys');
 assert.ok(d.health && d.commit_journal && d.outbox); assert.equal(d.not_configured_count, d.not_configured.length);
 assert.ok(d.not_configured.some(x => x.area === 'Scaffolder contacts'));
-assert.equal((await read('dan', { read_type: 'SYSTEM_STATUS' })).error, 'R1A_ROLE_DENIED');
+// Director reads System Health (P0 integration 20260919220000: backup evidence is recorded there).
+assert.equal((await read('dan', { read_type: 'SYSTEM_STATUS' })).ok, true);
 assert.equal((await read('hannah', { read_type: 'SYSTEM_STATUS' })).error, 'R1A_ROLE_DENIED');
 
 // ---------------------------------------------------------------- ACTION_AVAILABILITY
@@ -207,6 +210,7 @@ d = data(await read('tanya', { read_type: 'ACTION_AVAILABILITY', job_id: job }),
 assert.equal(d.commands.call_record.reason, 'MODE_UNAVAILABLE'); assert.equal(d.commands.start_job_booking.reason, 'MODE_UNAVAILABLE');
 assert.equal(d.actions.record_call.mode, 'Disabled'); assert.equal(d.actions.record_call.available, false);
 await db.query(`update public.release_modes set mode='Automated' where function_id='FN-01'`);
+before = { ...before, a: before.a + 2 }; // the two release-mode switches above are audited (release_modes_audit); reads still write nothing
 
 // ---------------------------------------------------------------- TASK_ACTION_AVAILABILITY
 const pre01 = await one(`select * from public.tasks where job_id=$1 and template_code='PRE01'`, [job]);
@@ -316,7 +320,7 @@ assert.equal(await count('inst_b', 'allocations'), 1, 'own (inactive) allocation
 assert.equal(await count('inst_b', 'work_packages'), 0);
 assert.equal(await count('tanya', 'work_packages'), 4); assert.equal(await count('tanya', 'allocations'), 2);
 // Reference data for any active actor; nothing for unknown users.
-assert.equal(await count('inst_a', 'release_modes'), 20); assert.equal(await count('ghost', 'release_modes'), 0);
+assert.ok(await count('inst_a', 'release_modes') >= 20); assert.equal(await count('ghost', 'release_modes'), 0);
 assert.equal(await count('store', 'companies'), 1);
 // Journals / settings / intake: admin only (office managers see Intake Review rows).
 assert.equal(await count('tanya', 'settings'), 0); assert.ok(await count('ben', 'settings') > 0);

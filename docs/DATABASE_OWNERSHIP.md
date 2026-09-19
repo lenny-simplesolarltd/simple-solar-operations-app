@@ -19,6 +19,18 @@ helpers - `current_person_id`, `current_roles`, `has_any_role`,
 `create_task` and the payload validators. Frontend: authentication,
 People & access (invites), Presale / Job Sold.
 
+Audit integrity and operational health (`20260919202000`, `20260919202100`; see
+`docs/OPERATIONAL_HEALTH.md`): `public.operational_evidence`,
+`app.audit_required`, `app.audit_coverage`, `app.audit_redact`,
+`app.operational_health`, `public.health_ping`, command `OPS_EVIDENCE_RECORD`.
+The `<table>_audit` triggers on the backend-port stream's configuration tables
+(companies, contacts, holidays, person_availability, teams, team_members,
+settings, release_modes, products, stock_locations, mapping_rules,
+commissioning_templates, commissioning_questions) belong here too: **a table
+listed in `app.audit_required` must keep its trigger** - if you drop and recreate
+one, recreate `<table>_audit` in the same migration (System health and
+`t_p0_audit.mjs` fail otherwise).
+
 These are the **canonical** Person, Customer, Job, Task, Audit, Role and Command
 models. Do not create parallel versions; reference them by foreign key.
 

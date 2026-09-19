@@ -74,13 +74,40 @@ export const OPERATION_SURFACES = [
   'planner',
   'scaffold',
   'availability',
-  'system'
+  'system',
+  'issues',
+  'files'
 ] as const;
 
 export const operationsPageContextSchema = z.strictObject({
   kind: z.literal('operations'),
   surface: z.enum(OPERATION_SURFACES),
   view: shortText(60).optional()
+});
+
+/** The Forms area; `view` is Forms / Templates / Responses. */
+export const formsPageContextSchema = z.strictObject({
+  kind: z.literal('forms'),
+  view: z.enum(['forms', 'templates', 'responses'])
+});
+
+/** One form or template open in the builder. A hint: tools re-read it by id. */
+export const formPageContextSchema = z.strictObject({
+  kind: z.literal('form'),
+  formId: z.uuid(),
+  formKind: z.enum(['form', 'template']),
+  title: shortText(200),
+  status: shortText(20)
+});
+
+/** The Help Center; `slug` is the article open, when one is. */
+export const helpPageContextSchema = z.strictObject({
+  kind: z.literal('help'),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+    .max(80)
+    .optional()
 });
 
 const simplePage = <K extends string>(kind: K) =>
@@ -93,6 +120,9 @@ export const pageContextSchema = z.discriminatedUnion('kind', [
   presalesPageContextSchema,
   jobsPageContextSchema,
   operationsPageContextSchema,
+  formsPageContextSchema,
+  formPageContextSchema,
+  helpPageContextSchema,
   simplePage('requests'),
   simplePage('presale-new'),
   simplePage('people'),
@@ -130,6 +160,22 @@ export function describeContext(page: AssistantPageContext): {
       return { label: 'Job search', detail: page.query };
     case 'operations':
       return { label: SURFACE_LABELS[page.surface], detail: page.view };
+    case 'forms':
+      return {
+        label: 'Forms',
+        detail: {
+          forms: 'Forms',
+          templates: 'Templates',
+          responses: 'Responses'
+        }[page.view]
+      };
+    case 'form':
+      return {
+        label: page.formKind === 'template' ? 'Template' : 'Form',
+        detail: `${page.title} · ${page.status}`
+      };
+    case 'help':
+      return { label: 'Help Center', detail: page.slug };
     case 'requests':
       return { label: 'My requests' };
     case 'presales':
@@ -161,7 +207,9 @@ const SURFACE_LABELS: Record<(typeof OPERATION_SURFACES)[number], string> = {
   planner: 'Planner',
   scaffold: 'Scaffold bookings',
   availability: 'Staff availability',
-  system: 'System health'
+  system: 'System health',
+  issues: 'Issues',
+  files: 'Files & documents'
 };
 
 function filterSummary(

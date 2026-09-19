@@ -11,7 +11,7 @@ import {
 } from '@/lib/backend/models';
 
 export interface TaskFilters {
-  scope: Exclude<TaskScope, 'all'>;
+  scope: TaskScope;
   status: TaskStatusFilter;
   due: TaskDueFilter;
   queue: TaskQueue | null;
@@ -60,10 +60,34 @@ export const QUEUE_LABELS: Record<TaskQueue, string> = {
   system: 'System'
 };
 
+/** Page headings for a whole-team queue (scope=all&queue=...). */
+export const QUEUE_TITLES: Record<TaskQueue, string> = {
+  booking: 'Booking tasks',
+  calls: 'Calls',
+  issues: 'Issue tasks',
+  payments: 'Payment tasks',
+  ghl: 'CRM (GHL) tasks',
+  cancellation: 'Cancellation tasks',
+  materials: 'Materials tasks',
+  scaffold: 'Scaffold tasks',
+  install: 'Install tasks',
+  system: 'System tasks'
+};
+
+/** The team-wide queues offered as chips on the Everyone view. */
+export const TEAM_QUEUE_CHIPS: TaskQueue[] = [
+  'calls',
+  'issues',
+  'cancellation',
+  'payments',
+  'ghl',
+  'booking'
+];
+
 export function parseTaskFilters(params: Params): TaskFilters {
   const owner = first(params.owner);
   return {
-    scope: oneOf(first(params.scope), ['my', 'team'] as const, 'my'),
+    scope: oneOf(first(params.scope), ['my', 'team', 'all'] as const, 'my'),
     status: oneOf(
       first(params.status),
       ['open', 'closed', 'all'] as const,

@@ -1,4 +1,9 @@
 import { getSupabaseEnv } from '@/lib/supabase/env';
+import {
+  KEEP_SIGNED_IN_COOKIE,
+  keepSignedIn,
+  withPersistence
+} from '@/lib/supabase/session-persistence';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
@@ -8,6 +13,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const { url, anonKey } = getSupabaseEnv();
+  // Token refreshes must honour "Keep me signed in" too, or the session
+  // would quietly become persistent on the next refresh.
+  const keep = keepSignedIn(request.cookies.get(KEEP_SIGNED_IN_COOKIE)?.value);
 
   const supabase = createServerClient(url, anonKey, {
     cookies: {
@@ -20,7 +28,7 @@ export async function proxy(request: NextRequest) {
         );
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
+          response.cookies.set(name, value, withPersistence(options, keep))
         );
       }
     }

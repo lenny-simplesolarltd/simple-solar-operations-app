@@ -1,5 +1,10 @@
 import {
+  IconAlertOctagon,
   IconAlertTriangle,
+  IconBan,
+  IconFolders,
+  IconPhoneCall,
+  IconToggleRight,
   IconArrowRight,
   IconCheck,
   IconChevronLeft,
@@ -39,7 +44,8 @@ import {
   IconClipboardCheck,
   IconInbox,
   IconCertificate,
-  IconHeartbeat
+  IconHeartbeat,
+  IconForms
 } from '@tabler/icons-react';
 
 export type Icon = React.ComponentType<IconProps>;
@@ -85,5 +91,11 @@ export const Icons = {
   commissioning: IconClipboardCheck,
   intake: IconInbox,
   skills: IconCertificate,
-  system: IconHeartbeat
+  system: IconHeartbeat,
+  forms: IconForms,
+  calls: IconPhoneCall,
+  issues: IconAlertOctagon,
+  cancellations: IconBan,
+  files: IconFolders,
+  release: IconToggleRight
 };

@@ -5,6 +5,7 @@ import { getJobDetail } from '@/features/jobs/server/queries';
 import { stageLabel } from '@/features/jobs/stages';
 import { MoveJob } from '@/features/planner/components/move-job';
 import { getCurrentUser } from '@/lib/auth';
+import { isOfficeClass } from '@/lib/roles';
 import { IconArrowLeft } from '@tabler/icons-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -29,6 +30,8 @@ export default async function MoveJobPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect('/auth/sign-in');
+  // Moving a job is office work (MOVE_JOB); other roles go back to the job.
+  if (!isOfficeClass(user)) redirect(`/dashboard/jobs/${(await params).jobId}`);
   const { jobId } = await params;
   if (!UUID.test(jobId)) notFound();
   const detail = await getJobDetail(jobId);

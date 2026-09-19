@@ -7,6 +7,7 @@ import { UserNav } from './user-nav';
 import { ModeToggle } from './ThemeToggle/theme-toggle';
 import type { AppUser } from '@/lib/auth';
 import { AssistantTrigger } from '@/features/assistant/components/assistant-trigger';
+import { PageHelpButton } from '@/features/help/components/page-help-button';
 import { PreviewSwitcher } from '@/features/dev-preview/preview-switcher';
 import type { PreviewTarget } from '@/features/dev-preview/queries';
 
@@ -39,6 +40,7 @@ export default function Header({
             }
           />
         )}
+        <PageHelpButton />
         <AssistantTrigger />
         <ModeToggle />
         <UserNav user={user} />

@@ -1,8 +1,9 @@
 import type { AssistantCapabilities } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
+import { openConversationStore } from '@/features/assistant/server/conversations/store';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { resolveProvider } from '@/features/assistant/server/providers';
-import { createToolRegistry } from '@/features/assistant/server/tools';
+import { createRequestToolRegistry } from '@/features/assistant/server/tools';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,19 +16,21 @@ export async function GET() {
       {
         error: {
           code: 'NOT_AUTHENTICATED',
-          message: 'Sign in to use the assistant.'
+          message: 'Sign in to use SimpleBot.'
         }
       },
       { status: 401 }
     );
   }
 
-  const registry = createToolRegistry();
+  const registry = await createRequestToolRegistry();
   const provider = resolveProvider();
+  const store = await openConversationStore(actor).catch(() => null);
   const capabilities: AssistantCapabilities = {
     configured: provider.ok,
     developmentMode: provider.ok && provider.developmentMode,
     notice: provider.ok ? undefined : provider.notice,
+    conversations: store ? 'persistent' : 'ephemeral',
     preview: actor.previewing
       ? { name: actor.user.fullName ?? 'Staff member', roles: actor.user.roles }
       : undefined,

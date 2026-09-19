@@ -289,13 +289,23 @@ describe('gemini adapter', () => {
     expect(result.ok && result.provider.model).toBe('gemini-flash-latest');
     expect(result.ok && result.developmentMode).toBe(false);
 
-    // The spelling this project's .env uses is accepted too; a model override wins.
+    // The legacy misspelling is accepted too; a model override wins.
     const legacy = resolveProvider({
       ASSISTANT_PROVIDER: 'gemini',
       GEMENI_API_KEY: 'k',
       GEMINI_MODEL: 'gemini-3.6-flash'
     });
     expect(legacy.ok && legacy.provider.model).toBe('gemini-3.6-flash');
+
+    // With both set, the correctly spelled name wins.
+    const both = resolveProvider({
+      ASSISTANT_PROVIDER: 'gemini',
+      GEMINI_API_KEY: 'current',
+      GEMENI_API_KEY: 'legacy'
+    });
+    expect(
+      both.ok && (both.provider as unknown as { apiKey: string }).apiKey
+    ).toBe('current');
   });
 
   it('maps the neutral transcript to alternating Gemini turns with object tool responses', () => {
@@ -619,7 +629,7 @@ describe('gemini adapter', () => {
       NODE_ENV: 'development'
     });
     expect(noKey.ok).toBe(false);
-    if (!noKey.ok) expect(noKey.notice).toMatch(/GEMENI_API_KEY/);
+    if (!noKey.ok) expect(noKey.notice).toMatch(/GEMINI_API_KEY/);
 
     // And the reverse: Anthropic chosen without its key does not borrow Gemini's.
     expect(

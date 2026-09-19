@@ -4,8 +4,9 @@ import {
 } from '@/features/assistant/protocol';
 import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { resolvePendingAction } from '@/features/assistant/server/confirm';
+import { recordDecision } from '@/features/assistant/server/conversations/decisions';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
-import { createToolRegistry } from '@/features/assistant/server/tools';
+import { createRequestToolRegistry } from '@/features/assistant/server/tools';
 import { PREVIEW_READ_ONLY_MESSAGE } from '@/lib/preview/config';
 
 export const runtime = 'nodejs';
@@ -24,7 +25,7 @@ const fail = (status: number, code: string, message: string) =>
 export async function POST(request: Request) {
   const actor = await resolveAssistantActor();
   if (!actor)
-    return fail(401, 'NOT_AUTHENTICATED', 'Sign in to use the assistant.');
+    return fail(401, 'NOT_AUTHENTICATED', 'Sign in to use SimpleBot.');
   // The confirm endpoint is the assistant's write boundary: refuse outright in preview.
   if (actor.previewing)
     return fail(403, 'PREVIEW_MODE_READ_ONLY', PREVIEW_READ_ONLY_MESSAGE);
@@ -48,8 +49,9 @@ export async function POST(request: Request) {
     actor,
     decision: parsed.data.decision,
     token: parsed.data.token,
-    registry: createToolRegistry(),
+    registry: await createRequestToolRegistry(),
     pendingActions: resolvePendingActions()
   });
+  if (result.ok) await recordDecision(actor, result);
   return Response.json(result, { status: result.ok ? 200 : 409 });
 }

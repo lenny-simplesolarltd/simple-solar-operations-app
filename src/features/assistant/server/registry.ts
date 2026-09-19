@@ -30,9 +30,11 @@ export type ToolDomain =
   | 'scaffolding'
   | 'installation'
   | 'commissioning'
+  | 'forms'
   | 'finance'
   | 'calendar'
-  | 'reporting';
+  | 'reporting'
+  | 'help';
 
 /** Who is asking. Resolved on the server from the session - never from the model or the browser. */
 export interface ToolActor {

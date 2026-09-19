@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import type { CommandRequest } from '@/lib/backend/types';
 import { useState } from 'react';
 import { CommandDialog } from './command-dialog';
+import { EvidenceField } from './evidence-field';
+import type { EvidenceContext } from './evidence-rules';
 import { NoteField, SelectField, TextField } from './fields';
 import { useCommand } from './use-command';
 
@@ -36,7 +38,8 @@ export function SimpleCommand({
   size = 'sm',
   disabled,
   disabledReason,
-  children
+  children,
+  evidence
 }: {
   label: string;
   icon?: React.ReactNode;
@@ -51,11 +54,23 @@ export function SimpleCommand({
   disabled?: boolean;
   disabledReason?: string;
   children?: React.ReactNode;
+  /**
+   * An optional file for the command (e.g. the supplier's written reply). Its
+   * registered storage path is sent as `payload[key]` (default evidence_id);
+   * the command accepts it only for its own job and only once stored.
+   */
+  evidence?: {
+    context: EvidenceContext;
+    category?: string;
+    label: string;
+    key?: string;
+  };
 }) {
   const initial = () =>
     Object.fromEntries(fields.map((f) => [f.key, f.initial ?? '']));
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>(initial);
+  const [evidencePath, setEvidencePath] = useState<string | null>(null);
   const { run, pending, outcome, reset } = useCommand();
   const set = (k: string) => (v: string) =>
     setValues((prev) => ({ ...prev, [k]: v }));
@@ -64,21 +79,30 @@ export function SimpleCommand({
     if (!next) {
       reset();
       setValues(initial());
+      setEvidencePath(null);
     }
   };
   const complete = fields.every((f) => !f.required || values[f.key]?.trim());
 
+  const withEvidence = (p: Record<string, unknown>) =>
+    evidence && evidencePath
+      ? { ...p, [evidence.key ?? 'evidence_id']: evidencePath }
+      : p;
   const toPayload = () =>
-    payload
-      ? payload(values)
-      : Object.fromEntries(
-          fields
-            .filter((f) => values[f.key]?.trim())
-            .map((f) => [
-              f.key,
-              f.kind === 'number' ? Number(values[f.key]) : values[f.key].trim()
-            ])
-        );
+    withEvidence(
+      payload
+        ? payload(values)
+        : Object.fromEntries(
+            fields
+              .filter((f) => values[f.key]?.trim())
+              .map((f) => [
+                f.key,
+                f.kind === 'number'
+                  ? Number(values[f.key])
+                  : values[f.key].trim()
+              ])
+          )
+    );
 
   return (
     <>
@@ -140,6 +164,14 @@ export function SimpleCommand({
               onChange={set(f.key)}
             />
           )
+        )}
+        {evidence && (
+          <EvidenceField
+            context={evidence.context}
+            category={evidence.category}
+            label={evidence.label}
+            onUploaded={setEvidencePath}
+          />
         )}
       </CommandDialog>
     </>

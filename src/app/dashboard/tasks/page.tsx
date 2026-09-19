@@ -10,6 +10,7 @@ import { TaskList } from '@/features/tasks/components/task-list';
 import {
   DUE_OPTIONS,
   QUEUE_LABELS,
+  QUEUE_TITLES,
   parseTaskFilters
 } from '@/features/tasks/filters';
 import { getStaffOptions, getTasks } from '@/features/tasks/server/queries';
@@ -35,22 +36,33 @@ export default async function TasksPage({
   // The same rule as app.can_read_team_tasks; the read re-checks it.
   const canViewTeam = permissions.has('task.read.all') || isOfficeManager(user);
   const team = filters.scope === 'team';
+  const everyone = filters.scope === 'all';
 
   const [result, staff] = await Promise.all([
     getTasks(filters),
-    team && canViewTeam ? getStaffOptions() : Promise.resolve([])
+    (team || everyone) && canViewTeam ? getStaffOptions() : Promise.resolve([])
   ]);
 
-  const title = team ? 'Team tasks' : 'My tasks';
-  const description = team
-    ? 'Open work owned by everyone else.'
-    : 'Work you own, or are the backup for. Open a task to complete it.';
+  const title = everyone
+    ? filters.queue
+      ? QUEUE_TITLES[filters.queue]
+      : 'Everyone’s tasks'
+    : team
+      ? 'Team tasks'
+      : 'My tasks';
+  const description = everyone
+    ? filters.queue
+      ? `${QUEUE_LABELS[filters.queue]} work across the whole team, including your own.`
+      : 'Work across the whole team, including your own. Pick a queue to focus on one kind of work.'
+    : team
+      ? 'Open work owned by everyone else.'
+      : 'Work you own, or are the backup for. Open a task to complete it.';
 
   const context = (
     <AssistantPageContext
       page={{
         kind: 'tasks',
-        lists: [filters.scope],
+        lists: filters.scope === 'all' ? ['my', 'team'] : [filters.scope],
         filters: {
           status: filters.status,
           ...(filters.due !== 'any' && filters.due !== 'dated'
@@ -89,7 +101,15 @@ export default async function TasksPage({
             Filters and task actions need a backend update that is not deployed
             to this database yet. Showing open tasks only.
           </p>
-          <TaskTable tasks={team && canViewTeam ? others : mine} />
+          <TaskTable
+            tasks={
+              everyone && canViewTeam
+                ? tasks
+                : team && canViewTeam
+                  ? others
+                  : mine
+            }
+          />
         </div>
       </PageContainer>
     );
@@ -115,7 +135,7 @@ export default async function TasksPage({
             </p>
             <TaskList
               tasks={result.data.tasks}
-              showOwner={team}
+              showOwner={team || everyone}
               showCompleted={filters.status === 'closed'}
               emptyTitle={
                 filters.status === 'closed'

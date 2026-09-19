@@ -26,6 +26,13 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
         ([, x]) => x !== undefined && x !== ''
       )
     );
+  // The scaffolder's written reply or a photo, attached to the job and passed
+  // as evidence_id (app.job_evidence: same job, file stored).
+  const evidence = (label: string) => ({
+    context: { type: 'Job' as const, id: booking.job_id },
+    category: 'Other',
+    label
+  });
   const s = booking.status;
   const erectedNotStruck = [
     'Erected',
@@ -47,6 +54,7 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
               fields={[
                 { key: 'response_text', label: 'What they said', kind: 'note' }
               ]}
+              evidence={evidence('Their confirmation (optional)')}
               payload={(v) => withId({ response_text: v.response_text })}
             />
           )}
@@ -104,6 +112,7 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
           fields={[
             { key: 'response_text', label: 'What they said', kind: 'note' }
           ]}
+          evidence={evidence('Their confirmation (optional)')}
           payload={(v) => withId({ response_text: v.response_text })}
         />
       )}
@@ -123,6 +132,7 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
             { key: 'actual_cost', label: 'Final cost (£)', kind: 'number' },
             { key: 'invoice_reference', label: 'Scaffolder invoice reference' }
           ]}
+          evidence={evidence('Photo or invoice (optional)')}
           payload={(v) =>
             withId({
               strip_actual_at: v.strip_actual_at,

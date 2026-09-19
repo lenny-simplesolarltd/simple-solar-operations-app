@@ -15,6 +15,15 @@ import {
 import { useState } from 'react';
 import type { WorkflowRead } from '../types';
 
+// The category a photo is registered under. The command that receives it
+// decides the category that is finally recorded.
+const IW_PHOTO_CATEGORY: Record<string, string> = {
+  IW_PROGRESS: 'Progress',
+  IW_REPORT_COMPLETION: 'Completion',
+  IW_REPORT_PROBLEM: 'Problem',
+  IW_REPORT_VARIATION: 'Variation'
+};
+
 /**
  * One installer-workflow command (IW_*) with an optional photo. The package
  * version guards it; office staff acting without an allocation must say why.
@@ -88,7 +97,12 @@ function IwAction({
       }
     >
       {photo && (
-        <EvidenceField jobId={wf.job_id} label={photo} onUploaded={setPath} />
+        <EvidenceField
+          context={{ type: 'WorkPackage', id: wf.work_package_id }}
+          category={IW_PHOTO_CATEGORY[command] ?? 'Progress'}
+          label={photo}
+          onUploaded={setPath}
+        />
       )}
     </SimpleCommand>
   );

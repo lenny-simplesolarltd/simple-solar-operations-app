@@ -9,12 +9,19 @@ import {
   MoneyTab,
   WorkTab
 } from '@/features/jobs/components/job-sections';
-import { JobTabNav, parseJobTab } from '@/features/jobs/components/job-tabs';
+import {
+  JOB_TABS,
+  JobTabNav,
+  OFFICE_ONLY_TABS,
+  parseJobTab
+} from '@/features/jobs/components/job-tabs';
+import { OperationsTab } from '@/features/jobs/components/operations/operations-tab';
 import {
   getJobDetail,
   OPEN_TASK_STATUSES
 } from '@/features/jobs/server/queries';
 import { stageLabel } from '@/features/jobs/stages';
+import { JobFiles } from '@/features/operations/job-files';
 import { TaskTable } from '@/features/jobs/task-table';
 import { Button } from '@/components/ui/button';
 import { getCurrentUser } from '@/lib/auth';
@@ -63,7 +70,12 @@ export default async function JobPage({
   if (!user) redirect('/auth/sign-in');
 
   const { jobId } = await params;
-  const tab = parseJobTab((await searchParams).tab);
+  // Surveyors, Finance and installers read the job, its tasks and its files;
+  // the work, operations, money and history reads are office-only.
+  const visibleTabs = JOB_TABS.map((t) => t.id).filter(
+    (t) => isOfficeClass(user) || !OFFICE_ONLY_TABS.includes(t)
+  );
+  const tab = parseJobTab((await searchParams).tab, visibleTabs);
   if (!UUID.test(jobId)) notFound();
   // RLS decides visibility: a job you may not see is simply not found.
   const detail = await getJobDetail(jobId);
@@ -126,11 +138,16 @@ export default async function JobPage({
           jobId={job.id}
           active={tab}
           counts={{ tasks: openTasks.length }}
+          visible={visibleTabs}
         />
 
         {tab === 'tasks' && <TaskTable tasks={tasks} showJob={false} />}
         {tab === 'work' && <WorkTab jobId={job.id} />}
+        {tab === 'operations' && <OperationsTab jobId={job.id} />}
         {tab === 'money' && <MoneyTab jobId={job.id} />}
+        {tab === 'files' && (
+          <JobFiles jobId={job.id} canUpload={isOfficeClass(user)} />
+        )}
         {tab === 'history' && <HistoryTab jobId={job.id} />}
 
         {tab === 'overview' && (

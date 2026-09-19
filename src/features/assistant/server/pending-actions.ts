@@ -27,11 +27,12 @@ import type { ActionPreview } from './registry';
  *                    command_id handed to the domain command, so the existing
  *                    `commands` idempotency is the durable guarantee
  *
- * The store is an interface because single-use state should live in the
- * database once mutations ship to a multi-instance deployment. That needs a
- * table this workstream must not create - see docs/assistant/BACKEND_DEPENDENCIES.md
- * (BD-07). Until then the in-memory store fails CLOSED: an action id this
- * process did not issue is rejected, never executed.
+ * The store is the source of truth (BD-07). The database store keeps each
+ * proposal in public.assistant_pending_actions with its validated arguments;
+ * confirming claims it atomically, as the proposer only, once, before expiry,
+ * and executes the STORED arguments - the signed token is only a reference
+ * whose hash must match. The in-memory store (development and tests) keeps the
+ * same contract within one process and fails CLOSED for ids it did not issue.
  */
 
 export const PENDING_ACTION_TTL_MS = 10 * 60 * 1000;
@@ -50,9 +51,20 @@ export interface PendingActionPayload {
   expiresAt: number;
 }
 
-export type ConsumeOutcome = 'ok' | 'already_used' | 'unknown';
-
 export type PendingActionDecision = 'confirm' | 'cancel';
+
+/** What the store hands back when a confirmation wins the claim. */
+export interface ClaimedAction {
+  tool: string;
+  args: unknown;
+  argsHash: string;
+  expectedVersion: number | null;
+  threadId: string;
+}
+
+export type ClaimResult =
+  | { outcome: 'ok'; action: ClaimedAction }
+  | { outcome: 'already_used' | 'expired' | 'unknown' };
 
 export interface PendingActionStore {
   /** 'memory' | 'database' - shown in development diagnostics. */
@@ -62,11 +74,17 @@ export interface PendingActionStore {
    * instance. Mutations may only be proposed in production through a durable store.
    */
   readonly durable: boolean;
-  register(action: PendingActionPayload): Promise<void>;
-  /** Atomically claims the action. Exactly one caller ever gets 'ok'. */
-  consume(id: string, decision: PendingActionDecision): Promise<ConsumeOutcome>;
+  /** Records a validated proposal, with what the staff member is shown. */
+  register(action: PendingActionPayload, preview: unknown): Promise<void>;
+  /**
+   * Atomically confirms or cancels. Exactly one caller ever gets 'ok', only
+   * the proposer, only before expiry; a won confirm returns the STORED action.
+   */
+  claim(id: string, decision: PendingActionDecision): Promise<ClaimResult>;
   /** Hands a claim back after a transport failure, so the (idempotent) command can be retried. */
   release(id: string): Promise<void>;
+  /** Records the terminal outcome of a claimed action. */
+  complete(id: string, succeeded: boolean, code?: string): Promise<void>;
 }
 
 export class MemoryPendingActionStore implements PendingActionStore {
@@ -74,32 +92,52 @@ export class MemoryPendingActionStore implements PendingActionStore {
   readonly durable = false;
   private readonly actions = new Map<
     string,
-    { expiresAt: number; used: boolean }
+    { payload: PendingActionPayload; used: boolean; done: boolean }
   >();
 
-  async register({ id, expiresAt }: PendingActionPayload) {
+  async register(payload: PendingActionPayload) {
     this.sweep();
-    this.actions.set(id, { expiresAt, used: false });
+    this.actions.set(payload.id, {
+      payload: structuredClone(payload),
+      used: false,
+      done: false
+    });
   }
 
-  async consume(id: string): Promise<ConsumeOutcome> {
+  async claim(id: string): Promise<ClaimResult> {
     const entry = this.actions.get(id);
-    if (!entry) return 'unknown';
-    if (entry.used) return 'already_used';
+    if (!entry) return { outcome: 'unknown' };
+    if (entry.used) return { outcome: 'already_used' };
+    if (entry.payload.expiresAt <= Date.now()) return { outcome: 'expired' };
     entry.used = true;
-    return 'ok';
+    const { tool, args, argsHash, expectedVersion, threadId } = entry.payload;
+    return {
+      outcome: 'ok',
+      action: {
+        tool,
+        args: structuredClone(args),
+        argsHash,
+        expectedVersion,
+        threadId
+      }
+    };
   }
 
   async release(id: string) {
     const entry = this.actions.get(id);
-    if (entry) entry.used = false;
+    if (entry && !entry.done) entry.used = false;
+  }
+
+  async complete(id: string) {
+    const entry = this.actions.get(id);
+    if (entry) entry.done = true;
   }
 
   private sweep() {
     const now = Date.now();
     // Keep used entries until expiry so a replay is reported as a replay.
     this.actions.forEach((entry, id) => {
-      if (entry.expiresAt < now) this.actions.delete(id);
+      if (entry.payload.expiresAt < now) this.actions.delete(id);
     });
   }
 }
@@ -214,7 +252,7 @@ export async function issuePendingAction(
     issuedAt: now,
     expiresAt: now + PENDING_ACTION_TTL_MS
   };
-  await service.store.register(payload);
+  await service.store.register(payload, view);
   return {
     ...view,
     token: service.signer.sign(payload),

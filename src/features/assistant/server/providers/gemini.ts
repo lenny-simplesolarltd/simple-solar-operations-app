@@ -180,7 +180,7 @@ function errorFromResponse(
   if (badKey) {
     return new AssistantProviderError(
       'AUTH',
-      'The assistant’s model credentials were rejected. Ask an administrator to check the configuration.',
+      'SimpleBot’s model credentials were rejected. Ask an administrator to check the configuration.',
       false,
       { cause }
     );
@@ -188,7 +188,7 @@ function errorFromResponse(
   if (status === 429) {
     return new AssistantProviderError(
       'RATE_LIMITED',
-      'The assistant has reached its usage limit for the moment. Try again shortly.',
+      'SimpleBot has reached its usage limit for the moment. Try again shortly.',
       true,
       { cause }
     );
@@ -196,7 +196,7 @@ function errorFromResponse(
   if (status === 404) {
     return new AssistantProviderError(
       'BAD_REQUEST',
-      'The configured assistant model was not found. Ask an administrator to check ASSISTANT_MODEL.',
+      'SimpleBot’s configured model was not found. Ask an administrator to check GEMINI_MODEL.',
       false,
       { cause }
     );
@@ -204,14 +204,14 @@ function errorFromResponse(
   if (status >= 500) {
     return new AssistantProviderError(
       'OVERLOADED',
-      'The assistant’s language model is temporarily unavailable. Try again shortly.',
+      'SimpleBot’s language model is temporarily unavailable. Try again shortly.',
       true,
       { cause }
     );
   }
   return new AssistantProviderError(
     'BAD_REQUEST',
-    'The assistant could not process that conversation. Start a new conversation and try again.',
+    'SimpleBot could not process that conversation. Start a new conversation and try again.',
     false,
     { cause }
   );
@@ -326,7 +326,7 @@ export class GeminiProvider implements AssistantModelProvider {
         }
         throw new AssistantProviderError(
           'NETWORK',
-          'The assistant could not reach its language model. Check the connection and try again.',
+          'SimpleBot could not reach its language model. Check the connection and try again.',
           true,
           { cause: error }
         );
@@ -375,7 +375,7 @@ export class GeminiProvider implements AssistantModelProvider {
       }
       throw new AssistantProviderError(
         'NETWORK',
-        'The reply from the assistant’s language model was interrupted. Try again.',
+        'The reply from SimpleBot’s language model was interrupted. Try again.',
         true,
         { cause: error }
       );
@@ -385,7 +385,7 @@ export class GeminiProvider implements AssistantModelProvider {
     if (finishReason === 'MALFORMED_FUNCTION_CALL' && !text) {
       throw new AssistantProviderError(
         'UNKNOWN',
-        'The assistant produced a reply it could not use. Try again.',
+        'SimpleBot produced a reply it could not use. Try again.',
         true
       );
     }

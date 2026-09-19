@@ -4,57 +4,88 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
-import { IconCheck, IconLoader2, IconUpload } from '@tabler/icons-react';
-import { useId, useState } from 'react';
-import { createEvidenceUpload } from './evidence-upload';
-
-const MAX_BYTES = 25 * 1024 * 1024;
+import { IconCheck, IconLoader2, IconRefresh } from '@tabler/icons-react';
+import { useId, useRef, useState } from 'react';
+import {
+  EVIDENCE_ACCEPT,
+  evidenceFileProblem,
+  evidenceMimeType,
+  type EvidenceContext
+} from './evidence-rules';
+import { beginEvidenceUpload, completeEvidenceUpload } from './evidence-upload';
 
 /**
- * Uploads one evidence file for a job to Storage and reports its path. The
- * path is only a candidate: the command that receives it checks the object
- * exists and belongs to the job before recording anything.
+ * Uploads one evidence file for a task, work package or delivery and reports
+ * its registered storage path. The server decides the job, category and path;
+ * the command that receives the path accepts it only for its own job and only
+ * once the file is really stored.
+ *
+ * Each chosen file gets one upload id, kept across "Try again", so a retry
+ * resumes the same registration instead of creating a second evidence record.
  */
 export function EvidenceField({
-  jobId,
+  context,
+  category,
   label,
   required,
   onUploaded
 }: {
-  jobId: string;
+  context: EvidenceContext;
+  category?: string;
   label: string;
   required?: boolean;
   onUploaded: (path: string | null) => void;
 }) {
   const id = useId();
+  const attempt = useRef<{ file: File; uploadId: string } | null>(null);
   const [state, setState] = useState<
     | { kind: 'idle' }
     | { kind: 'uploading' }
     | { kind: 'done'; name: string }
-    | { kind: 'error'; message: string }
+    | { kind: 'error'; message: string; retry: boolean }
   >({ kind: 'idle' });
 
-  async function upload(file: File) {
-    if (file.size > MAX_BYTES) {
-      setState({ kind: 'error', message: 'Files must be 25 MB or smaller.' });
+  async function upload(file: File, uploadId: string) {
+    const problem = evidenceFileProblem(file);
+    if (problem) {
+      attempt.current = null;
+      onUploaded(null);
+      setState({ kind: 'error', message: problem, retry: false });
       return;
     }
+    attempt.current = { file, uploadId };
     setState({ kind: 'uploading' });
     onUploaded(null);
-    const ticket = await createEvidenceUpload(jobId, file.name);
+
+    const ticket = await beginEvidenceUpload({
+      uploadId,
+      context,
+      category,
+      file: { name: file.name, type: file.type, size: file.size }
+    });
     if (!ticket.ok) {
-      setState({ kind: 'error', message: ticket.message });
+      setState({ kind: 'error', message: ticket.message, retry: true });
       return;
     }
-    const { error } = await createClient()
-      .storage.from('evidence')
-      .uploadToSignedUrl(ticket.path, ticket.token, file, {
-        contentType: file.type || undefined
-      });
-    if (error) {
-      setState({ kind: 'error', message: 'The upload failed. Try again.' });
-      return;
+    if (ticket.token) {
+      const { error } = await createClient()
+        .storage.from('evidence')
+        .uploadToSignedUrl(ticket.path, ticket.token, file, {
+          contentType: evidenceMimeType(file) ?? undefined
+        });
+      // An error here is not final: the bytes may have arrived although the
+      // answer was lost. The server check below is what decides.
+      const done = await completeEvidenceUpload(ticket.evidenceId);
+      if (!done.ok) {
+        setState({
+          kind: 'error',
+          message: error ? 'The upload failed. Try again.' : done.message,
+          retry: true
+        });
+        return;
+      }
     }
+    attempt.current = null;
     setState({ kind: 'done', name: file.name });
     onUploaded(ticket.path);
   }
@@ -69,11 +100,11 @@ export function EvidenceField({
         <Input
           id={id}
           type='file'
-          accept='image/*,application/pdf'
+          accept={EVIDENCE_ACCEPT}
           disabled={state.kind === 'uploading'}
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) void upload(file);
+            if (file) void upload(file, crypto.randomUUID());
           }}
         />
         {state.kind === 'uploading' && (
@@ -87,19 +118,25 @@ export function EvidenceField({
         <p className='text-muted-foreground text-xs'>Uploaded {state.name}</p>
       )}
       {state.kind === 'error' && (
-        <p className='text-destructive flex items-center gap-2 text-xs'>
+        <p
+          role='alert'
+          className='text-destructive flex flex-wrap items-center gap-2 text-xs'
+        >
           {state.message}
-          <Button
-            type='button'
-            size='sm'
-            variant='ghost'
-            className='h-6 px-2'
-            asChild
-          >
-            <label htmlFor={id}>
-              <IconUpload className='size-3' /> Choose again
-            </label>
-          </Button>
+          {state.retry && (
+            <Button
+              type='button'
+              size='sm'
+              variant='ghost'
+              className='h-6 px-2'
+              onClick={() => {
+                const a = attempt.current;
+                if (a) void upload(a.file, a.uploadId);
+              }}
+            >
+              <IconRefresh className='size-3' /> Try again
+            </Button>
+          )}
         </p>
       )}
     </div>

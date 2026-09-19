@@ -52,17 +52,48 @@ beforeEach(() => {
 });
 
 describe('the production registry', () => {
-  it('exposes only read tools as available: the backend has no assistant-safe mutation yet', () => {
+  it('exposes read tools, and mutations only for Forms (each a confirmed proposal)', () => {
     const available = registry.all().filter((t) => t.status === 'available');
-    expect(available.map((t) => t.name).sort()).toEqual([
+    expect(
+      available
+        .filter((t) => t.kind === 'read')
+        .map((t) => t.name)
+        .sort()
+    ).toEqual([
       'find_job',
+      'get_form',
+      'get_form_response',
+      'get_help_article',
+      'get_help_for_route',
       'get_job',
       'get_job_tasks',
       'get_my_tasks',
       'get_presale_workflow',
-      'get_team_tasks'
+      'get_related_help',
+      'get_team_tasks',
+      'list_form_responses',
+      'list_forms',
+      'list_job_files',
+      'search_files',
+      'search_help_articles'
     ]);
-    expect(available.every((t) => t.kind === 'read')).toBe(true);
+    const mutations = available.filter((t) => t.kind === 'mutation');
+    expect(mutations.map((t) => t.name).sort()).toEqual([
+      'create_form',
+      'create_form_link',
+      'edit_form_draft',
+      'publish_form',
+      'revoke_form_link',
+      'save_form_as_template',
+      'set_form_status'
+    ]);
+    // Every mutation is a Forms adapter that requires a forms.* permission.
+    for (const tool of mutations) {
+      expect(tool.domain).toBe('forms');
+      expect(
+        tool.authorization.permissions.some((p) => p.startsWith('forms.'))
+      ).toBe(true);
+    }
   });
 
   it('keeps every quote, document and task-mutation capability planned and non-executable', () => {

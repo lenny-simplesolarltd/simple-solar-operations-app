@@ -18,6 +18,9 @@ export type NavAccess =
   | 'any'
   | 'office'
   | 'officeManager'
+  | 'systemHealth'
+  | 'releaseControl'
+  | 'files'
   | 'teamTasks'
   | 'jobs'
   | 'jobSales'
@@ -28,7 +31,8 @@ export type NavAccess =
   | 'stock'
   | 'installer'
   | 'commissioning'
-  | 'resourcing';
+  | 'resourcing'
+  | 'forms';
 
 export interface NavEntry {
   title: string;

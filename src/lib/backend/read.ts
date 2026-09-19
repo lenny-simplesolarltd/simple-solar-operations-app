@@ -35,10 +35,16 @@ async function call<T>(
   const { data, error } = await supabase.rpc(fn, { p_request: request });
   if (error) {
     // The read function (or a read it dispatches to) is not deployed on this
-    // database yet: say so instead of pretending the list is empty.
+    // database yet: say so instead of pretending the list is empty. 42883 is
+    // also raised for any unresolved operator or function inside a deployed
+    // read (a real bug), so it counts only when the missing function is a
+    // read entry point.
     if (
       error.code === 'PGRST202' ||
-      error.code === '42883' ||
+      (error.code === '42883' &&
+        /function (public\.execute_|app\.read_)\w*\(.*\) does not exist/.test(
+          error.message
+        )) ||
       /R1A_UNKNOWN_READ/.test(error.message)
     ) {
       return {

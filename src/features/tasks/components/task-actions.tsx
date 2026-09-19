@@ -11,14 +11,20 @@ import {
   localDateTimeToIso
 } from '@/features/operations/fields';
 import { useCommand } from '@/features/operations/use-command';
-import type { TaskDetailRead } from '@/lib/backend/models';
+import type {
+  TaskDetailRead,
+  TaskReassignCandidates
+} from '@/lib/backend/models';
 import type { CommandFlag } from '@/lib/backend/types';
 import {
+  IconArrowRight,
   IconCheck,
   IconPaperclip,
   IconPhoneCall,
-  IconRotate
+  IconRotate,
+  IconUserEdit
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 // Staff wording for the availability reasons returned by the read model.
@@ -40,18 +46,30 @@ export const reasonText = (flag: CommandFlag | undefined) =>
 
 type Detail = TaskDetailRead;
 
+/**
+ * S15 cancellation work (and the reopen review) is resolved on the job's
+ * Operations tab; TASK_COMPLETE always refuses it.
+ */
+export const isCancellationTask = (task: Detail['task']) =>
+  task.group === 'Cancellation' ||
+  (task.template_code ?? '').startsWith('S15-');
+
 export function TaskActions({
   detail,
-  isAdmin
+  isAdmin,
+  reassign
 }: {
   detail: Detail;
   isAdmin: boolean;
+  /** TASK_REASSIGN_CANDIDATES, when the person may read it. */
+  reassign?: TaskReassignCandidates | null;
 }) {
   const { task, availability } = detail;
   const flags = availability.commands;
   const isCall =
     task.template_code === 'INS01' || task.template_code === 'INS04';
   const open = ['Open', 'Waiting', 'InProgress'].includes(task.status);
+  const cancellation = isCancellationTask(task);
   // Calls are completed by recording the call (CALL_RECORD), not TASK_COMPLETE.
   // Mirrors the CALL_RECORD authorization (assigned to the job; owner, backup
   // or admin); the command re-checks it.
@@ -63,7 +81,20 @@ export function TaskActions({
     (task.is_mine || isAdmin);
 
   const buttons: React.ReactNode[] = [];
-  if (isCall && open) {
+  // CANCELLATION_RESOLVE also takes Blocked cancellation tasks (the Xero /
+  // GHL reviews are raised Blocked), so they need the way there too.
+  if (cancellation && (open || task.status === 'Blocked')) {
+    if (detail.job) {
+      buttons.push(
+        <Button key='operations' asChild>
+          <Link href={`/dashboard/jobs/${detail.job.id}?tab=operations`}>
+            Resolve on the job’s Operations tab
+            <IconArrowRight />
+          </Link>
+        </Button>
+      );
+    }
+  } else if (isCall && open) {
     buttons.push(
       <RecordCall key='call' detail={detail} disabled={!callAllowed} />
     );
@@ -83,6 +114,11 @@ export function TaskActions({
       <ReopenTask key='reopen' detail={detail} flag={flags.task_reopen} />
     );
   }
+  if (open && reassign?.available.available && reassign.people.length > 0) {
+    buttons.push(
+      <ReassignTask key='reassign' detail={detail} candidates={reassign} />
+    );
+  }
 
   const blocked = [flags.task_complete, flags.task_reopen].find(
     (f) => !f.available && f.reason
@@ -97,7 +133,7 @@ export function TaskActions({
             : REASON.NOT_ASSIGNED}
         </p>
       )}
-      {!isCall && blocked && buttons.length > 0 && (
+      {!isCall && !cancellation && blocked && buttons.length > 0 && (
         <p className='text-muted-foreground text-xs'>{reasonText(blocked)}</p>
       )}
     </div>
@@ -281,7 +317,7 @@ function CompleteTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
             />
             {f.signed === 'signed' && job && (
               <EvidenceField
-                jobId={job.id}
+                context={{ type: 'Task', id: task.id }}
                 label={
                   task.evidence_id
                     ? 'Signed contract (already attached)'
@@ -351,7 +387,7 @@ function CompleteTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
             )}
             {job && (
               <EvidenceField
-                jobId={job.id}
+                context={{ type: 'Task', id: task.id }}
                 label='Supporting document (optional)'
                 onUploaded={setEvidencePath}
               />
@@ -360,7 +396,7 @@ function CompleteTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
         )}
         {!['PRE01', 'PRE02', 'PRE03', 'PRE04'].includes(code) && job && (
           <EvidenceField
-            jobId={job.id}
+            context={{ type: 'Task', id: task.id }}
             label={
               code === 'PRE05'
                 ? 'Finance agreement (optional)'
@@ -451,6 +487,96 @@ function ReopenTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
 }
 
 // -----------------------------------------------------------------------------
+// TASK_REASSIGN
+// -----------------------------------------------------------------------------
+
+function ReassignTask({
+  detail,
+  candidates
+}: {
+  detail: Detail;
+  candidates: TaskReassignCandidates;
+}) {
+  const { task, job } = detail;
+  const [openDialog, setOpenDialog] = useState(false);
+  const [owner, setOwner] = useState('');
+  // The backup is kept unless changed: the command replaces both.
+  const [backup, setBackup] = useState(candidates.backup_id ?? '');
+  const [reason, setReason] = useState('');
+  const { run, pending, outcome, reset } = useCommand();
+  const close = (next: boolean) => {
+    setOpenDialog(next);
+    if (!next) {
+      reset();
+      setOwner('');
+      setBackup(candidates.backup_id ?? '');
+      setReason('');
+    }
+  };
+  const NONE = '__none__';
+  const people = candidates.people.map((p) => ({ value: p.id, label: p.name }));
+  return (
+    <>
+      <ActionButton
+        variant='outline'
+        icon={<IconUserEdit />}
+        label='Reassign'
+        onClick={() => setOpenDialog(true)}
+      />
+      <CommandDialog
+        open={openDialog}
+        onOpenChange={close}
+        title={`Reassign: ${task.title}`}
+        description={`Owner now: ${task.owner_name ?? 'nobody'}${task.backup_name ? `, backup ${task.backup_name}` : ''}. Only people whose role can do this task are listed.`}
+        submitLabel='Reassign task'
+        pending={pending}
+        outcome={outcome}
+        canSubmit={!!owner && reason.trim().length >= 3}
+        onSubmit={() =>
+          run(
+            {
+              command_type: 'TASK_REASSIGN',
+              task_id: task.id,
+              ...(job ? { job_id: job.id } : {}),
+              expected_version: task.version,
+              payload: {
+                owner_id: owner,
+                ...(backup && backup !== owner ? { backup_id: backup } : {}),
+                reason: reason.trim()
+              }
+            },
+            (r) => r.ok && close(false)
+          )
+        }
+      >
+        <SelectField
+          label='New owner'
+          required
+          value={owner}
+          onChange={setOwner}
+          options={people.filter((p) => p.value !== task.owner_id)}
+        />
+        <SelectField
+          label='Backup (optional)'
+          value={backup && backup !== owner ? backup : NONE}
+          onChange={(v) => setBackup(v === NONE ? '' : v)}
+          options={[
+            { value: NONE, label: 'No backup' },
+            ...people.filter((p) => p.value !== owner)
+          ]}
+        />
+        <NoteField
+          label='Reason'
+          required
+          value={reason}
+          onChange={setReason}
+        />
+      </CommandDialog>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
 // TASK_EVIDENCE_ATTACH (PRE02)
 // -----------------------------------------------------------------------------
 
@@ -501,7 +627,7 @@ function AttachEvidence({ detail }: { detail: Detail }) {
         }
       >
         <EvidenceField
-          jobId={job.id}
+          context={{ type: 'Task', id: task.id }}
           label='Signed contract'
           required
           onUploaded={setPath}

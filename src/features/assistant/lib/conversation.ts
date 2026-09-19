@@ -3,6 +3,7 @@
 import type {
   AssistantErrorInfo,
   AssistantStreamEvent,
+  ContextState,
   DisplayCard,
   PendingActionView,
   TranscriptMessage
@@ -38,6 +39,8 @@ export type ConversationItem =
       display?: DisplayCard;
     }
   | { id: string; kind: 'error'; error: AssistantErrorInfo; retryText: string }
+  /** A decision recorded in the app (e.g. a proposal confirmed or cancelled). */
+  | { id: string; kind: 'note'; text: string }
   | { id: string; kind: 'stopped' };
 
 export interface ConversationState {
@@ -51,12 +54,23 @@ export interface ConversationState {
   status: 'idle' | 'working';
   /** The message being answered, kept for Retry. */
   pendingText: string | null;
+  /** The turn being answered. Kept after a failure so Retry re-uses it and a turn is never stored twice. */
+  pendingRunId: string | null;
   /** Development diagnostics: the concrete model that answered the last turn. */
   servedBy?: string;
+  /** Stored conversations: 'new' has nothing stored yet; 'loading'/'error' while opening one. */
+  load: 'new' | 'loading' | 'ready' | 'error';
+  title: string | null;
+  /** Background carried in from an earlier conversation. */
+  summary: string | null;
+  sourceConversationId: string | null;
+  contextState: ContextState | null;
+  /** The staff member chose "Keep going" on the long-conversation prompt. */
+  longDismissed: boolean;
 }
 
 export type ConversationAction =
-  | { type: 'send'; id: string; text: string }
+  | { type: 'send'; id: string; text: string; runId: string }
   /** Re-runs the message behind an error row, replacing that row instead of repeating the staff message. */
   | { type: 'retry'; errorId: string; text: string }
   | { type: 'event'; id: string; event: AssistantStreamEvent }
@@ -78,7 +92,14 @@ export const initialConversation = (threadId: string): ConversationState => ({
   items: [],
   transcript: [],
   status: 'idle',
-  pendingText: null
+  pendingText: null,
+  pendingRunId: null,
+  load: 'new',
+  title: null,
+  summary: null,
+  sourceConversationId: null,
+  contextState: null,
+  longDismissed: false
 });
 
 /** Keeps the browser-held transcript inside what the server accepts, cutting at a staff message so tool calls stay paired with their results. */
@@ -122,6 +143,7 @@ export function conversationReducer(
         ...state,
         status: 'working',
         pendingText: action.text,
+        pendingRunId: action.runId,
         items: [
           ...state.items,
           { id: action.id, kind: 'user', text: action.text }
@@ -156,6 +178,7 @@ export function conversationReducer(
         ...state,
         status: 'idle',
         pendingText: null,
+        pendingRunId: null,
         items: [...settle(state.items), { id: action.id, kind: 'stopped' }]
       };
 
@@ -265,9 +288,15 @@ function applyEvent(
         ...state,
         status: 'idle',
         pendingText: null,
+        pendingRunId: null,
         items: settle(items),
         servedBy: event.servedBy ?? state.servedBy,
-        transcript: trimTranscript([...state.transcript, ...event.transcript])
+        transcript: trimTranscript([...state.transcript, ...event.transcript]),
+        ...(event.conversation && {
+          load: 'ready' as const,
+          title: event.conversation.title ?? state.title,
+          contextState: event.conversation.contextState
+        })
       };
 
     case 'error': {

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { getSessionState } from '@/lib/auth';
+import { isGoogleSignInEnabled } from '@/lib/auth-providers';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { signOut } from '../actions';
@@ -12,7 +13,11 @@ export const metadata: Metadata = {
 
 const NOTICES: Record<string, string> = {
   'link-expired':
-    'That link has expired or was already used. Sign in, or reset your password.'
+    'That link has expired or was already used. Sign in, or reset your password.',
+  'google-failed': 'Google sign-in did not complete. Try again.',
+  'google-unavailable': 'Google sign-in is not available right now.',
+  'google-no-access':
+    'That Google account is not linked to an active member of staff. Use your work Google account, or sign in with your email and password.'
 };
 
 export default async function SignInPage({
@@ -23,6 +28,7 @@ export default async function SignInPage({
   const { notice } = await searchParams;
   const session = await getSessionState();
   if (session.status === 'signed-in') redirect('/dashboard');
+  const googleEnabled = await isGoogleSignInEnabled();
 
   return (
     <AuthShell
@@ -55,7 +61,7 @@ export default async function SignInPage({
               {NOTICES[notice]}
             </p>
           )}
-          <SignInForm />
+          <SignInForm googleEnabled={googleEnabled} />
         </div>
       )}
     </AuthShell>

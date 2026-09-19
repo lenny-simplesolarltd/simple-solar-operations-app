@@ -173,7 +173,8 @@ export function CommissioningForm({
               })}
           </div>
           <EvidenceField
-            jobId={wf.job_id}
+            context={{ type: 'WorkPackage', id: wf.work_package_id }}
+            category='Commissioning'
             label='Commissioning photo'
             onUploaded={setPhoto}
           />

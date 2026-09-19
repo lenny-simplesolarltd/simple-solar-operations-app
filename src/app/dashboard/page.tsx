@@ -1,6 +1,7 @@
 import { EmptyState } from '@/components/empty-state';
 import { canSee } from '@/components/layout/nav-visibility';
 import PageContainer from '@/components/layout/page-container';
+import { ReadFailureState } from '@/components/read-failure';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -137,7 +138,14 @@ export default async function DashboardPage() {
         <AssistantPageContext page={{ kind: 'dashboard' }} />
         <div className='flex w-full flex-col gap-6'>
           {header}
-          <LegacyHome user={user} />
+          {/* The legacy home only stands in where the dashboard read is not
+              deployed yet (a database behind the migrations); any other
+              failure is shown as it is. */}
+          {dashboard.error.code === 'READ_NOT_DEPLOYED' ? (
+            <LegacyHome user={user} />
+          ) : (
+            <ReadFailureState failure={dashboard.error} />
+          )}
         </div>
       </PageContainer>
     );
@@ -176,8 +184,21 @@ export default async function DashboardPage() {
         : undefined,
       tone: 'warning'
     },
-    { label: 'Open issues', value: ops.open_issues },
-    { label: 'Blocking issues', value: ops.blocking_issues, tone: 'danger' },
+    {
+      label: 'Open issues',
+      value: ops.open_issues,
+      href: canSee('office', user, permissions)
+        ? '/dashboard/issues'
+        : undefined
+    },
+    {
+      label: 'Blocking issues',
+      value: ops.blocking_issues,
+      href: canSee('office', user, permissions)
+        ? '/dashboard/issues'
+        : undefined,
+      tone: 'danger'
+    },
     {
       label: 'Draft orders',
       value: ops.draft_orders,

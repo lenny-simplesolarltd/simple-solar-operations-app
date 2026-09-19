@@ -118,7 +118,7 @@ export function ReceiveForm({ data }: { data: GoodsInDetailRead }) {
           onChange={setNote}
         />
         <EvidenceField
-          jobId={data.job_id}
+          context={{ type: 'Delivery', id: data.delivery_id }}
           label='Photo of the delivery note'
           onUploaded={setNotePath}
         />

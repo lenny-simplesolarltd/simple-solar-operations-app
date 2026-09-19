@@ -33,7 +33,7 @@ export default async function IntakeReviewPage() {
       <div className='flex w-full flex-col gap-4'>
         <Heading
           title='Intake review'
-          description='Bookings that did not match the sale. Nothing here was applied to the customer record. Correct the booking with the booking form; marking an item as resolved is not available yet (the backend has no resolve command).'
+          description='Bookings that did not match the sale. Nothing here was applied to the customer record. To deal with an item, correct the booking with the booking form: the corrected booking is what counts. Items are not ticked off here (the old system had no resolve step either).'
         />
         {!result.ok ? (
           <ReadFailureState failure={result.error} />
