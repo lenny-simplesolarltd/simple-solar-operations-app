@@ -3,10 +3,8 @@ import { ReadFailureState } from '@/components/read-failure';
 import { Heading } from '@/components/ui/heading';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { BookingBoard } from '@/features/booking/components/booking-board';
-import {
-  BOOKING_TABS,
-  BookingTabs
-} from '@/features/booking/components/booking-tabs';
+import { BookingTabs } from '@/features/booking/components/booking-tabs';
+import { bookingTabLabel } from '@/features/booking/tabs';
 import { getPermissions } from '@/features/presale/server/queries';
 import { TaskList } from '@/features/tasks/components/task-list';
 import { getCurrentUser } from '@/lib/auth';
@@ -80,7 +78,7 @@ export default async function BookingPage({
         page={{
           kind: 'operations',
           surface: 'booking',
-          view: BOOKING_TABS.find((t) => t.value === view)?.label
+          view: bookingTabLabel(view)
         }}
       />
       <div className='flex w-full flex-col gap-4'>

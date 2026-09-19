@@ -3,6 +3,7 @@ import type { ReadFailure } from '@/lib/backend/types';
 
 const TITLES: Record<ReadFailure['kind'], string> = {
   forbidden: 'No access',
+  not_enabled: 'Not switched on yet',
   not_found: 'Not found',
   invalid: 'Filters not valid',
   error: 'Could not load',

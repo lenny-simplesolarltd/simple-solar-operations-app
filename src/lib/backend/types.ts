@@ -23,6 +23,8 @@ export type CommandResponse<T = Record<string, unknown>> =
 /** Why a read failed, so screens can show the right state. */
 export type ReadFailureKind =
   | 'forbidden'
+  /** The backend's release gate has this function switched off for everyone. Not a permissions problem. */
+  | 'not_enabled'
   | 'not_found'
   | 'invalid'
   | 'error'

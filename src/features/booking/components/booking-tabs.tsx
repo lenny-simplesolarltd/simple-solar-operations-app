@@ -6,14 +6,7 @@ import {
 } from '@/features/operations/filter-controls';
 import { useUrlFilters } from '@/features/operations/use-url-filters';
 import { IconLoader2 } from '@tabler/icons-react';
-
-export const BOOKING_TABS = [
-  { value: 'queue', label: 'Booking tasks' },
-  { value: 'prebooking', label: 'Prebooking' },
-  { value: 'ready', label: 'Ready to book' },
-  { value: 'in_progress', label: 'In progress' },
-  { value: 'upcoming', label: 'Upcoming' }
-] as const;
+import { BOOKING_TABS } from '../tabs';
 
 export function BookingTabs({
   counts
