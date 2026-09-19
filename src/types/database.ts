@@ -530,7 +530,7 @@ export type Database = {
           outcome: string;
           person_id: string | null;
           strip_authorised: boolean | null;
-          task_id: string;
+          task_id: string | null;
           type: string;
           work_package_id: string | null;
         };
@@ -548,7 +548,7 @@ export type Database = {
           outcome: string;
           person_id?: string | null;
           strip_authorised?: boolean | null;
-          task_id: string;
+          task_id?: string | null;
           type: string;
           work_package_id?: string | null;
         };
@@ -566,7 +566,7 @@ export type Database = {
           outcome?: string;
           person_id?: string | null;
           strip_authorised?: boolean | null;
-          task_id?: string;
+          task_id?: string | null;
           type?: string;
           work_package_id?: string | null;
         };
@@ -775,15 +775,17 @@ export type Database = {
       };
       commissioning_submissions: {
         Row: {
-          allocation_id: string;
+          allocation_id: string | null;
           created_at: string;
           created_by: string | null;
           id: string;
-          installer_id: string;
+          installer_id: string | null;
           job_id: string;
+          office_reference: string | null;
           review_notes: string | null;
           reviewed_at: string | null;
           reviewed_by: string | null;
+          source_system: string;
           status: string;
           submitted_at: string | null;
           supersedes_submission_id: string | null;
@@ -794,15 +796,17 @@ export type Database = {
           work_package_id: string;
         };
         Insert: {
-          allocation_id: string;
+          allocation_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
-          installer_id: string;
+          installer_id?: string | null;
           job_id: string;
+          office_reference?: string | null;
           review_notes?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
+          source_system?: string;
           status?: string;
           submitted_at?: string | null;
           supersedes_submission_id?: string | null;
@@ -813,15 +817,17 @@ export type Database = {
           work_package_id: string;
         };
         Update: {
-          allocation_id?: string;
+          allocation_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
-          installer_id?: string;
+          installer_id?: string | null;
           job_id?: string;
+          office_reference?: string | null;
           review_notes?: string | null;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
+          source_system?: string;
           status?: string;
           submitted_at?: string | null;
           supersedes_submission_id?: string | null;
@@ -1331,7 +1337,7 @@ export type Database = {
           job_id: string;
           previous_value: string | null;
           reason: string | null;
-          resolution: string;
+          resolution: string | null;
           resolved_at: string | null;
           resolved_by: string | null;
           resolved_value: string | null;
@@ -1345,7 +1351,7 @@ export type Database = {
           job_id: string;
           previous_value?: string | null;
           reason?: string | null;
-          resolution: string;
+          resolution?: string | null;
           resolved_at?: string | null;
           resolved_by?: string | null;
           resolved_value?: string | null;
@@ -1359,7 +1365,7 @@ export type Database = {
           job_id?: string;
           previous_value?: string | null;
           reason?: string | null;
-          resolution?: string;
+          resolution?: string | null;
           resolved_at?: string | null;
           resolved_by?: string | null;
           resolved_value?: string | null;
@@ -1507,10 +1513,15 @@ export type Database = {
       };
       evidence: {
         Row: {
+          attached_at: string | null;
+          attached_by: string | null;
           captured_at: string | null;
           captured_by: string | null;
           category: string;
           checksum: string | null;
+          client_upload_id: string | null;
+          context_id: string | null;
+          context_type: string | null;
           created_at: string;
           customer_shareable: boolean;
           filename: string;
@@ -1518,17 +1529,28 @@ export type Database = {
           issue_id: string | null;
           job_id: string;
           mime_type: string | null;
+          original_filename: string | null;
           received_at: string | null;
+          registered_at: string | null;
+          size_bytes: number | null;
           storage_path: string;
           submission_id: string | null;
+          task_id: string | null;
           upload_status: string;
+          uploaded_by: string | null;
           version: number;
+          work_package_id: string | null;
         };
         Insert: {
+          attached_at?: string | null;
+          attached_by?: string | null;
           captured_at?: string | null;
           captured_by?: string | null;
           category: string;
           checksum?: string | null;
+          client_upload_id?: string | null;
+          context_id?: string | null;
+          context_type?: string | null;
           created_at?: string;
           customer_shareable?: boolean;
           filename: string;
@@ -1536,17 +1558,28 @@ export type Database = {
           issue_id?: string | null;
           job_id: string;
           mime_type?: string | null;
+          original_filename?: string | null;
           received_at?: string | null;
+          registered_at?: string | null;
+          size_bytes?: number | null;
           storage_path: string;
           submission_id?: string | null;
+          task_id?: string | null;
           upload_status: string;
+          uploaded_by?: string | null;
           version?: number;
+          work_package_id?: string | null;
         };
         Update: {
+          attached_at?: string | null;
+          attached_by?: string | null;
           captured_at?: string | null;
           captured_by?: string | null;
           category?: string;
           checksum?: string | null;
+          client_upload_id?: string | null;
+          context_id?: string | null;
+          context_type?: string | null;
           created_at?: string;
           customer_shareable?: boolean;
           filename?: string;
@@ -1554,13 +1587,26 @@ export type Database = {
           issue_id?: string | null;
           job_id?: string;
           mime_type?: string | null;
+          original_filename?: string | null;
           received_at?: string | null;
+          registered_at?: string | null;
+          size_bytes?: number | null;
           storage_path?: string;
           submission_id?: string | null;
+          task_id?: string | null;
           upload_status?: string;
+          uploaded_by?: string | null;
           version?: number;
+          work_package_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'evidence_attached_by_fkey';
+            columns: ['attached_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'evidence_captured_by_fkey';
             columns: ['captured_by'];
@@ -1587,6 +1633,27 @@ export type Database = {
             columns: ['submission_id'];
             isOneToOne: false;
             referencedRelation: 'commissioning_submissions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_task_id_fkey';
+            columns: ['task_id'];
+            isOneToOne: false;
+            referencedRelation: 'tasks';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_uploaded_by_fkey';
+            columns: ['uploaded_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_work_package_id_fkey';
+            columns: ['work_package_id'];
+            isOneToOne: false;
+            referencedRelation: 'work_packages';
             referencedColumns: ['id'];
           }
         ];
@@ -1871,6 +1938,7 @@ export type Database = {
           created_at: string;
           error_code: string | null;
           id: string;
+          idempotency_key: string | null;
           integration: string;
           last_success: string | null;
           next_action_task_id: string | null;
@@ -1881,6 +1949,7 @@ export type Database = {
           created_at?: string;
           error_code?: string | null;
           id?: string;
+          idempotency_key?: string | null;
           integration: string;
           last_success?: string | null;
           next_action_task_id?: string | null;
@@ -1891,6 +1960,7 @@ export type Database = {
           created_at?: string;
           error_code?: string | null;
           id?: string;
+          idempotency_key?: string | null;
           integration?: string;
           last_success?: string | null;
           next_action_task_id?: string | null;
@@ -2571,22 +2641,48 @@ export type Database = {
       };
       jobs: {
         Row: {
+          account_policy_version: string | null;
+          approved_change_pence: number | null;
+          archived_at: string | null;
+          booking_approved_at: string | null;
+          booking_approved_by: string | null;
+          booking_submission_id: string | null;
+          cancellation_at: string | null;
+          cancellation_by: string | null;
+          cancellation_reason: string | null;
+          contract_evidence_id: string | null;
+          contract_id: string | null;
+          contract_signed_at: string | null;
+          contract_status: string;
           created_at: string;
           created_by: string | null;
           current_contract_gross_pence: number;
+          customer_details_verified_at: string | null;
+          customer_details_verified_by: string | null;
+          customer_happy_at: string | null;
+          customer_happy_by: string | null;
           customer_id: string;
+          deposit_bank_confirmed_at: string | null;
+          deposit_bank_confirmed_by: string | null;
+          deposit_bank_reference: string | null;
           display_name: string;
           electrical_required: boolean;
           finance_route: string;
+          financial_status: string;
+          handover_status: string;
           id: string;
           job_ref: string;
           lead_source: string | null;
+          next_action_at: string | null;
+          operational_complete_at: string | null;
+          operational_complete_by: string | null;
           original_gross_pence: number;
           quote_reference: string | null;
           roof_required: boolean;
           salesperson_id: string;
           scaffold_required: boolean;
           sold_at: string;
+          sold_booking_match_status: string;
           updated_at: string;
           updated_by: string | null;
           valuation_basis: string | null;
@@ -2594,22 +2690,48 @@ export type Database = {
           workflow_stage: string;
         };
         Insert: {
+          account_policy_version?: string | null;
+          approved_change_pence?: number | null;
+          archived_at?: string | null;
+          booking_approved_at?: string | null;
+          booking_approved_by?: string | null;
+          booking_submission_id?: string | null;
+          cancellation_at?: string | null;
+          cancellation_by?: string | null;
+          cancellation_reason?: string | null;
+          contract_evidence_id?: string | null;
+          contract_id?: string | null;
+          contract_signed_at?: string | null;
+          contract_status?: string;
           created_at?: string;
           created_by?: string | null;
           current_contract_gross_pence: number;
+          customer_details_verified_at?: string | null;
+          customer_details_verified_by?: string | null;
+          customer_happy_at?: string | null;
+          customer_happy_by?: string | null;
           customer_id: string;
+          deposit_bank_confirmed_at?: string | null;
+          deposit_bank_confirmed_by?: string | null;
+          deposit_bank_reference?: string | null;
           display_name: string;
           electrical_required: boolean;
           finance_route: string;
+          financial_status?: string;
+          handover_status?: string;
           id?: string;
           job_ref: string;
           lead_source?: string | null;
+          next_action_at?: string | null;
+          operational_complete_at?: string | null;
+          operational_complete_by?: string | null;
           original_gross_pence: number;
           quote_reference?: string | null;
           roof_required: boolean;
           salesperson_id: string;
           scaffold_required: boolean;
           sold_at: string;
+          sold_booking_match_status?: string;
           updated_at?: string;
           updated_by?: string | null;
           valuation_basis?: string | null;
@@ -2617,22 +2739,48 @@ export type Database = {
           workflow_stage?: string;
         };
         Update: {
+          account_policy_version?: string | null;
+          approved_change_pence?: number | null;
+          archived_at?: string | null;
+          booking_approved_at?: string | null;
+          booking_approved_by?: string | null;
+          booking_submission_id?: string | null;
+          cancellation_at?: string | null;
+          cancellation_by?: string | null;
+          cancellation_reason?: string | null;
+          contract_evidence_id?: string | null;
+          contract_id?: string | null;
+          contract_signed_at?: string | null;
+          contract_status?: string;
           created_at?: string;
           created_by?: string | null;
           current_contract_gross_pence?: number;
+          customer_details_verified_at?: string | null;
+          customer_details_verified_by?: string | null;
+          customer_happy_at?: string | null;
+          customer_happy_by?: string | null;
           customer_id?: string;
+          deposit_bank_confirmed_at?: string | null;
+          deposit_bank_confirmed_by?: string | null;
+          deposit_bank_reference?: string | null;
           display_name?: string;
           electrical_required?: boolean;
           finance_route?: string;
+          financial_status?: string;
+          handover_status?: string;
           id?: string;
           job_ref?: string;
           lead_source?: string | null;
+          next_action_at?: string | null;
+          operational_complete_at?: string | null;
+          operational_complete_by?: string | null;
           original_gross_pence?: number;
           quote_reference?: string | null;
           roof_required?: boolean;
           salesperson_id?: string;
           scaffold_required?: boolean;
           sold_at?: string;
+          sold_booking_match_status?: string;
           updated_at?: string;
           updated_by?: string | null;
           valuation_basis?: string | null;
@@ -2641,8 +2789,50 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: 'jobs_booking_approved_by_fkey';
+            columns: ['booking_approved_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_booking_submission_id_fkey';
+            columns: ['booking_submission_id'];
+            isOneToOne: false;
+            referencedRelation: 'intake';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_cancellation_by_fkey';
+            columns: ['cancellation_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_contract_evidence_id_fkey';
+            columns: ['contract_evidence_id'];
+            isOneToOne: false;
+            referencedRelation: 'evidence';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'jobs_created_by_fkey';
             columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_customer_details_verified_by_fkey';
+            columns: ['customer_details_verified_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_customer_happy_by_fkey';
+            columns: ['customer_happy_by'];
             isOneToOne: false;
             referencedRelation: 'people';
             referencedColumns: ['id'];
@@ -2652,6 +2842,20 @@ export type Database = {
             columns: ['customer_id'];
             isOneToOne: false;
             referencedRelation: 'customers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_deposit_bank_confirmed_by_fkey';
+            columns: ['deposit_bank_confirmed_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'jobs_operational_complete_by_fkey';
+            columns: ['operational_complete_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           },
           {
@@ -2675,6 +2879,7 @@ export type Database = {
           amount_pence: number;
           checked_at: string;
           checked_by: string;
+          command_id: string | null;
           created_at: string;
           evidence_reference: string | null;
           id: string;
@@ -2686,6 +2891,7 @@ export type Database = {
           amount_pence: number;
           checked_at: string;
           checked_by: string;
+          command_id?: string | null;
           created_at?: string;
           evidence_reference?: string | null;
           id?: string;
@@ -2697,6 +2903,7 @@ export type Database = {
           amount_pence?: number;
           checked_at?: string;
           checked_by?: string;
+          command_id?: string | null;
           created_at?: string;
           evidence_reference?: string | null;
           id?: string;
@@ -2809,7 +3016,7 @@ export type Database = {
           id: string;
           job_id: string;
           merchant_id: string | null;
-          need_by_date: string;
+          need_by_date: string | null;
           notes: string | null;
           order_line_id: string | null;
           product_id: string | null;
@@ -2820,7 +3027,7 @@ export type Database = {
           updated_at: string;
           updated_by: string | null;
           version: number;
-          work_package_id: string;
+          work_package_id: string | null;
         };
         Insert: {
           already_ordered_reference?: string | null;
@@ -2831,7 +3038,7 @@ export type Database = {
           id?: string;
           job_id: string;
           merchant_id?: string | null;
-          need_by_date: string;
+          need_by_date?: string | null;
           notes?: string | null;
           order_line_id?: string | null;
           product_id?: string | null;
@@ -2842,7 +3049,7 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           version?: number;
-          work_package_id: string;
+          work_package_id?: string | null;
         };
         Update: {
           already_ordered_reference?: string | null;
@@ -2853,7 +3060,7 @@ export type Database = {
           id?: string;
           job_id?: string;
           merchant_id?: string | null;
-          need_by_date?: string;
+          need_by_date?: string | null;
           notes?: string | null;
           order_line_id?: string | null;
           product_id?: string | null;
@@ -2864,7 +3071,7 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           version?: number;
-          work_package_id?: string;
+          work_package_id?: string | null;
         };
         Relationships: [
           {
@@ -2914,6 +3121,62 @@ export type Database = {
             columns: ['work_package_id'];
             isOneToOne: false;
             referencedRelation: 'work_packages';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      operational_evidence: {
+        Row: {
+          command_id: string | null;
+          evidence_reference: string;
+          executing_service: string;
+          id: string;
+          kind: string;
+          method: string;
+          notes: string | null;
+          outcome: string;
+          performed_at: string;
+          recorded_at: string;
+          recorded_by: string | null;
+          source: string;
+          subject_at: string | null;
+        };
+        Insert: {
+          command_id?: string | null;
+          evidence_reference: string;
+          executing_service: string;
+          id?: string;
+          kind: string;
+          method: string;
+          notes?: string | null;
+          outcome: string;
+          performed_at: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          source: string;
+          subject_at?: string | null;
+        };
+        Update: {
+          command_id?: string | null;
+          evidence_reference?: string;
+          executing_service?: string;
+          id?: string;
+          kind?: string;
+          method?: string;
+          notes?: string | null;
+          outcome?: string;
+          performed_at?: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          source?: string;
+          subject_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'operational_evidence_recorded_by_fkey';
+            columns: ['recorded_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           }
         ];
@@ -3102,6 +3365,7 @@ export type Database = {
         Row: {
           action_type: string;
           attempt_count: number;
+          claimed_at: string | null;
           correlation_id: string | null;
           created_at: string;
           external_id: string | null;
@@ -3117,6 +3381,7 @@ export type Database = {
         Insert: {
           action_type: string;
           attempt_count?: number;
+          claimed_at?: string | null;
           correlation_id?: string | null;
           created_at?: string;
           external_id?: string | null;
@@ -3132,6 +3397,7 @@ export type Database = {
         Update: {
           action_type?: string;
           attempt_count?: number;
+          claimed_at?: string | null;
           correlation_id?: string | null;
           created_at?: string;
           external_id?: string | null;
@@ -4129,7 +4395,7 @@ export type Database = {
         Row: {
           access_notes: string | null;
           actual_cost_pence: number | null;
-          company_id: string;
+          company_id: string | null;
           confirmed_revision: number | null;
           created_at: string;
           created_by: string | null;
@@ -4157,7 +4423,7 @@ export type Database = {
         Insert: {
           access_notes?: string | null;
           actual_cost_pence?: number | null;
-          company_id: string;
+          company_id?: string | null;
           confirmed_revision?: number | null;
           created_at?: string;
           created_by?: string | null;
@@ -4185,7 +4451,7 @@ export type Database = {
         Update: {
           access_notes?: string | null;
           actual_cost_pence?: number | null;
-          company_id?: string;
+          company_id?: string | null;
           confirmed_revision?: number | null;
           created_at?: string;
           created_by?: string | null;
@@ -4471,36 +4737,45 @@ export type Database = {
       stocktake_lines: {
         Row: {
           adjustment_movement_id: string | null;
-          counted_quantity: number;
+          count_basis: string | null;
+          counted_at: string | null;
+          counted_by: string | null;
+          counted_quantity: number | null;
           created_at: string;
           expected_quantity_at_cutoff: number;
           id: string;
           product_id: string;
           reason: string | null;
           stocktake_id: string;
-          variance: number;
+          variance: number | null;
         };
         Insert: {
           adjustment_movement_id?: string | null;
-          counted_quantity: number;
+          count_basis?: string | null;
+          counted_at?: string | null;
+          counted_by?: string | null;
+          counted_quantity?: number | null;
           created_at?: string;
           expected_quantity_at_cutoff: number;
           id?: string;
           product_id: string;
           reason?: string | null;
           stocktake_id: string;
-          variance: number;
+          variance?: number | null;
         };
         Update: {
           adjustment_movement_id?: string | null;
-          counted_quantity?: number;
+          count_basis?: string | null;
+          counted_at?: string | null;
+          counted_by?: string | null;
+          counted_quantity?: number | null;
           created_at?: string;
           expected_quantity_at_cutoff?: number;
           id?: string;
           product_id?: string;
           reason?: string | null;
           stocktake_id?: string;
-          variance?: number;
+          variance?: number | null;
         };
         Relationships: [
           {
@@ -4508,6 +4783,13 @@ export type Database = {
             columns: ['adjustment_movement_id'];
             isOneToOne: false;
             referencedRelation: 'stock_movements';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stocktake_lines_counted_by_fkey';
+            columns: ['counted_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           },
           {
@@ -4707,7 +4989,7 @@ export type Database = {
       task_events: {
         Row: {
           action: string;
-          actor: string;
+          actor: string | null;
           created_at: string;
           id: string;
           new_due: string | null;
@@ -4722,7 +5004,7 @@ export type Database = {
         };
         Insert: {
           action: string;
-          actor: string;
+          actor?: string | null;
           created_at?: string;
           id?: string;
           new_due?: string | null;
@@ -4737,7 +5019,7 @@ export type Database = {
         };
         Update: {
           action?: string;
-          actor?: string;
+          actor?: string | null;
           created_at?: string;
           id?: string;
           new_due?: string | null;
@@ -4962,6 +5244,13 @@ export type Database = {
             columns: ['created_by'];
             isOneToOne: false;
             referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_evidence_id_fkey';
+            columns: ['evidence_id'];
+            isOneToOne: false;
+            referencedRelation: 'evidence';
             referencedColumns: ['id'];
           },
           {
@@ -5354,6 +5643,15 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      calendar_drift_candidates: { Args: { p_limit?: number }; Returns: Json };
+      calendar_record_drift: {
+        Args: { p_link_id: string; p_observed: Json };
+        Returns: Json;
+      };
+      cancellation_preview: {
+        Args: { p_effective_date?: string; p_job_id: string };
+        Returns: Json;
+      };
       current_actor: {
         Args: never;
         Returns: {
@@ -5363,10 +5661,76 @@ export type Database = {
           roles: string[];
         }[];
       };
+      describe_command_error: {
+        Args: { p_command_id?: string; p_error: string; p_field?: string };
+        Returns: Json;
+      };
+      describe_command_result: {
+        Args: { p_command_type: string; p_result: Json };
+        Returns: Json;
+      };
+      describe_command_result_pre_r1_completion: {
+        Args: { p_command_type: string; p_result: Json };
+        Returns: Json;
+      };
+      evidence_consistency: { Args: never; Returns: Json };
+      evidence_open: { Args: { p_evidence_id: string }; Returns: Json };
+      evidence_report_missing: {
+        Args: { p_evidence_id: string };
+        Returns: Json;
+      };
+      evidence_upload_begin: { Args: { p_request: Json }; Returns: Json };
+      evidence_upload_complete: {
+        Args: { p_evidence_id: string };
+        Returns: Json;
+      };
+      execute_command: { Args: { p_request: Json }; Returns: Json };
+      execute_operations_read: { Args: { p_request: Json }; Returns: Json };
+      execute_read: { Args: { p_request: Json }; Returns: Json };
+      health_ping: { Args: never; Returns: Json };
+      list_evidence: { Args: { p_request: Json }; Returns: Json };
+      outbound_guard: {
+        Args: {
+          p_bcc?: string[];
+          p_calendar_id?: string;
+          p_cc?: string[];
+          p_kind: string;
+          p_to: string[];
+        };
+        Returns: Json;
+      };
+      outbox_claim: {
+        Args: { p_action_types: string[]; p_limit?: number };
+        Returns: Json;
+      };
+      outbox_record_failure: {
+        Args: {
+          p_backoff_minutes?: number[];
+          p_error: string;
+          p_max_attempts?: number;
+          p_outbox_id: string;
+          p_transient: boolean;
+        };
+        Returns: Json;
+      };
+      outbox_record_success: {
+        Args: { p_external_id: string; p_outbox_id: string; p_summary: string };
+        Returns: Json;
+      };
+      outbox_record_uncertain: {
+        Args: { p_outbox_id: string; p_summary: string };
+        Returns: Json;
+      };
+      outbox_release_stalled: {
+        Args: { p_action_types?: string[]; p_minutes?: number };
+        Returns: Json;
+      };
+      resilience_review_queue: { Args: never; Returns: Json };
       submit_presale: {
         Args: { p_command_id: string; p_payload: Json };
         Returns: Json;
       };
+      system_health: { Args: never; Returns: Json };
     };
     Enums: {
       [_ in never]: never;

@@ -42,9 +42,10 @@ const ins04 = await task(job, 'INS04');
 ok(await cmd('tanya', { command_id: id(), command_type: 'CALL_RECORD', job_id: job, task_id: ins04.id, expected_version: ins04.version,
   payload: { type: 'Customer', outcome: 'Complete', customer_happy: true } }), 'ins04');
 
-// Commissioning acceptance (R3 module, not in R1): recorded directly for commissioning-required packages
-for (const wp of await all(`select w.id, a.id alloc, a.person_id from public.work_packages w join public.allocations a on a.work_package_id=w.id and a.active where w.job_id=$1 and w.commissioning_required`, [job])) {
-  await db.query(`insert into public.commissioning_submissions (job_id, work_package_id, allocation_id, installer_id, template_version, status) values ($1,$2,$3,$4,'R1-OFFICE-MANUAL-1.0','Accepted')`, [job, wp.id, wp.alloc, wp.person_id]);
+// Commissioning: the office records the current-process evidence (COMMISSIONING_RECORD, R1).
+for (const wp of await all(`select * from public.work_packages where job_id=$1 and commissioning_required`, [job])) {
+  ok(await cmd('tanya', { command_id: id(), command_type: 'COMMISSIONING_RECORD', job_id: job, work_package_id: wp.id,
+    expected_version: wp.version, payload: { evidence_path: `${job}/${wp.trade}-cert.pdf`, reference: `CERT-${wp.trade}` } }), 'commissioning');
 }
 j = await job_(job);
 r = ok(await cmd('tanya', { command_id: id(), command_type: 'OPERATIONAL_COMPLETE', job_id: job, expected_version: j.version }), 'opc');

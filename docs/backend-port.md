@@ -21,7 +21,8 @@ implementation (`simple-solar-operations`: Google Sheets + AppSheet + Apps Scrip
 | scheduling, evidence storage | `20260919150000_integration.sql` |
 
 SOLD_INTAKE is not ported here: the sale is `public.submit_presale` (Job Sold migration).
-Not ported by design: AppSheet request rows and bots, upload retry, CommitJournal recovery states,
+Not ported by design: AppSheet request rows and bots, upload retry (a command and its file check share one
+transaction - `docs/evidence.md`), CommitJournal recovery states,
 script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-bridge/`).
 | — (registry for R2–R4 commands/reads as data; release modes for any release) | `20260919160000_command_registry.sql` |
 | `materials/workflow.js`, `s07/ordering.js` | `20260919161000_r2_materials_ordering.sql` |
@@ -35,6 +36,11 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
 | view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
 | view-port resourcing reads (STAFF_AVAILABILITY, INSTALLER_SKILLS, SCAFFOLD_BOARD, COMMISSIONING_QUEUE) | `20260919173000_view_port_resourcing_reads.sql` |
+| evidence ownership, registered uploads, read authorization, metadata-based storage policies (see `docs/evidence.md`); replaces `app.ensure_evidence`, `app.job_evidence`, `app.iw_evidence` and the three path-parsing storage policies of `20260919150000` / `20260919165000` | `20260919183000_p0_evidence.sql` |
+| audit triggers lost in the drop/restore incident; audit coverage check | `20260919202000_p0_audit_integrity.sql` |
+| `backup/service.js` verify + restore rehearsal as recorded evidence, `s16/health.js` staleness, `s18` BKP/MAN-06/MAN-13, `s20` BACKUP_MISSING (see `docs/OPERATIONAL_HEALTH.md`) | `20260919202100_p0_operational_health.sql` |
+| `r1-appsheet/services.js` COMMISSIONING_RECORD (+ `s12/commissioning.js` office template), CALL_RECORD job-level calls, JOB_OPERATIONS read (Operations tab) | `20260919210000_r1_completion.sql` |
+| P0 integration: catalogue grants, COMMISSIONING_RECORD on the Evidence model, one audit trail for the office template, Director SYSTEM_STATUS, cancellation work in JOB_OPERATIONS, TASK_EVIDENCE_ATTACH audit reason (see `docs/p0-r1-integration.md`) | `20260919220000_p0_r1_integration.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role
@@ -62,3 +68,28 @@ External senders (Google Calendar, Xero, email) are a future TypeScript worker u
    `app.*` functions (or `alter`s tables), with a comment citing the reference commit.
 4. Re-run the test suites against a local stack, then apply.
 5. Update the baseline commit at the top of this file.
+
+## R1 completion after booking (20260919210000)
+
+- `COMMISSIONING_RECORD` is the R1 route to an Accepted commissioning submission
+  (office-recorded evidence, `source_system = 'R1A-office-manual'`). It is what
+  lets a job with an Electrical work package pass the S10 operational-completion
+  gate in R1; the R3 route (`IW_COMMISSIONING_*` + `COMMISSIONING_REVIEW`) is
+  unchanged and still needs an approved template.
+- Evidence integration point (after `20260919220000`): the command uses
+  `app.evidence_attach(job, 'Commissioning', storage_path)` (a registered upload,
+  confirmed durable in the command's transaction) or `app.job_evidence(job,
+  id_or_path, code)`, then links `evidence.submission_id` once (never re-pointed).
+  A file already on an earlier office record of the same work package may be
+  quoted again; a file on any other submission is refused
+  (`R1A_EVIDENCE_ALREADY_LINKED`). The office upload uses the `Job` evidence
+  context (the `WorkPackage` context is the R3 installer route, FN-06).
+- `CALL_RECORD` without `task_id` is a job-level call (no task, job or package
+  side effects; `expected_version` is the job's).
+- `InProgress` / `Aftercare` (REF-03 §11.2): the reference never writes either
+  stage (only fixtures do), and its WIP snapshot (`fffbe1f`
+  `tests/r1-appsheet.test.cjs:4315`) states R1 goes Booked ->
+  OperationallyComplete with the S10 gate as the sole authority. Both stages
+  are obsolete for R1; any R3 meaning is a future business decision. The old
+  S17 `ACTION_AVAILABILITY` read still offers completion only in those stages
+  (`20260919149000` :858, :909); no screen uses it.

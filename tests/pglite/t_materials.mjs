@@ -75,6 +75,7 @@ let before = await counts();
 let r = await add({ source: 'ToOrder', product_id: p460, required_quantity: 10 }, { wp: wpRoof });
 assert.equal(r.error, 'R1A_MODE_DENIED');
 await db.query(`update public.release_modes set mode='Automated' where function_id='FN-03'`);
+before.au += 1; // switching a release function is itself audited (release_modes_audit); the refusals still write nothing
 assert.equal((await add({ source: 'ToOrder', product_id: p460, required_quantity: 10 }, { wp: wpRoof, who: 'store' })).error, 'R1A_ROLE_DENIED');
 assert.deepEqual(await counts(), before, 'refusals wrote nothing');
 

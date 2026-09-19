@@ -5,7 +5,9 @@ export const JOB_TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'work', label: 'Work' },
+  { id: 'operations', label: 'Operations' },
   { id: 'money', label: 'Money' },
+  { id: 'files', label: 'Files' },
   { id: 'history', label: 'History' }
 ] as const;
 export type JobTab = (typeof JOB_TABS)[number]['id'];

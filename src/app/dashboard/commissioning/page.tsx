@@ -79,7 +79,10 @@ export default async function CommissioningPage({
                       {[s.customer_name, s.postcode]
                         .filter(Boolean)
                         .join(' · ')}{' '}
-                      · {s.installer_name ?? 'Installer'}
+                      ·{' '}
+                      {s.template_version === 'R1-OFFICE-MANUAL-1.0'
+                        ? 'Office record'
+                        : (s.installer_name ?? 'Installer')}
                     </span>
                   </span>
                   <span className='flex items-center gap-2 text-xs'>

@@ -93,7 +93,10 @@ function salePayload(salespersonId) {
 
 before(async () => {
   // Earlier suites end by deactivating Hannah; this suite needs her (multi-role).
-  await service.from('people').update({ active: true }).eq('legacy_id', 'PERSON-hannah');
+  await service
+    .from('people')
+    .update({ active: true })
+    .eq('legacy_id', 'PERSON-hannah');
   for (const n of ['lenny', 'rick', 'dave']) await ensureLogin(email(n));
   people = Object.fromEntries(
     await Promise.all(
@@ -280,23 +283,23 @@ describe('the browser cannot forge a preview', () => {
 describe('a preview token can never write (enforced in the database, not by buttons)', () => {
   test('Job Sold is refused even though the target holds presale.submit', async () => {
     const before = await count('jobs');
+    const commandsBefore = await count('commands');
     const { error } = await preview('PERSON-rick').rpc('submit_presale', {
       p_command_id: randomUUID(),
       p_payload: salePayload(people['PERSON-rick'].id)
     });
     assert.match(error?.message ?? '', /PREVIEW_MODE_READ_ONLY/);
     assert.equal(await count('jobs'), before);
-    assert.equal(await count('commands'), await count('jobs'));
+    // Nothing reached the command ledger (other modules also record commands).
+    assert.equal(await count('commands'), commandsBefore);
   });
 
   test('direct table writes are refused too', async () => {
     const c = preview('PERSON-tanya');
-    const skill = await c
-      .from('person_skills')
-      .insert({
-        person_id: people['PERSON-dan-anderson'].id,
-        skill_code: 'Roof'
-      });
+    const skill = await c.from('person_skills').insert({
+      person_id: people['PERSON-dan-anderson'].id,
+      skill_code: 'Roof'
+    });
     assert.match(
       skill.error?.message ?? '',
       /PREVIEW_MODE_READ_ONLY|permission|row-level/

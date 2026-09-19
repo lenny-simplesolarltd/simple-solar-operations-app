@@ -14,12 +14,18 @@ import {
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { formatDateTime } from '@/features/jobs/format';
 import {
+  RecordOperationalEvidence,
   ResolveCalendar,
   ResolveOutbox
 } from '@/features/system/components/system-actions';
+import {
+  normalizeOperational,
+  STATE_LABEL,
+  STATE_VARIANT
+} from '@/features/system/operational-health';
 import { getCurrentUser } from '@/lib/auth';
 import { readOps, readR1 } from '@/lib/backend/read';
-import { isAdmin, isOfficeManager } from '@/lib/roles';
+import { isAdmin, isDirectorClass, isOfficeManager } from '@/lib/roles';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
@@ -38,6 +44,8 @@ interface SystemStatus {
     } | null;
     total_checks: number;
   };
+  /** app.operational_health(): absent until its migration is applied. */
+  operational?: unknown;
   commit_journal: { stalled: number; recovery_required: number };
   outbox: { uncertain: number; uncertain_ids: string[] };
   not_configured: { area: string; detail: string }[];
@@ -66,14 +74,23 @@ export default async function SystemPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/auth/sign-in');
   const admin = isAdmin(user);
+  const canResolve = isOfficeManager(user);
+  // Director reads System Health to record backup evidence; the calendar
+  // outbox is office work (CALENDAR_STATUS: Admin / Manager / Office).
   const [status, modes, calendar] = await Promise.all([
     readR1<SystemStatus>('SYSTEM_STATUS'),
     admin
       ? readR1<ReleaseMode[]>('RELEASE_MODE_STATUS')
       : Promise.resolve(null),
-    readOps<CalendarStatus>('CALENDAR_STATUS')
+    canResolve
+      ? readOps<CalendarStatus>('CALENDAR_STATUS')
+      : Promise.resolve(null)
   ]);
-  const canResolve = isOfficeManager(user);
+  const canRecordEvidence = isDirectorClass(user);
+  const operational = normalizeOperational(
+    status.ok ? status.data.operational : undefined
+  );
+  const healthCheck = operational.items.find((i) => i.key === 'HealthCheck');
 
   return (
     <PageContainer>
@@ -92,25 +109,39 @@ export default async function SystemPage() {
                 <CardTitle className='text-base'>Health</CardTitle>
               </CardHeader>
               <CardContent className='flex flex-col gap-1 text-sm'>
-                {status.data.health.latest_check ? (
-                  <p>
-                    Last check{' '}
-                    {formatDateTime(status.data.health.latest_check.checked_at)}
-                    :{' '}
-                    <span className='font-medium'>
-                      {status.data.health.latest_check.outcome}
-                    </span>
-                    {status.data.health.latest_check.error_code && (
-                      <span className='text-destructive'>
-                        {' '}
-                        · {status.data.health.latest_check.error_code}
+                {/* A recorded row is not health: the state says whether the
+                    latest check is recent enough to mean anything. */}
+                <p className='flex flex-wrap items-center gap-2'>
+                  <Badge
+                    variant={STATE_VARIANT[healthCheck?.state ?? 'Unknown']}
+                  >
+                    {STATE_LABEL[healthCheck?.state ?? 'Unknown']}
+                  </Badge>
+                  {status.data.health.latest_check ? (
+                    <span>
+                      Last check{' '}
+                      {formatDateTime(
+                        status.data.health.latest_check.checked_at
+                      )}
+                      :{' '}
+                      <span className='font-medium'>
+                        {status.data.health.latest_check.outcome}
                       </span>
-                    )}
-                  </p>
-                ) : (
-                  <p className='text-muted-foreground'>
-                    No health checks recorded yet.
-                  </p>
+                      {status.data.health.latest_check.error_code && (
+                        <span className='text-destructive'>
+                          {' '}
+                          · {status.data.health.latest_check.error_code}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className='text-muted-foreground'>
+                      No system health check has been recorded.
+                    </span>
+                  )}
+                </p>
+                {healthCheck?.detail && (
+                  <p className='text-muted-foreground'>{healthCheck.detail}</p>
                 )}
                 <p>
                   Unfinished commits: {status.data.commit_journal.stalled}
@@ -134,6 +165,62 @@ export default async function SystemPage() {
                     <span className='font-medium'>{n.area}</span>
                     <span className='text-muted-foreground'> · {n.detail}</span>
                   </p>
+                ))}
+              </CardContent>
+            </Card>
+            <Card className='lg:col-span-2'>
+              <CardHeader>
+                <CardTitle className='flex flex-wrap items-center justify-between gap-2 text-base'>
+                  <span className='flex items-center gap-2'>
+                    Operational evidence
+                    <Badge variant={STATE_VARIANT[operational.overallState]}>
+                      {STATE_LABEL[operational.overallState]}
+                    </Badge>
+                  </span>
+                  {canRecordEvidence && operational.reported && (
+                    <RecordOperationalEvidence
+                      monitoringEnabled={operational.monitoringEnabled}
+                    />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='flex flex-col gap-2 text-sm'>
+                <p className='text-muted-foreground text-xs'>
+                  Verified means recent proof exists. Stale means the proof is
+                  too old to rely on. Unknown means there is no proof - it is
+                  not a pass. Backups are made by the hosting platform; this app
+                  only records that someone checked them.
+                </p>
+                {operational.items.map((i) => (
+                  <div
+                    key={i.key}
+                    className='flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-t pt-2'
+                  >
+                    <div className='flex min-w-0 flex-col'>
+                      <span className='font-medium'>{i.label}</span>
+                      <span className='text-muted-foreground'>
+                        {i.detail}
+                        {i.live && <> Checked just now.</>}
+                        {!i.live && i.evidenceAt && (
+                          <> Last evidence {formatDateTime(i.evidenceAt)}</>
+                        )}
+                        {i.recordedBy && <> by {i.recordedBy}</>}
+                        {!i.recordedBy && i.source === 'Automation' && (
+                          <> by an automated check</>
+                        )}
+                        {i.evidenceReference && <> · {i.evidenceReference}</>}
+                        {i.state !== 'Verified' && i.lastVerifiedAt && (
+                          <>
+                            {' '}
+                            · last verified {formatDateTime(i.lastVerifiedAt)}
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <Badge variant={STATE_VARIANT[i.state]}>
+                      {STATE_LABEL[i.state]}
+                    </Badge>
+                  </div>
                 ))}
               </CardContent>
             </Card>

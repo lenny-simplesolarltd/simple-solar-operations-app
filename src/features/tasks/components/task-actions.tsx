@@ -281,7 +281,7 @@ function CompleteTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
             />
             {f.signed === 'signed' && job && (
               <EvidenceField
-                jobId={job.id}
+                context={{ type: 'Task', id: task.id }}
                 label={
                   task.evidence_id
                     ? 'Signed contract (already attached)'
@@ -351,7 +351,7 @@ function CompleteTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
             )}
             {job && (
               <EvidenceField
-                jobId={job.id}
+                context={{ type: 'Task', id: task.id }}
                 label='Supporting document (optional)'
                 onUploaded={setEvidencePath}
               />
@@ -360,7 +360,7 @@ function CompleteTask({ detail, flag }: { detail: Detail; flag: CommandFlag }) {
         )}
         {!['PRE01', 'PRE02', 'PRE03', 'PRE04'].includes(code) && job && (
           <EvidenceField
-            jobId={job.id}
+            context={{ type: 'Task', id: task.id }}
             label={
               code === 'PRE05'
                 ? 'Finance agreement (optional)'
@@ -501,7 +501,7 @@ function AttachEvidence({ detail }: { detail: Detail }) {
         }
       >
         <EvidenceField
-          jobId={job.id}
+          context={{ type: 'Task', id: task.id }}
           label='Signed contract'
           required
           onUploaded={setPath}
