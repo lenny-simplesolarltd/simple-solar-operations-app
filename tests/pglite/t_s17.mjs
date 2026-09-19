@@ -176,7 +176,8 @@ assert.equal(d.length, 20); assert.ok(d.every(m => m.function_id && m.mode && m.
 d = data(await read('tanya', { read_type: 'SYSTEM_STATUS' }), 'sys');
 assert.ok(d.health && d.commit_journal && d.outbox); assert.equal(d.not_configured_count, d.not_configured.length);
 assert.ok(d.not_configured.some(x => x.area === 'Scaffolder contacts'));
-assert.equal((await read('dan', { read_type: 'SYSTEM_STATUS' })).error, 'R1A_ROLE_DENIED');
+// Director reads System Health (P0 integration 20260919220000: backup evidence is recorded there).
+assert.equal((await read('dan', { read_type: 'SYSTEM_STATUS' })).ok, true);
 assert.equal((await read('hannah', { read_type: 'SYSTEM_STATUS' })).error, 'R1A_ROLE_DENIED');
 
 // ---------------------------------------------------------------- ACTION_AVAILABILITY
