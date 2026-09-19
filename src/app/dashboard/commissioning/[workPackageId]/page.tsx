@@ -13,6 +13,7 @@ import type {
   WorkflowRead
 } from '@/features/installs/types';
 import { getJobDetail } from '@/features/jobs/server/queries';
+import { EvidenceList } from '@/features/operations/evidence-list';
 import { getCurrentUser } from '@/lib/auth';
 import { readOps } from '@/lib/backend/read';
 import { isOfficeManager } from '@/lib/roles';
@@ -146,21 +147,11 @@ export default async function ReviewPage({
               <CardHeader>
                 <CardTitle className='text-base'>Photos and files</CardTitle>
               </CardHeader>
-              <CardContent className='text-sm'>
-                {wf.data.evidence.length === 0 ? (
-                  <p className='text-muted-foreground'>None attached.</p>
-                ) : (
-                  <ul className='list-disc pl-5'>
-                    {wf.data.evidence.map((e) => (
-                      <li key={e.id}>
-                        {e.filename ?? e.storage_path}{' '}
-                        <span className='text-muted-foreground'>
-                          · {e.category}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              <CardContent>
+                <EvidenceList
+                  scope={{ work_package_id: wf.data.work_package_id }}
+                  empty='None attached.'
+                />
               </CardContent>
             </Card>
             <Card>

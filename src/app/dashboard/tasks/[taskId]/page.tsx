@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { formatDateTime } from '@/features/jobs/format';
 import { DueLabel } from '@/features/tasks/components/due-label';
+import { EvidenceList } from '@/features/operations/evidence-list';
 import { TaskActions } from '@/features/tasks/components/task-actions';
 import { getCurrentUser } from '@/lib/auth';
 import type { TaskDetailRead } from '@/lib/backend/models';
@@ -79,7 +80,7 @@ export default async function TaskPage({
     );
   }
 
-  const { task, job, evidence, events } = result.data;
+  const { task, job, events } = result.data;
 
   return (
     <PageContainer>
@@ -150,11 +151,6 @@ export default async function TaskPage({
               {task.completion_note && (
                 <Row label='Note'>{task.completion_note}</Row>
               )}
-              {evidence && (
-                <Row label='Evidence'>
-                  {evidence.category} · {evidence.filename ?? 'file'}
-                </Row>
-              )}
             </CardContent>
           </Card>
 
@@ -187,6 +183,20 @@ export default async function TaskPage({
             </CardContent>
           </Card>
         </div>
+
+        {job && (
+          <Card>
+            <CardHeader>
+              <CardTitle className='text-base'>Evidence</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EvidenceList
+                scope={{ task_id: task.id }}
+                empty='No file has been added to this task.'
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <section className='flex flex-col gap-3'>
           <h2 className='text-lg font-semibold'>History</h2>

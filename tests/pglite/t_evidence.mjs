@@ -5,7 +5,7 @@
 // storage.objects AFTER the migrations. With it present the database behaves
 // as it does on a real stack: a command never adopts an unregistered path and
 // a Pending upload is only confirmed when its object exists.
-// (Real Storage policies and signed URLs: tests/evidence.test.mjs.)
+// (Real Storage policies and signed URLs: tests/storage-evidence.test.mjs.)
 import assert from 'node:assert/strict';
 import { setup } from './fixtures.mjs';
 const f = await setup();
@@ -278,7 +278,7 @@ assert.deepEqual(r.evidence.map(x => x.id).sort(), [ev1, ev5, evP].sort());
 assert.ok(r.evidence.every(x => x.job_id === jobA && !('storage_path' in x)));
 const row = r.evidence.find(x => x.id === ev1);
 assert.equal(row.category, 'Contract'); assert.equal(row.added_by_name, 'Tanya'); assert.equal(row.can_open, true);
-assert.equal(row.filename, `..\\..\\${jobB}/Signed Contract (final).pdf`.replace(/[ -]/g, ''));
+assert.equal(row.filename, `..\\..\\${jobB}/Signed Contract (final).pdf`);
 assert.deepEqual((await list('inst_a', { job_id: jobA })).evidence.map(x => x.id), [evP], 'installer: own package only');
 assert.deepEqual((await list('inst_b', { job_id: jobA })).evidence, []);
 assert.deepEqual((await list('sam', { job_id: jobB })).evidence, []);
