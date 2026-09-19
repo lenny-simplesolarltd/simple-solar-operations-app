@@ -12,7 +12,11 @@
 --
 -- Messages are append-only and written ONLY through assistant_append_turn(),
 -- which assigns the order atomically and is idempotent per run.
--- Chat content is deliberately not copied into audit_events.
+-- Direct writes are limited by column privileges to the minimum: create an
+-- empty conversation (id only), rename it, archive/restore it, delete it.
+-- Everything else (counters, title source, job, handoff source and summary)
+-- is set by the functions below. Chat content is deliberately not copied into
+-- audit_events. Deleting a conversation deletes its messages (owner only).
 -- =============================================================================
 
 create table public.assistant_conversations (
@@ -96,6 +100,41 @@ as $$
   )
 $$;
 
+-- A job the caller may see (all jobs, or their own sales) - the same rule as
+-- jobs RLS for staff. A conversation's job link is metadata and grants nothing;
+-- this only stops a caller linking a job they cannot see.
+create function app.assistant_job_visible(p_job_id uuid)
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.jobs j
+    where j.id = p_job_id
+      and (app.has_permission('job.read.all')
+           or (app.has_permission('job.read.own')
+               and (j.salesperson_id = app.current_person_id() or j.created_by = app.current_person_id())))
+  )
+$$;
+
+-- A title changed by the owner directly is a manual title; the functions
+-- below mark their own writes so an automatic title stays 'auto'.
+create function app.assistant_conversation_title_source()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.title is distinct from old.title
+     and coalesce(current_setting('app.assistant_internal_write', true), '') <> 'on' then
+    new.title_source := 'manual';
+  end if;
+  return new;
+end
+$$;
+create trigger assistant_conversations_title_source
+  before update on public.assistant_conversations
+  for each row execute function app.assistant_conversation_title_source();
+
 -- -----------------------------------------------------------------------------
 -- Append one completed (or stopped) turn.
 --
@@ -145,6 +184,13 @@ begin
     raise exception 'INVALID_INPUT' using errcode = 'P0001',
       detail = 'p_messages must be 1-40 messages starting with the user message';
   end if;
+  -- Size limits: one turn is at most a few tool results of 60k characters.
+  if octet_length(p_messages::text) > 4000000
+     or char_length(coalesce(p_provider, '')) > 100
+     or char_length(coalesce(p_model, '')) > 200
+     or p_prompt_tokens < 0 then
+    raise exception 'INVALID_INPUT' using errcode = 'P0001', detail = 'turn too large';
+  end if;
 
   insert into public.assistant_conversations (id, person_id)
   values (p_conversation_id, v_person)
@@ -175,7 +221,12 @@ begin
 
   for v_msg in select value from jsonb_array_elements(p_messages) loop
     if v_msg ->> 'role' not in ('user', 'assistant', 'tool', 'event')
-       or jsonb_typeof(v_msg -> 'content') is distinct from 'object' then
+       or jsonb_typeof(v_msg -> 'content') is distinct from 'object'
+       or v_msg -> 'content' ->> 'role' is distinct from v_msg ->> 'role'
+       or octet_length((v_msg -> 'content')::text) > 1000000
+       or octet_length(coalesce(v_msg -> 'ui', 'null'::jsonb)::text) > 300000
+       or octet_length(coalesce(v_msg -> 'page_context', 'null'::jsonb)::text) > 20000
+       or coalesce((v_msg ->> 'estimated_tokens')::bigint, 0) not between 0 and 2000000 then
       raise exception 'INVALID_INPUT' using errcode = 'P0001';
     end if;
     v_seq := v_seq + 1;
@@ -194,6 +245,7 @@ begin
   end loop;
   v_count := jsonb_array_length(p_messages);
 
+  perform set_config('app.assistant_internal_write', 'on', true);
   update public.assistant_conversations c set
     message_count      = c.message_count + v_count,
     estimated_tokens   = c.estimated_tokens + v_tokens,
@@ -206,9 +258,13 @@ begin
                               then left(btrim(p_title), 120) else c.title end,
     title_source       = case when c.title is null and nullif(btrim(p_title), '') is not null
                               then 'auto' else c.title_source end,
-    job_id             = coalesce(c.job_id, p_job_id)
+    -- Only a job the caller can see; anything else is ignored (metadata only).
+    job_id             = coalesce(c.job_id,
+                                  case when p_job_id is not null and app.assistant_job_visible(p_job_id)
+                                       then p_job_id end)
   where c.id = p_conversation_id
   returning c.* into v_conv;
+  perform set_config('app.assistant_internal_write', '', true);
 
   return query select v_conv.id, true, v_conv.message_count,
     v_conv.estimated_tokens, v_conv.title, v_conv.version;
@@ -218,12 +274,46 @@ $$;
 comment on function public.assistant_append_turn(uuid, uuid, jsonb, text, text, text, uuid, integer) is
   'Appends one SimpleBot turn to a conversation the caller owns (creating it on first use). Idempotent per run.';
 
+-- Starts a new conversation from one of the caller's own conversations,
+-- carrying a summary (or none) and the source's job. Returns the new id.
+create function public.assistant_start_handoff(p_source_id uuid, p_summary text default null)
+returns uuid
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_person uuid := app.current_person_id();
+  v_source public.assistant_conversations;
+  v_id uuid;
+begin
+  if v_person is null or not app.is_active_actor() then
+    raise exception 'NOT_AUTHORIZED' using errcode = 'P0001';
+  end if;
+  if char_length(coalesce(p_summary, '')) > 8000 then
+    raise exception 'INVALID_INPUT' using errcode = 'P0001', detail = 'summary too long';
+  end if;
+  select * into v_source from public.assistant_conversations c
+  where c.id = p_source_id and c.person_id = v_person;
+  if not found then
+    raise exception 'NOT_FOUND' using errcode = 'P0001';
+  end if;
+  insert into public.assistant_conversations (person_id, source_conversation_id, summary, summary_updated_at, job_id)
+  values (v_person, v_source.id, nullif(btrim(p_summary), ''),
+          case when nullif(btrim(p_summary), '') is not null then now() end, v_source.job_id)
+  returning id into v_id;
+  return v_id;
+end
+$$;
+
 -- -----------------------------------------------------------------------------
 -- Grants and RLS: owner only, and only while an active actor.
 -- -----------------------------------------------------------------------------
 
 revoke all on public.assistant_conversations, public.assistant_messages from public, anon, authenticated;
-grant select, insert, update, delete on public.assistant_conversations to authenticated;
+-- Column privileges: the owner may create an empty conversation (lazy
+-- creation), rename it, archive/restore it and delete it - nothing else.
+grant select, delete on public.assistant_conversations to authenticated;
+grant insert (id) on public.assistant_conversations to authenticated;
+grant update (title, archived_at) on public.assistant_conversations to authenticated;
 -- No direct insert/update/delete on messages: appends go through the function,
 -- deletes happen only by deleting the conversation.
 grant select on public.assistant_messages to authenticated;
@@ -233,6 +323,9 @@ revoke execute on function app.owns_assistant_conversation(uuid) from public, an
 grant execute on function app.owns_assistant_conversation(uuid) to authenticated, service_role;
 revoke execute on function public.assistant_append_turn(uuid, uuid, jsonb, text, text, text, uuid, integer) from public, anon;
 grant execute on function public.assistant_append_turn(uuid, uuid, jsonb, text, text, text, uuid, integer) to authenticated, service_role;
+revoke execute on function public.assistant_start_handoff(uuid, text) from public, anon;
+grant execute on function public.assistant_start_handoff(uuid, text) to authenticated, service_role;
+revoke execute on function app.assistant_job_visible(uuid) from public, anon;
 
 alter table public.assistant_conversations enable row level security;
 alter table public.assistant_messages      enable row level security;
@@ -246,11 +339,11 @@ create policy assistant_conversations_owner_insert on public.assistant_conversat
   with check (
     person_id = (select app.current_person_id())
     and (select app.is_active_actor())
-    -- A handoff may only point at one of your own conversations.
-    and (
-      source_conversation_id is null
-      or app.owns_assistant_conversation(source_conversation_id)
-    )
+    -- Direct inserts are empty conversations; handoffs go through
+    -- assistant_start_handoff(), which checks the source is the caller's.
+    and source_conversation_id is null
+    and summary is null
+    and job_id is null
   );
 
 create policy assistant_conversations_owner_update on public.assistant_conversations

@@ -5515,6 +5515,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      assistant_start_handoff: {
+        Args: { p_source_id: string; p_summary?: string };
+        Returns: string;
+      };
       assistant_append_turn: {
         Args: {
           p_conversation_id: string;

@@ -158,18 +158,15 @@ export class MemoryConversationStore implements ConversationStore {
     return true;
   }
 
-  async createHandoff(input: {
-    sourceId: string;
-    summary: string | null;
-    jobId: string | null;
-  }) {
-    if (!this.own(input.sourceId)) throw new Error('NOT_FOUND');
+  async createHandoff(input: { sourceId: string; summary: string | null }) {
+    const source = this.own(input.sourceId);
+    if (!source) throw new Error('NOT_FOUND');
     const id = crypto.randomUUID();
     await this.ensure(id);
     const row = this.own(id)!;
     row.summary = input.summary;
     row.sourceConversationId = input.sourceId;
-    row.jobId = input.jobId;
+    row.jobId = source.jobId;
     return { ...row };
   }
 }

@@ -52,8 +52,7 @@ export async function POST(request: Request, { params }: Params) {
 
     const created = await ctx.store.createHandoff({
       sourceId: source.id,
-      summary,
-      jobId: source.jobId
+      summary
     });
     return noStore({ id: created.id, summary: created.summary }, 201);
   } catch (error) {
