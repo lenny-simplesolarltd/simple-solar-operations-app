@@ -109,12 +109,12 @@ describe('restored audit triggers', () => {
       .from('holidays')
       .insert({ local_date: '2031-12-26', description: 'x' });
     assert.match(refused.error?.message ?? '', /row-level security/);
-    const hidden = await tanya
+    const refusedMode = await tanya
       .from('release_modes')
       .update({ mode: 'Automated', authorised_job_scope: 'All' })
       .eq('function_id', 'FN-20')
       .select();
-    assert.deepEqual(hidden.data, []);
+    assert.match(refusedMode.error?.message ?? '', /permission denied/);
     const signedOut = await anon
       .from('holidays')
       .insert({ local_date: '2031-12-27', description: 'x' });
@@ -122,17 +122,32 @@ describe('restored audit triggers', () => {
     assert.equal(await count('audit_events'), before);
   });
 
-  test('switching a release function is audited', async () => {
+  test('switching a release function is audited (RELEASE_MODE_SET only)', async () => {
     const { data: mode } = await service
       .from('release_modes')
       .select('*')
-      .eq('function_id', 'FN-20')
+      .eq('function_id', 'FN-14')
       .single();
-    const { error } = await lenny
+    // Direct writes are withdrawn, even for an Admin.
+    const direct = await lenny
       .from('release_modes')
       .update({ scope_boundary_notes: 'reviewed by test' })
       .eq('id', mode.id);
-    assert.ifError(error);
+    assert.match(direct.error?.message ?? '', /permission denied/);
+    const set = (to, version) =>
+      lenny.rpc('execute_command', {
+        p_request: {
+          command_id: randomUUID(),
+          command_type: 'RELEASE_MODE_SET',
+          expected_version: version,
+          payload: { function_id: 'FN-14', mode: to, scope: 'Pilot', reason: 'reviewed by test' }
+        }
+      });
+    const on = await set(
+      mode.mode === 'Disabled' ? mode.planned_target_mode : 'Disabled',
+      mode.version
+    );
+    assert.ifError(on.error);
     const { data: events } = await lenny
       .from('audit_events')
       .select('*')
@@ -142,11 +157,10 @@ describe('restored audit triggers', () => {
       .order('occurred_at', { ascending: false })
       .limit(1);
     assert.equal(events[0].initiating_person_id, lennyRow.id);
-    assert.equal(
-      events[0].after_json.mode,
-      mode.mode,
-      'the mode itself was not changed'
-    );
+    assert.equal(events[0].reason, 'reviewed by test');
+    assert.notEqual(events[0].after_json.mode, mode.mode);
+    const back = await set(mode.mode, events[0].after_json.version);
+    assert.ifError(back.error);
   });
 
   test('the audit log cannot be altered by anyone', async () => {

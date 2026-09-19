@@ -2,6 +2,7 @@
 // incident are back, record the right actor, stay out of rejected work, and a
 // future loss is detected (20260919202000_p0_audit_integrity.sql).
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { setup } from './fixtures.mjs';
 const f = await setup();
 const { db, one, all, people, cmd, as, id, ok } = f;
@@ -255,20 +256,39 @@ assert.equal(ev.initiating_person_id, people.ben);
 const fn20 = await one(
   `select * from public.release_modes where function_id = 'FN-20'`
 );
+// Release functions change only through RELEASE_MODE_SET (convergence
+// migration): one audit event from the row trigger, carrying actor and reason.
 r = await staff(
   'ben',
   `update public.release_modes set scope_boundary_notes = 'reviewed' where id = $1`,
   [fn20.id]
 );
+assert.match(r.error ?? '', /permission denied/, 'direct staff write to release_modes');
+const setMode = (mode, version) =>
+  staff('ben', `select public.execute_command($1::jsonb) r`, [
+    {
+      command_id: crypto.randomUUID(),
+      command_type: 'RELEASE_MODE_SET',
+      expected_version: version,
+      payload: { function_id: 'FN-20', mode, scope: 'Pilot', reason: 'audit test' }
+    }
+  ]);
+r = await setMode('Disabled', fn20.version);
 assert.ok(!r.error, r.error);
 ev = await last('release_modes', fn20.id);
 assert.equal(ev.action, 'UPDATE');
 assert.equal(ev.before_json.mode, fn20.mode);
+assert.equal(ev.after_json.mode, 'Disabled');
+assert.equal(ev.reason, 'audit test');
 assert.equal(
-  ev.after_json.mode,
-  fn20.mode,
-  'test did not switch a function on'
+  (await one(`select count(*)::int n from public.audit_events where command_id = $1`, [ev.command_id])).n,
+  1,
+  'one audit event per release change'
 );
+r = await setMode(fn20.mode, ev.after_json.version);
+assert.ok(!r.error, r.error);
+ev = await last('release_modes', fn20.id);
+assert.equal(ev.after_json.mode, fn20.mode, 'restored');
 assert.equal(ev.initiating_person_id, people.ben);
 
 // ------------------------------------------------------------ unauthorized direct mutation refused, and not audited
@@ -282,8 +302,7 @@ r = await staff(
   'tanya',
   `update public.release_modes set mode = 'Automated', authorised_job_scope = 'All' where function_id = 'FN-20' returning id`
 );
-assert.ok(!r.error);
-assert.equal(r.rows.length, 0, 'RLS hides the row from a non-admin update');
+assert.match(r.error ?? '', /permission denied/, 'no staff write path to release_modes');
 assert.equal(
   (
     await one(
