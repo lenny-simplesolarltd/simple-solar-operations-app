@@ -81,7 +81,9 @@ export function TaskActions({
     (task.is_mine || isAdmin);
 
   const buttons: React.ReactNode[] = [];
-  if (cancellation && open) {
+  // CANCELLATION_RESOLVE also takes Blocked cancellation tasks (the Xero /
+  // GHL reviews are raised Blocked), so they need the way there too.
+  if (cancellation && (open || task.status === 'Blocked')) {
     if (detail.job) {
       buttons.push(
         <Button key='operations' asChild>
