@@ -35,6 +35,8 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
 | view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
 | view-port resourcing reads (STAFF_AVAILABILITY, INSTALLER_SKILLS, SCAFFOLD_BOARD, COMMISSIONING_QUEUE) | `20260919173000_view_port_resourcing_reads.sql` |
+| audit triggers lost in the drop/restore incident; audit coverage check | `20260919202000_p0_audit_integrity.sql` |
+| `backup/service.js` verify + restore rehearsal as recorded evidence, `s16/health.js` staleness, `s18` BKP/MAN-06/MAN-13, `s20` BACKUP_MISSING (see `docs/OPERATIONAL_HEALTH.md`) | `20260919202100_p0_operational_health.sql` |
 
 Not in the reference checkout (ported from the survey only): `stock/workflow.js`, `materials/revisions.js`.
 External senders (Google Calendar, Xero, email) are a future TypeScript worker using the service-role

@@ -51,6 +51,10 @@ await q(`insert into public.holidays (local_date, description) values ('2026-09-
 assert.equal((await j(`select app.staffed_window($1) r`, ['2026-09-17T10:00:00Z'])).reason, 'OFFICE_HOLIDAY');
 
 // ---------------------------------------------------------------- health
+// Healthy needs proof that backups were verified and recovery was tested (P0 operational health):
+// without it every evaluation is Degraded. Recorded here by a service, as a future verifier would.
+for (const kind of ['DatabaseBackup', 'DatabaseRestoreDrill', 'StorageBackup', 'StorageRestoreDrill'])
+  await j(`select app.record_operational_evidence($1, 'Verified', $2, $3, 'test fixture', 'fixture evidence', 'test-verifier') r`, [kind, at(-60), at(-120)]);
 let h = await j(`select app.evaluate_health($1) r`, [at(40)]);
 assert.equal(h.overall, 'Degraded'); // no prior system check
 assert.ok(h.warnings.some(w => w.component === 'HealthChecks'));
