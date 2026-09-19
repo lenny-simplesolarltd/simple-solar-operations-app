@@ -142,7 +142,8 @@ describe('conversation reducer', () => {
     conversationReducer(initialConversation(THREAD), {
       type: 'send',
       id: id(),
-      text: 'Find Parton'
+      text: 'Find Parton',
+      runId: 'run-1'
     });
 
   const action: PendingActionView = {

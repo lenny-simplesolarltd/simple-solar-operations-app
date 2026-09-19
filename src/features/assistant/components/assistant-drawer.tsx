@@ -98,6 +98,19 @@ export function AssistantDrawer() {
         onRetry={conversation.retry}
         onReset={conversation.reset}
         onDecide={conversation.decide}
+        onHandoff={conversation.handoff}
+        onDismissLong={conversation.dismissLong}
+        history={{
+          mode: conversation.mode,
+          list: conversation.list,
+          archived: conversation.archived,
+          workingIds: conversation.workingIds,
+          onOpen: conversation.open,
+          onRefresh: conversation.refreshList,
+          onRename: conversation.rename,
+          onArchive: conversation.setArchived,
+          onDelete: conversation.remove
+        }}
         onClose={mode === 'docked' ? () => setOpen(false) : undefined}
         onNavigate={mode === 'sheet' ? () => setOpen(false) : undefined}
         active={open}

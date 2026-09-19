@@ -10,11 +10,13 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
 `P0001` with a stable code, as `submit_presale` does.
 
 ## BD-01 Customer search
+
 - **Required capability:** find customers independently of a job (name, postcode, phone, email).
 - **Proposed interface:** `searchCustomers(query): {id, displayName, postcode, jobCount}[]` under RLS.
 - **Why:** `find_customer`. Today customers are only reachable through `find_job`.
 
 ## BD-02 Job timeline read model
+
 - **Required capability:** an ordered, staff-readable history of a job.
 - **Proposed interface:** `getJobTimeline(jobId): {at, actorName, kind, summary, entityRef}[]`, as a view or
   RPC with RLS matching `jobs_select`.
@@ -22,6 +24,7 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
   Admin-only and `task_events` currently has no staff RLS policy, so the assistant cannot read either.
 
 ## BD-03 Job readiness / blockers
+
 - **Required capability:** the authoritative answer to "what stops this job moving to the next stage / being booked".
 - **Proposed interface:** `getJobBlockers(jobId): {code, label, blockingTaskId?, ownerName?, since?}[]`,
   computed from `task_dependencies`, `issues` and the ReadyToBook rules in the database.
@@ -29,6 +32,7 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
   and their recorded reason, and says so.
 
 ## BD-04 Task commands
+
 - **Required capability:** complete / reopen a task; attach evidence.
 - **Proposed interface:** `complete_task(p_command_id, p_task_id, p_expected_version, p_note)`,
   `reopen_task(...)`, `attach_task_evidence(...)`, returning the updated task.
@@ -36,6 +40,7 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
   completing tasks arrives with the prebooking workflow.
 
 ## BD-05 Quote revisions (owned by the quote/document workstream)
+
 - **Required capability:** immutable quote snapshots per job, a diff, and amendment/approval commands.
 - **Proposed interface:** `getCurrentQuote(jobId)`, `getQuoteHistory(jobId)`,
   `compareQuoteRevisions(a, b): {path, label, from, to}[]`, and
@@ -46,6 +51,7 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
   `update_quote_draft`, `approve_quote_revision`.
 
 ## BD-06 Generated documents
+
 - **Required capability:** list generated documents for a job; (re)generate a document pack.
 - **Proposed interface:** `getGeneratedDocuments(jobId)`,
   `generate_document_pack(p_command_id, p_job_id, p_quote_revision_id, p_template_codes)`.
@@ -57,6 +63,7 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
 `ASSISTANT_PENDING_ACTIONS=database`; production refuses to propose or confirm any change through the
 in-memory store). The table and its three functions are specified for review in
 `docs/design/003-quotes-documents-files.md` section 9 and are still **not created**.
+
 - **Required capability:** single-use confirmation state shared across server instances.
 - **Proposed interface:**
   ```sql
@@ -82,6 +89,7 @@ in-memory store). The table and its three functions are specified for review in
   confirmations on a multi-instance deployment. **Needed before the first mutation tool ships.**
 
 ## BD-08 Assistant attribution on audit
+
 - **Required capability:** record that a command was initiated through the assistant.
 - **Proposed interface:** either an optional `p_initiated_via text` / `p_context jsonb` on commands
   (stored on `commands` and copied to `audit_events`), or a side table
@@ -89,9 +97,9 @@ in-memory store). The table and its three functions are specified for review in
 - **Why:** auditability without making the assistant the source of audit truth. `server/audit.ts`
   already produces these records; they are only logged today.
 
-## BD-09 Persisted conversations (optional, needs approval)
-- **Required capability:** resume a thread after reload / on another device.
-- **Proposed interface:** `assistant_threads(id, person_id, title, created_at, updated_at)` and
-  `assistant_messages(id, thread_id, seq, role, content jsonb, created_at)`, RLS owner-only, with a
-  retention policy.
-- **Why:** v1 is ephemeral by design. Not required for any planned tool.
+## BD-09 Persisted conversations (IMPLEMENTED on feature/simplebot-conversations)
+
+- **Implemented as:** `assistant_conversations` + `assistant_messages` + `assistant_append_turn()`,
+  RLS owner-only, migration `20260919180000_assistant_conversations.sql` (see ARCHITECTURE.md,
+  "Conversations"). Not yet applied to hosted.
+- **Still open:** a retention policy (how long conversations are kept) is a business decision.
