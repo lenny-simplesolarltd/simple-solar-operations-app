@@ -34,6 +34,167 @@ export type Database = {
   };
   public: {
     Tables: {
+      assistant_conversations: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          estimated_tokens: number;
+          id: string;
+          job_id: string | null;
+          last_message_at: string | null;
+          last_model: string | null;
+          last_prompt_tokens: number | null;
+          last_provider: string | null;
+          message_count: number;
+          person_id: string;
+          source_conversation_id: string | null;
+          summary: string | null;
+          summary_updated_at: string | null;
+          title: string | null;
+          title_source: string;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          estimated_tokens?: number;
+          id?: string;
+          job_id?: string | null;
+          last_message_at?: string | null;
+          last_model?: string | null;
+          last_prompt_tokens?: number | null;
+          last_provider?: string | null;
+          message_count?: number;
+          person_id?: string;
+          source_conversation_id?: string | null;
+          summary?: string | null;
+          summary_updated_at?: string | null;
+          title?: string | null;
+          title_source?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          estimated_tokens?: number;
+          id?: string;
+          job_id?: string | null;
+          last_message_at?: string | null;
+          last_model?: string | null;
+          last_prompt_tokens?: number | null;
+          last_provider?: string | null;
+          message_count?: number;
+          person_id?: string;
+          source_conversation_id?: string | null;
+          summary?: string | null;
+          summary_updated_at?: string | null;
+          title?: string | null;
+          title_source?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_conversations_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_source_conversation_id_fkey';
+            columns: ['source_conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistant_conversations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'assistant_conversations_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      assistant_messages: {
+        Row: {
+          content: Json;
+          conversation_id: string;
+          created_at: string;
+          estimated_tokens: number;
+          id: string;
+          model: string | null;
+          page_context: Json | null;
+          provider: string | null;
+          role: string;
+          run_id: string;
+          seq: number;
+          status: string;
+          ui: Json | null;
+        };
+        Insert: {
+          content: Json;
+          conversation_id: string;
+          created_at?: string;
+          estimated_tokens?: number;
+          id?: string;
+          model?: string | null;
+          page_context?: Json | null;
+          provider?: string | null;
+          role: string;
+          run_id: string;
+          seq: number;
+          status?: string;
+          ui?: Json | null;
+        };
+        Update: {
+          content?: Json;
+          conversation_id?: string;
+          created_at?: string;
+          estimated_tokens?: number;
+          id?: string;
+          model?: string | null;
+          page_context?: Json | null;
+          provider?: string | null;
+          role?: string;
+          run_id?: string;
+          seq?: number;
+          status?: string;
+          ui?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistant_conversations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       accounting_events: {
         Row: {
           created_at: string;
@@ -5354,6 +5515,26 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      assistant_append_turn: {
+        Args: {
+          p_conversation_id: string;
+          p_job_id?: string;
+          p_messages: Json;
+          p_model?: string;
+          p_prompt_tokens?: number;
+          p_provider?: string;
+          p_run_id: string;
+          p_title?: string;
+        };
+        Returns: {
+          appended: boolean;
+          conversation_id: string;
+          estimated_tokens: number;
+          message_count: number;
+          title: string;
+          version: number;
+        }[];
+      };
       current_actor: {
         Args: never;
         Returns: {
