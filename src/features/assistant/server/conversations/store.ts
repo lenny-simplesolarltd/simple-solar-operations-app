@@ -65,11 +65,10 @@ export interface ConversationStore {
     change: { title?: string; archived?: boolean }
   ): Promise<ConversationRecord | null>;
   remove(id: string): Promise<boolean>;
-  /** A new conversation that links back to `sourceId` and carries `summary`. */
+  /** A new conversation that links back to `sourceId`, carries `summary` and the source's job. */
   createHandoff(input: {
     sourceId: string;
     summary: string | null;
-    jobId: string | null;
   }): Promise<ConversationRecord>;
 }
 
@@ -239,15 +238,10 @@ export class SupabaseConversationStore implements ConversationStore {
   }
 
   async update(id: string, change: { title?: string; archived?: boolean }) {
-    const patch: {
-      title?: string;
-      title_source?: string;
-      archived_at?: string | null;
-    } = {};
-    if (change.title !== undefined) {
-      patch.title = change.title;
-      patch.title_source = 'manual';
-    }
+    // Only these two columns are writable directly; the database marks a
+    // renamed title as manual itself.
+    const patch: { title?: string; archived_at?: string | null } = {};
+    if (change.title !== undefined) patch.title = change.title;
     if (change.archived !== undefined) {
       patch.archived_at = change.archived ? new Date().toISOString() : null;
     }
@@ -271,23 +265,25 @@ export class SupabaseConversationStore implements ConversationStore {
     return data.length > 0;
   }
 
-  async createHandoff(input: {
-    sourceId: string;
-    summary: string | null;
-    jobId: string | null;
-  }) {
-    const { data, error } = await this.client
-      .from('assistant_conversations')
-      .insert({
-        source_conversation_id: input.sourceId,
-        summary: input.summary,
-        summary_updated_at: input.summary ? new Date().toISOString() : null,
-        job_id: input.jobId
-      })
-      .select(COLUMNS)
-      .single();
-    if (error) throw fail('create', error);
-    return toRecord(data as Row);
+  async createHandoff(input: { sourceId: string; summary: string | null }) {
+    // The database checks the source is the caller's and copies its job.
+    const { data: id, error } = await this.client.rpc(
+      'assistant_start_handoff',
+      {
+        p_source_id: input.sourceId,
+        p_summary: input.summary ?? undefined
+      }
+    );
+    if (error) {
+      if (/NOT_FOUND/.test(error.message)) {
+        throw new ConversationStoreError('NOT_FOUND', 'Conversation not found');
+      }
+      throw fail('create', error);
+    }
+    const created = await this.get(id as string);
+    if (!created)
+      throw new ConversationStoreError('FAILED', 'Handoff not readable');
+    return created;
   }
 }
 

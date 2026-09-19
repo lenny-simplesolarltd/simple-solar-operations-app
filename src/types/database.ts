@@ -5839,6 +5839,10 @@ export type Database = {
         Args: { p_answers: Json; p_submission_id: string; p_token: string };
         Returns: Json;
       };
+      assistant_start_handoff: {
+        Args: { p_source_id: string; p_summary?: string };
+        Returns: string;
+      };
       assistant_append_turn: {
         Args: {
           p_conversation_id: string;

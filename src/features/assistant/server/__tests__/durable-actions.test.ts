@@ -38,7 +38,17 @@ const signer = () =>
 function fakeDatabase() {
   const rows = new Map<
     string,
-    { actor: string; status: 'pending' | 'claimed'; resolution: string | null }
+    {
+      actor: string;
+      status: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'cancelled';
+      tool: string;
+      args: unknown;
+      argsHash: string;
+      expectedVersion: number | null;
+      threadId: string;
+      expiresAt: number;
+      code: string | null;
+    }
   >();
   const calls: { fn: string; args: Record<string, unknown> }[] = [];
   const rpcFor =
@@ -47,31 +57,48 @@ function fakeDatabase() {
       calls.push({ fn, args });
       const id = args.p_id as string;
       const row = rows.get(id);
+      const mine = row && row.actor === sessionPersonId;
       if (fn === 'assistant_register_pending_action') {
         rows.set(id, {
           actor: sessionPersonId,
           status: 'pending',
-          resolution: null
+          tool: args.p_tool as string,
+          args: structuredClone(args.p_args),
+          argsHash: args.p_args_hash as string,
+          expectedVersion: args.p_expected_version as number | null,
+          threadId: args.p_thread_id as string,
+          expiresAt: Date.parse(args.p_expires_at as string),
+          code: null
         });
         return { data: null, error: null };
       }
       if (fn === 'assistant_claim_pending_action') {
-        if (!row || row.actor !== sessionPersonId)
-          return { data: 'unknown', error: null };
-        if (row.status === 'claimed')
-          return { data: 'already_used', error: null };
-        row.status = 'claimed';
-        row.resolution = args.p_decision as string;
-        return { data: 'ok', error: null };
+        if (!mine) return { data: { outcome: 'unknown' }, error: null };
+        if (row.status !== 'pending')
+          return { data: { outcome: 'already_used' }, error: null };
+        if (row.expiresAt <= Date.now())
+          return { data: { outcome: 'expired' }, error: null };
+        row.status = args.p_decision === 'confirm' ? 'claimed' : 'cancelled';
+        return {
+          data: {
+            outcome: 'ok',
+            tool: row.tool,
+            args: row.args,
+            args_hash: row.argsHash,
+            expected_version: row.expectedVersion,
+            thread_id: row.threadId
+          },
+          error: null
+        };
       }
       if (fn === 'assistant_release_pending_action') {
-        if (
-          row &&
-          row.actor === sessionPersonId &&
-          row.resolution === 'confirm'
-        ) {
-          row.status = 'pending';
-          row.resolution = null;
+        if (mine && row.status === 'claimed') row.status = 'pending';
+        return { data: null, error: null };
+      }
+      if (fn === 'assistant_complete_pending_action') {
+        if (mine && row.status === 'claimed') {
+          row.status = args.p_succeeded ? 'succeeded' : 'failed';
+          row.code = (args.p_code as string | null) ?? null;
         }
         return { data: null, error: null };
       }
@@ -174,7 +201,7 @@ describe('database-backed store', () => {
     return { db, me, other, serviceFor };
   }
 
-  it('registers only a hash of the arguments, never the arguments', async () => {
+  it('records the validated arguments and the preview server-side, with no identity parameter', async () => {
     const { db, me, serviceFor } = setup();
     const mutation = fakeCompleteTask();
     await issuePendingAction(serviceFor(me.user.id), {
@@ -187,22 +214,86 @@ describe('database-backed store', () => {
     const [call] = db.calls;
     expect(call.fn).toBe('assistant_register_pending_action');
     expect(Object.keys(call.args).sort()).toEqual([
+      'p_args',
       'p_args_hash',
       'p_expected_version',
       'p_expires_at',
       'p_id',
+      'p_preview',
       'p_thread_id',
       'p_tool'
     ]);
-    expect(JSON.stringify(call.args)).not.toContain('Customer confirmed');
+    expect(call.args.p_args).toEqual({
+      taskId: TASK_ID,
+      note: 'Customer confirmed by phone'
+    });
     expect(call.args.p_args_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(call.args.p_expected_version).toBe(7);
+    expect(call.args.p_preview).toMatchObject({ title: 'Mark PRE02 complete' });
     // No identity parameter exists: the database derives the actor from the session.
-    expect(JSON.stringify(call.args)).not.toMatch(/actor|person/i);
+    expect(Object.keys(call.args).join()).not.toMatch(/actor|person/i);
+  });
+
+  it('executes the arguments the server stored, and refuses if they do not match the proposal', async () => {
+    const { db, me, serviceFor } = setup();
+    const mutation = fakeCompleteTask();
+    const registry = new ToolRegistry().register(mutation.tool);
+    const action = await issuePendingAction(serviceFor(me.user.id), {
+      tool: mutation.tool.name,
+      args: { taskId: TASK_ID },
+      actorPersonId: me.user.id,
+      threadId: THREAD,
+      preview: (await mutation.prepare()).preview
+    });
+    // Someone altered the stored row: the hashes no longer agree.
+    db.rows.get(action.actionId)!.args = {
+      taskId: '6b1e5b4d-a9b2-4c1f-9e54-1d7f1b2e3f40'
+    };
+    const result = await resolvePendingAction({
+      actor: me,
+      decision: 'confirm',
+      token: action.token,
+      registry,
+      pendingActions: serviceFor(me.user.id),
+      audit: silentAudit().sink
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'ACTION_INVALID' }
+    });
+    expect(mutation.execute).not.toHaveBeenCalled();
+    expect(db.rows.get(action.actionId)!.status).toBe('failed');
+  });
+
+  it('refuses an expired proposal without running it', async () => {
+    const { db, me, serviceFor } = setup();
+    const mutation = fakeCompleteTask();
+    const registry = new ToolRegistry().register(mutation.tool);
+    const action = await issuePendingAction(serviceFor(me.user.id), {
+      tool: mutation.tool.name,
+      args: { taskId: TASK_ID },
+      actorPersonId: me.user.id,
+      threadId: THREAD,
+      preview: (await mutation.prepare()).preview
+    });
+    db.rows.get(action.actionId)!.expiresAt = Date.now() - 1000;
+    const result = await resolvePendingAction({
+      actor: me,
+      decision: 'confirm',
+      token: action.token,
+      registry,
+      pendingActions: serviceFor(me.user.id),
+      audit: silentAudit().sink
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'ACTION_EXPIRED' }
+    });
+    expect(mutation.execute).not.toHaveBeenCalled();
   });
 
   it('is single-use across server instances, and only for its own actor', async () => {
-    const { me, other, serviceFor } = setup();
+    const { db, me, other, serviceFor } = setup();
     const mutation = fakeCompleteTask();
     const registry = new ToolRegistry().register(mutation.tool);
     const action = await issuePendingAction(serviceFor(me.user.id), {
@@ -234,6 +325,7 @@ describe('database-backed store', () => {
       error: { code: 'ACTION_ALREADY_USED' }
     });
     expect(mutation.execute).toHaveBeenCalledTimes(1);
+    expect(db.rows.get(action.actionId)!.status).toBe('succeeded');
   });
 
   it('fails closed when the database functions are missing or error', async () => {
@@ -277,6 +369,6 @@ describe('database-backed store', () => {
       data: 'yes please',
       error: null
     }));
-    expect(await odd.consume('x', 'confirm')).toBe('unknown');
+    expect(await odd.claim('x', 'confirm')).toEqual({ outcome: 'unknown' });
   });
 });
