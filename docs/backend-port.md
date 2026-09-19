@@ -21,7 +21,8 @@ implementation (`simple-solar-operations`: Google Sheets + AppSheet + Apps Scrip
 | scheduling, evidence storage | `20260919150000_integration.sql` |
 
 SOLD_INTAKE is not ported here: the sale is `public.submit_presale` (Job Sold migration).
-Not ported by design: AppSheet request rows and bots, upload retry, CommitJournal recovery states,
+Not ported by design: AppSheet request rows and bots, upload retry (a command and its file check share one
+transaction - `docs/evidence.md`), CommitJournal recovery states,
 script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-bridge/`).
 | — (registry for R2–R4 commands/reads as data; release modes for any release) | `20260919160000_command_registry.sql` |
 | `materials/workflow.js`, `s07/ordering.js` | `20260919161000_r2_materials_ordering.sql` |
@@ -35,6 +36,7 @@ script locks, DEV sheet guards, generated bundles (`apps-script/`, `standalone-b
 | view-port booking reads (BOOKING_BOARD, BOOKING_FORM, INTAKE_REVIEW_QUEUE) | `20260919171000_view_port_booking_reads.sql` |
 | view-port material list reads (MATERIALS_BOARD, ORDERS_LIST, STOCK_OVERVIEW) | `20260919172000_view_port_materials_reads.sql` |
 | view-port resourcing reads (STAFF_AVAILABILITY, INSTALLER_SKILLS, SCAFFOLD_BOARD, COMMISSIONING_QUEUE) | `20260919173000_view_port_resourcing_reads.sql` |
+| evidence ownership, registered uploads, read authorization, metadata-based storage policies (see `docs/evidence.md`); replaces `app.ensure_evidence`, `app.job_evidence`, `app.iw_evidence` and the three path-parsing storage policies of `20260919150000` / `20260919165000` | `20260919183000_p0_evidence.sql` |
 | audit triggers lost in the drop/restore incident; audit coverage check | `20260919202000_p0_audit_integrity.sql` |
 | `backup/service.js` verify + restore rehearsal as recorded evidence, `s16/health.js` staleness, `s18` BKP/MAN-06/MAN-13, `s20` BACKUP_MISSING (see `docs/OPERATIONAL_HEALTH.md`) | `20260919202100_p0_operational_health.sql` |
 

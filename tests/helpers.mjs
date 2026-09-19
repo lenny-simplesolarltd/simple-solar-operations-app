@@ -3,8 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 
+// SUPABASE_TEST_WORKDIR points the tests at another local stack (a directory
+// holding its own supabase/config.toml), e.g. an isolated one with its own
+// project id and ports. Still local only - see the assertion below.
+const workdir = process.env.SUPABASE_TEST_WORKDIR
+  ? ['--workdir', process.env.SUPABASE_TEST_WORKDIR]
+  : [];
 const env = Object.fromEntries(
-  execFileSync('supabase', ['status', '-o', 'env'], {
+  execFileSync('supabase', ['status', '-o', 'env', ...workdir], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore']
   })

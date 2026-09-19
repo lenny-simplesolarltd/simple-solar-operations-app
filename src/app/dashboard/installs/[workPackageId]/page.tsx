@@ -7,6 +7,7 @@ import { AssistantPageContext } from '@/features/assistant/components/page-conte
 import { CommissioningForm } from '@/features/installs/components/commissioning-form';
 import { InstallActions } from '@/features/installs/components/install-actions';
 import type { WorkflowRead } from '@/features/installs/types';
+import { EvidenceList } from '@/features/operations/evidence-list';
 import { getCurrentUser } from '@/lib/auth';
 import { readOps } from '@/lib/backend/read';
 import { IconArrowLeft } from '@tabler/icons-react';
@@ -68,6 +69,17 @@ export default async function InstallPage({
               </div>
               <InstallActions wf={result.data} officeReason={officeReason} />
             </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className='text-base'>Photos and files</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EvidenceList
+                  scope={{ work_package_id: result.data.work_package_id }}
+                  empty='No photos have been added to this work yet.'
+                />
+              </CardContent>
+            </Card>
             {result.data.commissioning_required && (
               <Card>
                 <CardHeader>
