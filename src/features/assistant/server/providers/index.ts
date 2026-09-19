@@ -18,8 +18,8 @@ const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
  *
  *   ASSISTANT_PROVIDER   'anthropic' | 'gemini' | 'dev-router' (unset = assistant off)
  *   ANTHROPIC_API_KEY    required for 'anthropic'
- *   GEMENI_API_KEY       required for 'gemini' (this project's spelling;
- *                        GEMINI_API_KEY is accepted as an alias)
+ *   GEMINI_API_KEY       required for 'gemini' (the legacy misspelling
+ *                        GEMENI_API_KEY is still accepted as an alias)
  *   GEMINI_MODEL         optional Gemini model override
  *   ASSISTANT_MODEL      optional Anthropic model override
  *
@@ -77,13 +77,13 @@ export function resolveProvider(
   }
 
   if (choice === 'gemini') {
-    // GEMENI_API_KEY is, deliberately, the name this project's environments use.
-    const apiKey = (env.GEMENI_API_KEY || env.GEMINI_API_KEY)?.trim();
+    // GEMENI_API_KEY is the name older environments used; still accepted.
+    const apiKey = (env.GEMINI_API_KEY || env.GEMENI_API_KEY)?.trim();
     if (!apiKey) {
       return {
         ok: false,
         notice:
-          'The assistant is set to use Gemini but no GEMENI_API_KEY is configured on the server.'
+          'The assistant is set to use Gemini but no GEMINI_API_KEY is configured on the server.'
       };
     }
     return {

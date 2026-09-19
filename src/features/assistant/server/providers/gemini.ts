@@ -196,7 +196,7 @@ function errorFromResponse(
   if (status === 404) {
     return new AssistantProviderError(
       'BAD_REQUEST',
-      'The configured assistant model was not found. Ask an administrator to check ASSISTANT_MODEL.',
+      'The configured assistant model was not found. Ask an administrator to check GEMINI_MODEL.',
       false,
       { cause }
     );

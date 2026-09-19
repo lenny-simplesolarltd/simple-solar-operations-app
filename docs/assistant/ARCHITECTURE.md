@@ -92,7 +92,7 @@ Server-only configuration (never `NEXT_PUBLIC_*`):
 | --- | --- |
 | `ASSISTANT_PROVIDER` | `anthropic`, `gemini` or `dev-router`. Unset = assistant off, with a staff-readable notice. A key alone never enables usage. |
 | `ANTHROPIC_API_KEY` | required for `anthropic` |
-| `GEMENI_API_KEY` | required for `gemini`. This spelling is the project's deliberate name; `GEMINI_API_KEY` is accepted as an alias |
+| `GEMINI_API_KEY` | required for `gemini`. The legacy misspelling `GEMENI_API_KEY` is still accepted as an alias; if both are set, `GEMINI_API_KEY` wins |
 | `GEMINI_MODEL` | optional; default `gemini-flash-latest`, Google's moving alias for the current Flash model (confirmed through the model-listing API) |
 | `ASSISTANT_MODEL` | optional Anthropic model; default `claude-opus-5`. Ignored by Gemini |
 | `ASSISTANT_ACTION_SECRET` | >= 32 chars; signs pending actions. Required in production for proposals; dev falls back to a per-process random key. |
