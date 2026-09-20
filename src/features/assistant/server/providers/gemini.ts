@@ -22,6 +22,8 @@ const MAX_OUTPUT_TOKENS = 16_000;
 
 interface GeminiPart {
   text?: string;
+  /** An attached image, base64, sent with the turn it arrived in. */
+  inlineData?: { mimeType: string; data: string };
   /** True on reasoning summaries; never shown to staff. */
   thought?: boolean;
   /** Opaque reasoning state. Must be returned unchanged with the part it came on. */
@@ -103,9 +105,25 @@ export function toGeminiContents(messages: ModelMessage[]): GeminiContent[] {
 
   for (const message of messages) {
     switch (message.role) {
-      case 'user':
-        push('user', [{ text: message.text }]);
+      case 'user': {
+        // The image parts come first: Gemini reads a question about a picture
+        // better when the picture precedes it. Text attachments are already
+        // folded into message.text inside a marked envelope by the caller.
+        const parts: GeminiPart[] = [];
+        for (const attachment of message.attachments ?? []) {
+          if (attachment.kind === 'image') {
+            parts.push({
+              inlineData: {
+                mimeType: attachment.mediaType,
+                data: attachment.data
+              }
+            });
+          }
+        }
+        parts.push({ text: message.text });
+        push('user', parts);
         break;
+      }
       case 'event':
         // Application events travel in the user channel, clearly marked. They
         // come back from the browser, so they get no operator authority.

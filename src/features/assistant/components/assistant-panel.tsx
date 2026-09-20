@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils';
 import {
   IconAlertTriangle,
   IconArrowUp,
+  IconFileText,
+  IconPaperclip,
+  IconPhoto,
   IconCheck,
   IconHistory,
   IconInfoCircle,
@@ -17,10 +20,14 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { describeContext, type AssistantPageContext } from '../context';
 import type { ConversationItem, ConversationState } from '../lib/conversation';
-import type {
-  AssistantCapabilities,
-  HelpCardArticle
-} from '../protocol';
+import {
+  ACCEPT_ATTRIBUTE,
+  filesFrom,
+  readAttachments,
+  type AttachmentRejection
+} from '../lib/attachments';
+import { MAX_ATTACHMENTS, type Attachment } from '../protocol';
+import type { AssistantCapabilities, HelpCardArticle } from '../protocol';
 import { suggestionsFor, type AssistantSuggestion } from '../suggestions';
 import { ActionCard } from './action-card';
 import {
@@ -40,7 +47,7 @@ export interface AssistantPanelProps {
   page: AssistantPageContext;
   capabilities: AssistantCapabilities | null;
   capabilitiesError?: boolean;
-  onSend(text: string): void;
+  onSend(text: string, attachments?: Attachment[]): void;
   onStop(): void;
   onRetry(errorId: string): void;
   onReset(): void;
@@ -155,11 +162,45 @@ export function AssistantPanel({
     if (log && pinnedRef.current) log.scrollTop = log.scrollHeight;
   }, [conversation.items, working]);
 
+  // -- Attachments ---------------------------------------------------------
+  // A screenshot or a row of data, attached to THIS message. They are read in
+  // the browser, travel with the turn, and are not kept afterwards - so the
+  // chips clear on send, and nothing here persists.
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [rejected, setRejected] = useState<AttachmentRejection[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const take = async (files: File[]) => {
+    if (files.length === 0) return;
+    const result = await readAttachments(files, attachments.length);
+    if (result.attachments.length > 0) {
+      setAttachments((current) =>
+        [...current, ...result.attachments].slice(0, MAX_ATTACHMENTS)
+      );
+    }
+    // Say what was not read, rather than dropping it quietly.
+    setRejected(result.rejected);
+  };
+
   const submit = () => {
-    if (!draft.trim() || working || unavailable || opening) return;
+    if (
+      (!draft.trim() && attachments.length === 0) ||
+      working ||
+      unavailable ||
+      opening
+    )
+      return;
     pinnedRef.current = true;
-    onSend(draft);
+    onSend(
+      draft.trim() ||
+        // A bare attachment is still a question: say the obvious one.
+        'Read the attached file and tell me what is in it.',
+      attachments.length > 0 ? attachments : undefined
+    );
     setDraft('');
+    setAttachments([]);
+    setRejected([]);
   };
 
   const choose = (suggestion: AssistantSuggestion) => {
@@ -367,15 +408,15 @@ export function AssistantPanel({
                     />
                   </li>
                 ) : (
-                <li key={entry.item.id}>
-                  <Item
-                    item={entry.item}
-                    onRetry={onRetry}
-                    onDecide={onDecide}
-                    onNavigate={onNavigate}
-                    busy={working}
-                  />
-                </li>
+                  <li key={entry.item.id}>
+                    <Item
+                      item={entry.item}
+                      onRetry={onRetry}
+                      onDecide={onDecide}
+                      onNavigate={onNavigate}
+                      busy={working}
+                    />
+                  </li>
                 )
               )}
               {showThinking && (
@@ -416,13 +457,89 @@ export function AssistantPanel({
               ))}
             </div>
           )}
+        {(attachments.length > 0 || rejected.length > 0) && (
+          <div className='mb-1.5 flex flex-wrap gap-1.5'>
+            {attachments.map((a, i) => (
+              <span
+                key={`${a.name}-${i}`}
+                className='bg-muted text-muted-foreground flex max-w-56 items-center gap-1.5 rounded-md py-1 pr-1 pl-2 text-xs'
+              >
+                {a.kind === 'image' ? (
+                  <IconPhoto className='size-3.5 shrink-0' aria-hidden />
+                ) : (
+                  <IconFileText className='size-3.5 shrink-0' aria-hidden />
+                )}
+                <span className='truncate'>{a.name}</span>
+                <button
+                  type='button'
+                  onClick={() =>
+                    setAttachments((c) => c.filter((_, n) => n !== i))
+                  }
+                  className='hover:text-foreground rounded p-0.5'
+                >
+                  <IconX className='size-3.5' aria-hidden />
+                  <span className='sr-only'>Remove {a.name}</span>
+                </button>
+              </span>
+            ))}
+            {rejected.map((r) => (
+              <span
+                key={r.name}
+                className='text-muted-foreground flex items-center gap-1 text-xs'
+              >
+                <IconAlertTriangle className='size-3.5 shrink-0' aria-hidden />
+                {r.name}: {r.reason}
+              </span>
+            ))}
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             submit();
           }}
-          className='border-input focus-within:border-ring focus-within:ring-ring/40 bg-background flex items-end gap-2 rounded-lg border p-1.5 transition-shadow focus-within:ring-[3px]'
+          onDragOver={(e) => {
+            if (unavailable || opening) return;
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            if (unavailable || opening) return;
+            e.preventDefault();
+            setDragging(false);
+            void take(filesFrom(e.dataTransfer));
+          }}
+          className={cn(
+            'border-input focus-within:border-ring focus-within:ring-ring/40 bg-background flex items-end gap-2 rounded-lg border p-1.5 transition-shadow focus-within:ring-[3px]',
+            dragging && 'border-ring ring-ring/40 ring-[3px]'
+          )}
         >
+          <input
+            ref={fileRef}
+            type='file'
+            multiple
+            accept={ACCEPT_ATTRIBUTE}
+            className='sr-only'
+            onChange={(e) => {
+              void take(Array.from(e.target.files ?? []));
+              // Let the same file be chosen again after removing it.
+              e.target.value = '';
+            }}
+          />
+          <Button
+            type='button'
+            size='icon'
+            variant='ghost'
+            className='size-9 shrink-0 rounded-md'
+            disabled={
+              unavailable || opening || attachments.length >= MAX_ATTACHMENTS
+            }
+            onClick={() => fileRef.current?.click()}
+          >
+            <IconPaperclip aria-hidden />
+            <span className='sr-only'>Attach a screenshot or file</span>
+          </Button>
           <label htmlFor='assistant-composer' className='sr-only'>
             Message SimpleBot
           </label>
@@ -431,6 +548,14 @@ export function AssistantPanel({
             ref={composerRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onPaste={(e) => {
+              // Screenshot straight from the clipboard, the way people expect.
+              const files = filesFrom(e.clipboardData);
+              if (files.length > 0) {
+                e.preventDefault();
+                void take(files);
+              }
+            }}
             onKeyDown={(e) => {
               // Shift+Tab cycles the mode without leaving the keyboard, and
               // without stealing plain Tab, which still moves focus.
@@ -476,7 +601,11 @@ export function AssistantPanel({
               type='submit'
               size='icon'
               className='size-9 shrink-0 rounded-md'
-              disabled={!draft.trim() || unavailable || opening}
+              disabled={
+                (!draft.trim() && attachments.length === 0) ||
+                unavailable ||
+                opening
+              }
             >
               <IconArrowUp aria-hidden />
               <span className='sr-only'>Send</span>

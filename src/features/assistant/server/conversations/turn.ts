@@ -4,9 +4,34 @@ import type { AssistantContext } from '../../context';
 import type { StoredUi } from '../../lib/history';
 import type {
   AssistantStreamEvent,
+  Attachment,
   ConversationTurnInfo,
   TranscriptMessage
 } from '../../protocol';
+import { attachmentNote } from '../../protocol';
+
+/**
+ * The transcript as it should be WRITTEN, which is not quite what the model
+ * read.
+ *
+ * An attachment belongs to its turn. Storing it would put whole screenshots
+ * and entire spreadsheets in the conversation table, for content the model has
+ * already used, and every later turn would carry them again. So the stored
+ * question keeps the staff member's own words plus a note saying what was
+ * attached, and the file itself is dropped.
+ *
+ * The visible consequence, worth knowing before changing this: a follow-up
+ * question about an attachment needs the attachment again.
+ */
+export function storable(transcript: TranscriptMessage[]): TranscriptMessage[] {
+  return transcript.map((message) => {
+    if (message.role !== 'user' || !message.attachments?.length) {
+      return message;
+    }
+    const { attachments, ...rest } = message;
+    return { ...rest, text: rest.text + attachmentNote(attachments) };
+  });
+}
 import type { AssistantAuditSink } from '../audit';
 import { runAssistantTurn } from '../orchestrator';
 import type { PendingActionService } from '../pending-actions';
@@ -30,6 +55,8 @@ export interface ConversationTurnInput {
   threadId: string;
   runId: string;
   message: string;
+  /** This turn's attachments. Used by the model, never written to the store. */
+  attachments?: Attachment[];
   transcript?: TranscriptMessage[];
   context?: AssistantContext;
   provider: AssistantModelProvider;
@@ -93,6 +120,7 @@ export async function runConversationTurn(
     actor: input.actor,
     threadId,
     message: input.message,
+    attachments: input.attachments,
     transcript: history,
     context: input.context,
     provider,
@@ -139,13 +167,14 @@ export async function runConversationTurn(
   if (finished) {
     let conversation: ConversationTurnInfo | undefined;
     if (store) {
-      conversation = await save(finished.transcript, 'complete').catch(
-        (error: unknown) => {
-          // eslint-disable-next-line no-console -- server-side diagnostics; the reply was still shown
-          console.error('assistant conversation save failed', error);
-          return undefined;
-        }
-      );
+      conversation = await save(
+        storable(finished.transcript),
+        'complete'
+      ).catch((error: unknown) => {
+        // eslint-disable-next-line no-console -- server-side diagnostics; the reply was still shown
+        console.error('assistant conversation save failed', error);
+        return undefined;
+      });
     }
     emit({ ...finished, ...(conversation && { conversation }) });
     return;
@@ -156,7 +185,10 @@ export async function runConversationTurn(
     // a plain exchange (no half-finished tool calls), so history stays valid.
     await save(
       [
-        { role: 'user', text: input.message },
+        {
+          role: 'user',
+          text: input.message + attachmentNote(input.attachments ?? [])
+        },
         { role: 'assistant', text: streamedText, toolCalls: [] }
       ],
       'stopped'

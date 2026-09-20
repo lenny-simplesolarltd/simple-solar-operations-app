@@ -10,7 +10,7 @@ vi.mock('@/features/presale/server/queries', () => ({
   getSalespeople: () => getSalespeople()
 }));
 
-const submitPresale = vi.fn(async () => ({
+const submitPresale = vi.fn(async (_id?: string, _submission?: unknown) => ({
   ok: true as const,
   result: {
     job_id: 'j',
@@ -92,7 +92,7 @@ describe('what reaches the database', () => {
     ).toBe('£8,500.00');
 
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as [
+    const [, submission] = submitPresale.mock.calls[0] as unknown as [
       string,
       { sale: { agreed_price_pence: number }; computed: unknown }
     ];
@@ -101,7 +101,7 @@ describe('what reaches the database', () => {
 
   it('normalises the postcode the way the database stores it', async () => {
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as [
+    const [, submission] = submitPresale.mock.calls[0] as unknown as [
       string,
       { customer: { postcode: string } }
     ];
@@ -110,7 +110,7 @@ describe('what reaches the database', () => {
 
   it('records no design, and says which it is', async () => {
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as [
+    const [, submission] = submitPresale.mock.calls[0] as unknown as [
       string,
       { design: unknown; catalogue_version: string }
     ];
@@ -137,7 +137,7 @@ describe('what reaches the database', () => {
 describe('whose sale it is', () => {
   it('defaults to the signed-in Surveyor', async () => {
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as [
+    const [, submission] = submitPresale.mock.calls[0] as unknown as [
       string,
       { sale: { salesperson_id: string } }
     ];

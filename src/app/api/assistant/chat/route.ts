@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const resolved = resolveProvider();
   if (!resolved.ok) return json(503, 'NOT_CONFIGURED', resolved.notice);
 
-  const { threadId, message, transcript, context } = parsed.data;
+  const { threadId, message, attachments, transcript, context } = parsed.data;
   const overrideMode = parsed.data.overrideMode === true;
   const runId = parsed.data.runId ?? crypto.randomUUID();
   const store = await openConversationStore(actor).catch((error: unknown) => {
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
           threadId,
           runId,
           message,
+          attachments,
           transcript,
           context,
           provider: resolved.provider,

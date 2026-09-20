@@ -32,8 +32,33 @@ export function toAnthropicMessages(
 ): Anthropic.MessageParam[] {
   return messages.map((message): Anthropic.MessageParam => {
     switch (message.role) {
-      case 'user':
-        return { role: 'user', content: message.text };
+      case 'user': {
+        const images = (message.attachments ?? []).filter(
+          (a) => a.kind === 'image'
+        );
+        if (images.length === 0) {
+          return { role: 'user', content: message.text };
+        }
+        // Image first, then the question about it. Text attachments are
+        // already folded into message.text by the caller, in a marked
+        // envelope, so they need nothing here.
+        return {
+          role: 'user',
+          content: [
+            ...images.map(
+              (a): Anthropic.ImageBlockParam => ({
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: a.mediaType,
+                  data: a.data
+                }
+              })
+            ),
+            { type: 'text', text: message.text }
+          ]
+        };
+      }
       case 'event':
         // Application events travel in the user channel, clearly marked. They
         // come back from the browser, so they get no operator authority.

@@ -22,6 +22,7 @@ import {
 } from '../lib/stream-client';
 import type {
   ActionResponse,
+  Attachment,
   ConversationDetail,
   ConversationListItem
 } from '../protocol';
@@ -32,7 +33,7 @@ const ACTIVE_KEY = 'simplebot.activeConversation';
 /** The conversation on screen: what the panel renders and drives. */
 export interface AssistantConversation {
   state: ConversationState;
-  send(text: string): void;
+  send(text: string, attachments?: Attachment[]): void;
   stop(): void;
   retry(errorId: string): void;
   /** Start a new conversation. The current one stays in history. */
@@ -190,7 +191,7 @@ export function useAssistantConversations(
   }, [mode, open]);
 
   const run = useCallback(
-    (raw: string, retryOf?: string) => {
+    (raw: string, retryOf?: string, attachments?: Attachment[]) => {
       const text = raw.trim();
       const conversationId = stateRef.current.activeId;
       const current = stateRef.current.byId[conversationId];
@@ -215,6 +216,7 @@ export function useAssistantConversations(
               threadId: conversationId,
               runId,
               message: text,
+              ...(attachments?.length && { attachments }),
               // Stored conversations are read from the server, not sent from here.
               ...(mode === 'ephemeral' && { transcript: current.transcript }),
               overrideMode: getOverrideMode(),
@@ -269,7 +271,11 @@ export function useAssistantConversations(
     [getContext, inConversation, mode, refreshList]
   );
 
-  const send = useCallback((text: string) => run(text), [run]);
+  const send = useCallback(
+    (text: string, attachments?: Attachment[]) =>
+      run(text, undefined, attachments),
+    [run]
+  );
   const retry = useCallback(
     (errorId: string) => {
       const current = stateRef.current.byId[stateRef.current.activeId];
