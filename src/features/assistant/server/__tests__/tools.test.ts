@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 
 describe('the production registry', () => {
-  it('exposes read tools, and mutations only for Forms and bulk task work (each a confirmed proposal)', () => {
+  it('exposes read tools, and mutations only for Forms, bulk task work and filing (each a confirmed proposal)', () => {
     const available = registry.all().filter((t) => t.status === 'available');
     expect(
       available
@@ -74,6 +74,7 @@ describe('the production registry', () => {
       'get_presale_workflow',
       'get_related_help',
       'get_team_tasks',
+      'list_file_folders',
       'list_form_responses',
       'list_forms',
       'list_job_files',
@@ -84,9 +85,11 @@ describe('the production registry', () => {
     const mutations = available.filter((t) => t.kind === 'mutation');
     expect(mutations.map((t) => t.name).sort()).toEqual([
       'complete_tasks',
+      'create_file_folder',
       'create_form',
       'create_form_link',
       'edit_form_draft',
+      'move_files_to_folder',
       'override_complete_tasks',
       'publish_form',
       'reopen_tasks',
@@ -96,9 +99,15 @@ describe('the production registry', () => {
       'set_form_status'
     ]);
     // Every mutation is an adapter over something the app already exposes:
-    // the Forms service, or the task batch command the Tasks screen submits.
+    // the Forms service, the task batch command the Tasks screen submits, or
+    // the file-manager commands the Files screen calls.
     for (const tool of mutations) {
-      expect(['forms', 'tasks']).toContain(tool.domain);
+      expect(['forms', 'tasks', 'evidence']).toContain(tool.domain);
+      if (tool.domain === 'evidence') {
+        // Filing only. Nothing that removes a document is offered to the model.
+        expect(tool.authorization.permissions).toContain('file.manage');
+        expect(tool.name).not.toMatch(/trash|delete|purge|destroy/);
+      }
       if (tool.domain === 'forms') {
         expect(
           tool.authorization.permissions.some((p) => p.startsWith('forms.'))

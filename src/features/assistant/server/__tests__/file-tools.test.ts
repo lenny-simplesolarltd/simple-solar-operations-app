@@ -155,6 +155,8 @@ describe('list_job_files', () => {
       added_at: '2026-09-19T10:00:00Z',
       added_by: 'Tanya Office',
       task_title: null,
+      // Where staff would look for it, so an answer can say where it lives.
+      folder: 'Top level',
       open_url: `/api/evidence/${EV(1)}`,
       download_url: `/api/evidence/${EV(1)}?download=1`
     });

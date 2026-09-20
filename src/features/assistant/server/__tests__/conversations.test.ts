@@ -735,6 +735,7 @@ describe('history cannot change authorization', () => {
       'get_presale_workflow',
       'get_related_help',
       'get_team_tasks',
+      'list_file_folders',
       'list_job_files',
       'plan_task_action',
       'reopen_tasks',

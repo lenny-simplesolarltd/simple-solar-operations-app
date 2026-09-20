@@ -87,6 +87,7 @@ describe('signed in', () => {
       'get_presale_workflow',
       'list_job_files',
       'search_files',
+      'list_file_folders',
       'search_help_articles',
       'get_help_article',
       'get_help_for_route',
