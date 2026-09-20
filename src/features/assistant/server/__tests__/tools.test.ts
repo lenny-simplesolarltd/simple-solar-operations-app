@@ -92,8 +92,10 @@ describe('the production registry', () => {
       'create_form_link',
       'edit_form_draft',
       'move_files_to_folder',
+      'move_job',
       'override_complete_tasks',
       'publish_form',
+      'raise_issue',
       'reopen_tasks',
       'retry_operation',
       'revoke_form_link',
@@ -106,9 +108,14 @@ describe('the production registry', () => {
     // the Forms service, the task batch command the Tasks screen submits, or
     // the file-manager commands the Files screen calls.
     for (const tool of mutations) {
-      expect(['forms', 'tasks', 'evidence', 'customers', 'jobs']).toContain(
-        tool.domain
-      );
+      expect([
+        'forms',
+        'tasks',
+        'evidence',
+        'customers',
+        'jobs',
+        'calendar'
+      ]).toContain(tool.domain);
       // Correcting contact details and lead source is CUSTOMER_UPDATE /
       // JOB_SALE_UPDATE (migration 20260920270000). Each asks for its own
       // permission up front; the command re-checks it whatever this says.

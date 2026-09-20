@@ -720,7 +720,13 @@ describe('history cannot change authorization', () => {
         .filter((t) => t.kind === 'mutation')
         .map((t) => t.name)
         .sort()
-    ).toEqual(['complete_tasks', 'reopen_tasks', 'retry_operation']);
+    ).toEqual([
+      'complete_tasks',
+      'move_job',
+      'raise_issue',
+      'reopen_tasks',
+      'retry_operation'
+    ]);
     expect(officeOnly.map((t) => t.name).sort()).toEqual([
       'complete_tasks',
       'find_job',
@@ -743,7 +749,9 @@ describe('history cannot change authorization', () => {
       'list_file_folders',
       'list_job_files',
       'list_job_operations',
+      'move_job',
       'plan_task_action',
+      'raise_issue',
       'reopen_tasks',
       'retry_operation',
       'search_files',

@@ -459,19 +459,43 @@ describe('an archived historical import', () => {
         (t) =>
           t.kind === 'mutation' &&
           t.status === 'available' &&
-          (t.domain === 'jobs' || t.domain === 'customers')
+          (t.domain === 'jobs' ||
+            t.domain === 'customers' ||
+            t.domain === 'calendar')
       );
     expect(jobScoped.length).toBeGreaterThan(0);
 
     for (const tool of jobScoped) {
       if (tool.status !== 'available' || tool.kind !== 'mutation') continue;
-      customerContact.mockResolvedValueOnce({
+      // Each tool asks a different question to find out what kind of record
+      // this is: the contact tools read the customer, the job operations read
+      // the job. Answer both as historical, for the whole loop - queueing one
+      // answer per tool would leave the unconsumed ones behind for the next
+      // test.
+      customerContact.mockResolvedValue({
         ...LIVE_CONTACT,
         jobRef: 'SS-HIST-0001',
         recordClass: 'HistoricalImport'
       });
+      getJobDetail.mockResolvedValue({
+        job: {
+          id: JOB_ID,
+          job_ref: 'SS-HIST-0001',
+          record_class: 'HistoricalImport'
+        },
+        tasks: []
+      } as never);
       const prepared = await tool.prepare(
-        { job: JOB_ID, phone: '01752 000000', lead_source: 'Facebook' },
+        {
+          job: JOB_ID,
+          phone: '01752 000000',
+          lead_source: 'Facebook',
+          activities: ['Roof'],
+          reason: 'Customer asked to move it',
+          issue_type: 'Remedial',
+          title: 'Tile cracked',
+          description: 'A tile was cracked during the install.'
+        },
         ctx()
       );
       expect(prepared.ok, `${tool.name} must refuse a historical job`).toBe(
@@ -482,6 +506,8 @@ describe('an archived historical import', () => {
       // And it must say so plainly rather than inviting another attempt.
       expect(prepared.message).toMatch(/imported historical record/i);
     }
+    customerContact.mockResolvedValue(LIVE_CONTACT);
+    getJobDetail.mockReset();
   });
 
   it('reports a job it cannot see as not found, not as historical', async () => {

@@ -87,6 +87,8 @@ describe('signed in', () => {
       'get_my_tasks',
       'get_presale_workflow',
       'get_customer_contact',
+      'move_job',
+      'raise_issue',
       'list_job_files',
       'search_files',
       'list_file_folders',

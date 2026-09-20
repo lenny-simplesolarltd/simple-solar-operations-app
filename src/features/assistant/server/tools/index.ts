@@ -8,6 +8,7 @@ import { FILE_MANAGEMENT_TOOLS } from './file-management';
 import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
+import { JOB_OPERATION_TOOLS } from './job-operations';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
 import {
   getJobBlockersTool,
@@ -48,6 +49,11 @@ export function createToolRegistry(
   // came from only - never the customer's name or address, never the agreed
   // commercial terms. See tools/customers.ts.
   for (const tool of [...CUSTOMER_READ_TOOLS, ...CUSTOMER_MUTATION_TOOLS])
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
+  // Job operations the assistant can carry out: moving planned work and
+  // raising an issue. Both are existing R1 commands; availability, stage rules
+  // and the audit trail stay in the database. See tools/job-operations.ts.
+  for (const tool of JOB_OPERATION_TOOLS)
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Stored files: the same reads as the job Files tab and the Files library,
   // and the same file-manager commands for filing them. Nothing that deletes a

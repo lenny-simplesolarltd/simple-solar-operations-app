@@ -77,6 +77,16 @@ export type ToolResult =
 export interface ToolAuthorization {
   /** Permission codes the actor must hold (all of them). Empty = any active staff member. */
   permissions: readonly string[];
+  /**
+   * Roles, ANY of which the actor must hold. Omitted = no role restriction.
+   *
+   * Some backend commands are gated by role rather than by a permission code -
+   * app.is_office and friends - and there is no permission that stands in for
+   * them. Naming the roles here keeps the coarse pre-check honest instead of
+   * borrowing an unrelated permission as a proxy. It is still only a
+   * pre-check: app.authorize_command re-decides it whatever this says.
+   */
+  roles?: readonly string[];
   /** Where the authoritative check lives, for reviewers. */
   enforcedBy: string;
 }
@@ -187,7 +197,12 @@ export class ToolRegistry {
 }
 
 export function isPermitted(tool: AvailableTool, actor: ToolActor): boolean {
-  return tool.authorization.permissions.every((p) => actor.permissions.has(p));
+  const { permissions, roles } = tool.authorization;
+  if (!permissions.every((p) => actor.permissions.has(p))) return false;
+  if (roles && roles.length > 0) {
+    return roles.some((r) => actor.user.roles.includes(r as never));
+  }
+  return true;
 }
 
 /** JSON Schema for a tool's input, in the shape model providers expect. */
