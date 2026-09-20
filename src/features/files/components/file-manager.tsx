@@ -98,16 +98,25 @@ const emptySelection = (): Selection => ({
   folders: new Set()
 });
 
+/** Where a folder, the trash or a search lives within one host's URLs. */
+export interface FileManagerLocation {
+  folderId?: string | null;
+  view?: 'folder' | 'trash';
+  q?: string | null;
+}
+
 export interface FileManagerProps {
   result: BrowseResult;
   scope: FileScope;
   jobId: string | null;
-  /** Where a folder, the trash or a search lives, so each host owns its URLs. */
-  hrefFor: (to: {
-    folderId?: string | null;
-    view?: 'folder' | 'trash';
-    q?: string | null;
-  }) => string;
+  /**
+   * The host's own URL shape, as data rather than a function: this component
+   * runs in the browser, and a function cannot cross that boundary.
+   * /dashboard/files passes its scope or job; a job's Files tab passes
+   * {tab: 'files'} against the job's own path.
+   */
+  basePath: string;
+  baseParams: Record<string, string>;
   /** The library and a job's tab title themselves. */
   heading?: string;
   /** Shown above the list; the job tab uses it for the read-only explanation. */
@@ -118,10 +127,21 @@ export function FileManager({
   result,
   scope,
   jobId,
-  hrefFor,
+  basePath,
+  baseParams,
   heading,
   notice
 }: FileManagerProps) {
+  /** The host's URL shape, rebuilt here from the data it handed over. */
+  const hrefFor = (to: FileManagerLocation) => {
+    const params = new URLSearchParams(baseParams);
+    if (to.folderId) params.set('folder', to.folderId);
+    if (to.view === 'trash') params.set('view', 'trash');
+    if (to.q) params.set('q', to.q);
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+  };
+
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selection, setSelection] = useState<Selection>(emptySelection);
@@ -884,7 +904,7 @@ function Toolbar({
 }: {
   heading?: string;
   result: BrowseResult;
-  hrefFor: FileManagerProps['hrefFor'];
+  hrefFor: (to: FileManagerLocation) => string;
   layout: 'list' | 'grid';
   onLayout: (v: 'list' | 'grid') => void;
   canManage: boolean;
@@ -982,7 +1002,7 @@ function Breadcrumbs({
   hrefFor
 }: {
   result: BrowseResult;
-  hrefFor: FileManagerProps['hrefFor'];
+  hrefFor: (to: FileManagerLocation) => string;
 }) {
   const root =
     result.scope === 'Library'
@@ -1176,7 +1196,7 @@ function ListView({
 }: ViewProps & {
   result: BrowseResult;
   allSelected: boolean;
-  hrefFor: FileManagerProps['hrefFor'];
+  hrefFor: (to: FileManagerLocation) => string;
   onSelectAll: (checked: boolean) => void;
 }) {
   const sortHref = (key: FileSort) => {

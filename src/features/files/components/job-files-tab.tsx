@@ -52,25 +52,15 @@ export async function JobFilesTab({
     );
   }
 
-  const href = (to: {
-    folderId?: string | null;
-    view?: 'folder' | 'trash';
-    q?: string | null;
-  }) => {
-    const params = new URLSearchParams({ tab: 'files' });
-    if (to.folderId) params.set('folder', to.folderId);
-    if (to.view === 'trash') params.set('view', 'trash');
-    if (to.q) params.set('q', to.q);
-    return `/dashboard/jobs/${jobId}?${params.toString()}`;
-  };
-
   return (
     <div className='flex flex-col gap-4'>
       <FileManager
         result={result}
         scope='Job'
         jobId={jobId}
-        hrefFor={href}
+        // Stay on the job's own page, on its Files tab.
+        basePath={`/dashboard/jobs/${jobId}`}
+        baseParams={{ tab: 'files' }}
         notice={
           result.job?.recordClass === 'HistoricalImport'
             ? 'This is an imported historical record. Its documents can be read and downloaded, but not reorganised.'

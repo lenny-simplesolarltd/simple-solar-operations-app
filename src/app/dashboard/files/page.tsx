@@ -237,14 +237,9 @@ export default async function FilesPage({
           scope={scope}
           jobId={jobId}
           heading={title}
-          hrefFor={(to) =>
-            filesHref({
-              scope,
-              jobId,
-              folderId: to.folderId,
-              view: to.view,
-              q: to.q
-            })
+          basePath='/dashboard/files'
+          baseParams={
+            scope === 'Library' ? { scope: 'library' } : { job: jobId ?? '' }
           }
           notice={
             result.job?.recordClass === 'HistoricalImport'
