@@ -52,8 +52,19 @@ export interface JobDocumentsCardProps {
     documentType?: DocumentType
   ) => Promise<{ ok: boolean; message?: string; code?: string }>;
   pokeAction: () => Promise<void>;
-  emailHref: (revision: DocumentRevisionRead) => string;
 }
+
+/**
+ * Where Email goes: the Communications compose screen, carrying the job and
+ * the exact revision.
+ *
+ * Built here rather than passed in. Job Detail is a Server Component, and a
+ * plain function cannot cross into a Client Component - only a 'use server'
+ * action can, which is what generateAction and pokeAction are. The card
+ * already has both ids, so there was never anything to pass.
+ */
+const composeHref = (jobId: string, revisionId: string) =>
+  `/dashboard/communications/compose?job=${jobId}&revision=${revisionId}`;
 
 const IN_FLIGHT = ['Queued', 'Generating'] as const;
 const isInFlight = (r: DocumentRevisionRead | null) =>
@@ -177,14 +188,12 @@ function DocumentRow({
   jobId,
   canGenerate,
   generateAction,
-  emailHref,
   onChanged
 }: {
   document: JobDocumentRead;
   jobId: string;
   canGenerate: boolean;
   generateAction: JobDocumentsCardProps['generateAction'];
-  emailHref: JobDocumentsCardProps['emailHref'];
   onChanged: () => void;
 }) {
   const [pending, start] = useTransition();
@@ -254,7 +263,7 @@ function DocumentRow({
                 </a>
               </Button>
               <Button asChild size='sm' variant='outline'>
-                <a href={emailHref(current)}>
+                <a href={composeHref(jobId, current.revision_id)}>
                   <IconMail className='size-4' aria-hidden />
                   Email
                 </a>
@@ -344,8 +353,7 @@ export function JobDocumentsCard({
   documents,
   canGenerate,
   generateAction,
-  pokeAction,
-  emailHref
+  pokeAction
 }: JobDocumentsCardProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -414,7 +422,6 @@ export function JobDocumentsCard({
               jobId={documents.job_id}
               canGenerate={canGenerate}
               generateAction={generateAction}
-              emailHref={emailHref}
               onChanged={() => router.refresh()}
             />
           ))

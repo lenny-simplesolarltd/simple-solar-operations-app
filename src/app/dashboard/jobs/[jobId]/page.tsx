@@ -288,9 +288,6 @@ export default async function JobPage({
                 canGenerate={isOfficeClass(user)}
                 generateAction={generateDocuments}
                 pokeAction={pokeDocumentWorker}
-                emailHref={(revision) =>
-                  `/dashboard/communications/compose?job=${job.id}&revision=${revision.revision_id}`
-                }
               />
             ) : null}
 
