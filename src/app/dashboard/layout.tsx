@@ -30,7 +30,8 @@ export default async function DashboardLayout({
 
   // The menu is decided here, from roles AND role_permissions, so the sidebar
   // and Cmd-K offer exactly what the server will allow (it still re-checks).
-  const nav = visibleNavGroups(navGroups, user, await getPermissions(user), {
+  const permissions = await getPermissions(user);
+  const nav = visibleNavGroups(navGroups, user, permissions, {
     forms: await formsEnabled()
   });
 
@@ -40,6 +41,7 @@ export default async function DashboardLayout({
       user={user}
       previewTargets={previewTargets}
       nav={nav}
+      canChat={permissions.has('communications.chat.use')}
     >
       {children}
     </DashboardLayoutClient>
