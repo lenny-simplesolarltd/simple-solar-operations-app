@@ -218,8 +218,19 @@ d = data(await read('tanya', { read_type: 'TASK_ACTION_AVAILABILITY', task_id: p
 assert.equal(d.actions.complete.available, false); assert.equal(d.actions.complete.note, 'Already Complete');
 assert.equal(d.commands.task_reopen.available, true); assert.equal(d.commands.task_complete.reason, 'COMPLETE_NOT_AVAILABLE');
 assert.equal(d.commands.task_evidence_attach.reason, 'ATTACH_NOT_AVAILABLE');
+// Dan is neither owner nor backup of PRE01, but holds task.complete.cross_owner
+// (bulk task operations), so the screen offers him the action the command would
+// now accept. Without the permission it is the old owner-only refusal.
 d = data(await read('dan', { read_type: 'TASK_ACTION_AVAILABILITY', task_id: pre01.id }), 'taa dan');
+assert.equal(d.commands.task_reopen.available, true);
+await db.query(`delete from public.role_permissions where permission_code='task.complete.cross_owner' and role_code in ('Director','Admin','Manager')`);
+d = data(await read('dan', { read_type: 'TASK_ACTION_AVAILABILITY', task_id: pre01.id }), 'taa dan no perm');
 assert.equal(d.commands.task_reopen.reason, 'TASK_OWNER_OR_BACKUP_REQUIRED');
+await db.query(`insert into public.role_permissions (role_code, permission_code)
+  select r, 'task.complete.cross_owner' from unnest(array['Director','Admin','Manager']) r`);
+// role_permissions is audited (role_permissions_audit): 3 deletes + 3 inserts.
+// Reads still write nothing - that is what the counter below is checking.
+before = { ...before, a: before.a + 6 };
 d = data(await read('tanya', { read_type: 'TASK_ACTION_AVAILABILITY', task_id: bkg }), 'taa bkg');
 assert.equal(d.commands.task_complete.available, true); assert.equal(d.commands.start_job_booking.reason, 'NOT_A_BOOKING_HELPER_TASK');
 assert.equal((await read('tanya', { read_type: 'TASK_ACTION_AVAILABILITY', task_id: 'x' })).error, 'R1A_TASK_NOT_FOUND');
