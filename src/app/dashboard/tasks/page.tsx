@@ -6,7 +6,7 @@ import { getOpenTasks } from '@/features/jobs/server/queries';
 import { TaskTable } from '@/features/jobs/task-table';
 import { getPermissions } from '@/features/presale/server/queries';
 import { TaskFilterBar } from '@/features/tasks/components/task-filter-bar';
-import { TaskList } from '@/features/tasks/components/task-list';
+import { TaskBoard } from '@/features/tasks/components/task-board';
 import {
   DUE_OPTIONS,
   QUEUE_LABELS,
@@ -15,7 +15,7 @@ import {
 } from '@/features/tasks/filters';
 import { getStaffOptions, getTasks } from '@/features/tasks/server/queries';
 import { getCurrentUser } from '@/lib/auth';
-import { isOfficeManager } from '@/lib/roles';
+import { isOfficeClass, isOfficeManager } from '@/lib/roles';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
@@ -35,12 +35,17 @@ export default async function TasksPage({
   const permissions = await getPermissions(user);
   // The same rule as app.can_read_team_tasks; the read re-checks it.
   const canViewTeam = permissions.has('task.read.all') || isOfficeManager(user);
+  // Bulk actions follow the same permissions the commands enforce; the
+  // preflight and every child command re-check them.
+  const canOverride = permissions.has('task.override_complete');
+  const canReassign = isOfficeManager(user);
+  const canAct = isOfficeClass(user);
   const team = filters.scope === 'team';
   const everyone = filters.scope === 'all';
 
   const [result, staff] = await Promise.all([
     getTasks(filters),
-    (team || everyone) && canViewTeam ? getStaffOptions() : Promise.resolve([])
+    canAct ? getStaffOptions() : Promise.resolve([])
   ]);
 
   const title = everyone
@@ -133,7 +138,7 @@ export default async function TasksPage({
                 dueLabel &&
                 ` · ${dueLabel.toLowerCase()}`}
             </p>
-            <TaskList
+            <TaskBoard
               tasks={result.data.tasks}
               showOwner={team || everyone}
               showCompleted={filters.status === 'closed'}
@@ -143,6 +148,10 @@ export default async function TasksPage({
                   : 'Nothing to do here'
               }
               emptyDescription='Try clearing the filters.'
+              canAct={canAct}
+              canOverride={canOverride}
+              canReassign={canReassign}
+              staff={staff}
             />
           </>
         ) : (

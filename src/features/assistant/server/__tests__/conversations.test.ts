@@ -707,13 +707,22 @@ describe('history cannot change authorization', () => {
     expect(result.error?.code).toBe('UNKNOWN_TOOL');
   });
 
-  it('offers no mutation tool to staff without Forms permissions', () => {
+  it('offers each mutation only to staff holding its permission', () => {
     const registry = createToolRegistry();
-    const available = registry.availableFor(
+    // task.read.all opens the office task queues, and with them the bulk task
+    // actions - but no Forms mutation, and not the override, which needs its
+    // own permission.
+    const officeOnly = registry.availableFor(
       makeActor({ roles: ['Admin'], permissions: ['task.read.all'] })
     );
-    expect(available.filter((t) => t.kind === 'mutation')).toEqual([]);
-    expect(available.map((t) => t.name).sort()).toEqual([
+    expect(
+      officeOnly
+        .filter((t) => t.kind === 'mutation')
+        .map((t) => t.name)
+        .sort()
+    ).toEqual(['complete_tasks', 'reopen_tasks', 'retry_operation']);
+    expect(officeOnly.map((t) => t.name).sort()).toEqual([
+      'complete_tasks',
       'find_job',
       'get_help_article',
       'get_help_for_route',
@@ -722,13 +731,47 @@ describe('history cannot change authorization', () => {
       'get_job_tasks',
       'get_job_timeline',
       'get_my_tasks',
+      'get_operation_status',
       'get_presale_workflow',
       'get_related_help',
       'get_team_tasks',
       'list_job_files',
+      'plan_task_action',
+      'reopen_tasks',
+      'retry_operation',
       'search_files',
       'search_help_articles'
     ]);
+
+    // Someone who does not run the task queues gets no mutation at all, and
+    // none of the bulk actions - only their own task list.
+    const noPermissions = registry.availableFor(
+      makeActor({ roles: ['Installer'], permissions: [] })
+    );
+    expect(noPermissions.filter((t) => t.kind === 'mutation')).toEqual([]);
+    const bulk = [
+      'plan_task_action',
+      'complete_tasks',
+      'override_complete_tasks',
+      'reopen_tasks',
+      'get_operation_status',
+      'retry_operation'
+    ];
+    expect(
+      noPermissions.map((t) => t.name).filter((n) => bulk.includes(n))
+    ).toEqual([]);
+    expect(noPermissions.map((t) => t.name)).toContain('get_my_tasks');
+
+    // The override appears only with its own permission.
+    const withOverride = registry.availableFor(
+      makeActor({
+        roles: ['Admin'],
+        permissions: ['task.read.all', 'task.override_complete']
+      })
+    );
+    expect(withOverride.map((t) => t.name)).toContain(
+      'override_complete_tasks'
+    );
   });
 });
 

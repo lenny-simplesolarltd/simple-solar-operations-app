@@ -43,6 +43,17 @@ export interface TaskView {
   completed_at?: string | null;
   completed_by_name?: string | null;
   next_followup_at?: string | null;
+  /**
+   * 'override' means an authorised person stopped the task being required.
+   * The task is Complete; its business fact was NOT recorded, and the job's
+   * readiness checks still report it as outstanding.
+   */
+  completion_mode?: 'normal' | 'override' | null;
+  override_at?: string | null;
+  override_reason?: string | null;
+  override_by?: string | null;
+  /** What normal completion would have recorded and this override did not. */
+  override_unrecorded?: string[] | null;
 }
 
 export type TaskScope = 'my' | 'team' | 'all';
@@ -780,4 +791,153 @@ export interface TaskReassignCandidates {
   backup_id: string | null;
   available: OpsFlag;
   people: { id: string; name: string }[];
+}
+
+// ---------------------------------------------------------------------------
+// Bulk task operations (command batches)
+// ---------------------------------------------------------------------------
+
+export const BATCH_OPERATIONS = [
+  'TASK_BATCH_COMPLETE',
+  'TASK_BATCH_OVERRIDE_COMPLETE',
+  'TASK_BATCH_REOPEN',
+  'TASK_BATCH_REASSIGN'
+] as const;
+export type BatchOperation = (typeof BATCH_OPERATIONS)[number];
+
+/**
+ * What a bulk operation would do to one task. `outcome` is the whole story:
+ * only `ready` will run. Everything else is reported to the person with its
+ * reason rather than attempted and failed.
+ */
+export type BatchItemOutcome =
+  | 'ready'
+  | 'already_complete'
+  | 'already_open'
+  | 'needs_information'
+  | 'not_permitted'
+  | 'not_actionable'
+  | 'not_found';
+
+/** One completion rule, classified by app.task_completion_requirements. */
+export interface BatchRequirement {
+  code: string;
+  /** hard = never bypassable; normal = a business fact; overrideable = an override may skip it. */
+  kind: 'hard' | 'normal' | 'overrideable';
+  satisfied: boolean;
+  detail: string;
+  permission?: string;
+  permitted?: boolean;
+}
+
+export interface BatchPlanItem {
+  task_id: string;
+  template_code: string | null;
+  title: string | null;
+  job_id: string | null;
+  job_ref?: string | null;
+  status: string;
+  version: number;
+  owner_id: string | null;
+  owner_name: string | null;
+  outcome: BatchItemOutcome;
+  bypassed: BatchRequirement[];
+  blocking: BatchRequirement[];
+  requirements?: BatchRequirement[];
+}
+
+/** BATCH_PREFLIGHT: writes nothing. */
+export interface BatchPreflightRead {
+  operation: BatchOperation;
+  total: number;
+  counts: Partial<Record<BatchItemOutcome, number>>;
+  items: BatchPlanItem[];
+}
+
+export interface BatchProgress {
+  total: number;
+  succeeded: number;
+  failed: number;
+  needs_review: number;
+  retrying: number;
+  processing: number;
+  pending: number;
+  cancelled: number;
+  skipped: number;
+  settled: number;
+}
+
+export type BatchStatus =
+  | 'Queued'
+  | 'Processing'
+  | 'Completed'
+  | 'CompletedWithErrors'
+  | 'Cancelled';
+
+export interface BatchRow {
+  batch_id: string;
+  operation: BatchOperation;
+  status: BatchStatus;
+  source: 'ui' | 'simplebot' | 'system';
+  requested_by: string | null;
+  is_mine: boolean;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  total: number;
+  progress: BatchProgress;
+  reason: string | null;
+}
+
+export interface BatchesRead {
+  batches: BatchRow[];
+  count: number;
+}
+
+export type BatchItemStatus =
+  | 'Pending'
+  | 'Processing'
+  | 'Succeeded'
+  | 'RetryDue'
+  | 'NeedsReview'
+  | 'Failed'
+  | 'Cancelled'
+  | 'Skipped';
+
+export interface BatchItemRow {
+  item_id: string;
+  task_id: string;
+  sequence: number;
+  status: BatchItemStatus;
+  template_code: string | null;
+  title: string | null;
+  job_id: string | null;
+  job_ref: string | null;
+  owner_name: string | null;
+  completion_mode: 'normal' | 'override' | null;
+  attempt_count: number;
+  next_attempt: string | null;
+  error_code: string | null;
+  error_detail: string | null;
+  /** Only a NeedsReview item may be retried; a permanent refusal never is. */
+  retryable: boolean;
+  settled_at: string | null;
+}
+
+export interface BatchDetailRead extends Omit<BatchRow, 'total'> {
+  payload: Record<string, unknown>;
+  selector: Record<string, unknown> | null;
+  items: BatchItemRow[];
+}
+
+/** A task the person overrode: the requirement it stopped asking for is still unmet. */
+export interface OverrideDebtRow {
+  task_id: string;
+  template_code: string;
+  title: string;
+  override_at: string;
+  override_reason: string;
+  override_by: string | null;
+  owner_name: string | null;
+  unrecorded: string[];
 }

@@ -49,6 +49,14 @@ export const navGroups: NavGroup[] = [
         icon: 'history',
         shortcut: ['r', 'r'],
         access: 'any'
+      },
+      {
+        title: 'Operations',
+        url: '/dashboard/operations',
+        icon: 'activity',
+        shortcut: ['o', 'p'],
+        // Bulk operations are office work; the BATCHES read refuses everyone else.
+        access: 'office'
       }
     ]
   },

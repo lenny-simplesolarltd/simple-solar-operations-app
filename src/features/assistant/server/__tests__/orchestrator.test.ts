@@ -82,7 +82,11 @@ describe('tool gating', () => {
     const { provider, requests } = scriptedProvider([
       {
         toolCalls: [
-          { id: 'c1', name: 'complete_task', args: { taskId: TASK_ID } }
+          {
+            id: 'c1',
+            name: 'create_quote_amendment',
+            args: { taskId: TASK_ID }
+          }
         ]
       },
       { text: 'I can’t do that yet.' }

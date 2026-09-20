@@ -2,6 +2,7 @@ import 'server-only';
 
 import { formsEnabled } from '@/features/forms/server/service';
 import { ToolRegistry, type PlannedTool } from '../registry';
+import { BULK_TASK_MUTATION_TOOLS, BULK_TASK_READ_TOOLS } from './bulk-tasks';
 import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
@@ -28,6 +29,11 @@ export function createToolRegistry(
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
     .register(getPresaleWorkflowTool);
+  // Bulk task work: the same batch command the Tasks screen submits, so the
+  // permissions, the requirement policy, the idempotency and the processing
+  // centre are shared rather than re-implemented for the assistant.
+  for (const tool of [...BULK_TASK_READ_TOOLS, ...BULK_TASK_MUTATION_TOOLS])
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Stored files: the same reads as the job Files tab and the Files library.
   for (const tool of FILE_TOOLS)
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);

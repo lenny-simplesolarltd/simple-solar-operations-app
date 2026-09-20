@@ -52,9 +52,15 @@ t = await task(job, 'PRE04');
 r = ok(await cmd('tanya', { command_id: id(), command_type: 'TASK_COMPLETE', task_id: t.id, expected_version: t.version, payload: { completion_note: 'ok', customer_details_verified: true, sold_value_verified: true, verified_gross_amount: '£5,000' } }), 'pre04');
 assert.equal(r.job.sold_booking_match_status, 'Match'); assert.equal(r.job.workflow_stage, 'Prebooking');
 
-// PRE03: Tanya (assigned, not owner/backup) denied; Ben mismatch then Dan (backup) confirms
+// PRE03: Tanya is not the owner or backup. She holds task.complete.cross_owner
+// (bulk task operations), so authorization lets her through to the task's own
+// requirements rather than refusing her - the task still keeps Ben as owner.
+// Without that permission the old owner-only refusal is exactly what happens.
 t = await task(job, 'PRE03');
+assert.equal((await cmd('tanya', { command_id: id(), command_type: 'TASK_COMPLETE', task_id: t.id, expected_version: t.version, payload: { completion_note: 'x' } })).error, 'R1A_REQUIRED_DEPOSIT_BANK_CONFIRMED');
+await db.query(`delete from public.role_permissions where role_code='Office' and permission_code='task.complete.cross_owner'`);
 assert.equal((await cmd('tanya', { command_id: id(), command_type: 'TASK_COMPLETE', task_id: t.id, expected_version: t.version, payload: { completion_note: 'x' } })).error, 'R1A_TASK_ACCESS_DENIED');
+await db.query(`insert into public.role_permissions (role_code, permission_code) values ('Office','task.complete.cross_owner')`);
 r = ok(await cmd('ben', { command_id: id(), command_type: 'TASK_COMPLETE', task_id: t.id, expected_version: t.version, payload: { completion_note: 'short', deposit_bank_confirmed: 'yes', deposit_amount: '1000', deposit_received_date: '2026-09-01', deposit_bank_reference: 'BANK-1' } }), 'pre03 mm');
 assert.equal(r.task.blocking_reason, 'PRE03_DEPOSIT_AMOUNT_MISMATCH'); assert.equal(r.bank_check.outcome, 'AmountMismatch');
 t = await task(job, 'PRE03');
