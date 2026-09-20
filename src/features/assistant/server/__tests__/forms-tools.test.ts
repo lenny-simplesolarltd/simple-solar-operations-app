@@ -464,4 +464,43 @@ describe('Forms release gate', () => {
     // The model is told they are planned, not available.
     expect(off.planned().map((t) => t.name)).toContain('create_form');
   });
+  it('makes a link without asking who it is for', async () => {
+    // "publish it and give me a link" should produce a link, not a question.
+    // The table requires an "other" invitation to carry a label, so an
+    // unattributed one is filed under a label that says exactly that.
+    service.getForm.mockResolvedValue(
+      form({ status: 'published', revision: 1, hasUnpublishedChanges: false })
+    );
+    service.createInvitation.mockResolvedValue({
+      ok: true,
+      result: { invitation_id: 'inv-default', revision: 1, expires_at: null }
+    });
+    service.getInvitation.mockResolvedValue(null);
+
+    const { proposal, pendingActions } = await propose('create_form_link', {
+      form_id: FORM_ID
+    });
+    // The card says who it is for before anything runs.
+    expect(JSON.stringify(proposal.action.changes)).toContain('Not specified');
+
+    const settled = await resolvePendingAction({
+      actor: staff(),
+      decision: 'confirm',
+      token: proposal.action.token,
+      registry,
+      pendingActions,
+      audit: silentAudit().sink
+    });
+    expect(settled).toMatchObject({ ok: true });
+
+    const [args] = service.createInvitation.mock.calls.at(-1)!;
+    expect(args).toMatchObject({
+      recipientType: 'other',
+      recipientLabel: 'Not specified',
+      jobId: null,
+      personId: null
+    });
+    // Default expiry is still applied rather than left open-ended.
+    expect(args.expiresAt).not.toBeNull();
+  });
 });

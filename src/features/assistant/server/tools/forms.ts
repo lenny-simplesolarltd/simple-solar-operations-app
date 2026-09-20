@@ -631,9 +631,24 @@ export const saveFormAsTemplateTool: MutationTool<{
   }
 };
 
+/**
+ * When nobody says who a link is for.
+ *
+ * public.form_invitations requires an "other" link to carry a label, so a link
+ * that is simply asked for still has to say something. This records the truth -
+ * that no recipient was named - rather than inventing one, and the link works
+ * exactly the same either way.
+ */
+const UNSPECIFIED_RECIPIENT = 'Not specified';
+
 const linkInput = z.strictObject({
   form_id: uuid,
-  recipient: z.enum(['customer', 'surveyor', 'other']),
+  recipient: z
+    .enum(['customer', 'surveyor', 'other'])
+    .default('other')
+    .describe(
+      'Who the link is for. Leave it out when the staff member just asks for a link: that makes an unattributed link they can share themselves.'
+    ),
   job_ref: z
     .string()
     .trim()
@@ -641,7 +656,14 @@ const linkInput = z.strictObject({
     .optional()
     .describe('Required for a customer: the customer of this job'),
   surveyor_name: z.string().trim().max(100).optional(),
-  recipient_name: z.string().trim().max(200).optional().describe('For "other"'),
+  recipient_name: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .describe(
+      `For "other". Leave it out when nobody was named; it is recorded as "${UNSPECIFIED_RECIPIENT}".`
+    ),
   expires_in_days: z
     .number()
     .int()
@@ -650,6 +672,11 @@ const linkInput = z.strictObject({
     .optional()
     .describe('0 = never; default 30')
 });
+
+/** The label an "other" link is filed under, named or not. */
+function otherLabel(input: z.infer<typeof linkInput>) {
+  return input.recipient_name?.trim() || UNSPECIFIED_RECIPIENT;
+}
 
 async function resolveRecipient(input: z.infer<typeof linkInput>) {
   const job = input.job_ref ? await forms.jobByRef(input.job_ref) : null;
@@ -672,8 +699,9 @@ async function resolveRecipient(input: z.infer<typeof linkInput>) {
     }
     person = matches[0];
   }
-  if (input.recipient === 'other' && !input.recipient_name)
-    return refuse('FORMS_RECIPIENT_LABEL_REQUIRED');
+  // An unnamed "other" link is allowed: otherLabel() files it under
+  // UNSPECIFIED_RECIPIENT, which satisfies the table's own rule without anyone
+  // having to be asked who it is for.
   return { ok: true as const, job, person };
 }
 
@@ -681,7 +709,7 @@ export const createFormLinkTool: MutationTool<z.infer<typeof linkInput>> = {
   name: 'create_form_link',
   summary: 'Create a secure recipient link for a published form',
   description:
-    'Prepare a one-recipient link to the current published version of a form, for a customer (by job reference), a surveyor (by name) or someone else. SimpleBot cannot email or text it: after confirmation the staff member copies the link from the card. You never see the link itself.',
+    'Prepare a one-recipient link to the current published version of a form. When the staff member just asks for a link, create one straight away with the defaults - unattributed, expiring in 30 days - and do not ask who it is for. Only tie it to a customer (by job reference) or a surveyor (by name) when they say so. SimpleBot cannot email or text it: after confirmation the staff member copies the link from the card. You never see the link itself.',
   domain: 'forms',
   kind: 'mutation',
   status: 'available',
@@ -710,7 +738,7 @@ export const createFormLinkTool: MutationTool<z.infer<typeof linkInput>> = {
                 ? `Customer on ${who.job!.jobRef}`
                 : input.recipient === 'surveyor'
                   ? `Surveyor ${who.person!.name}`
-                  : input.recipient_name!
+                  : otherLabel(input)
           },
           ...(who.job ? [{ label: 'Job', to: who.job.jobRef }] : []),
           {
@@ -742,8 +770,7 @@ export const createFormLinkTool: MutationTool<z.infer<typeof linkInput>> = {
         recipientType: input.recipient,
         jobId: who.job?.id ?? null,
         personId: who.person?.id ?? null,
-        recipientLabel:
-          input.recipient === 'other' ? input.recipient_name : null,
+        recipientLabel: input.recipient === 'other' ? otherLabel(input) : null,
         // Whole days, so a retried confirmation sends the identical command and
         // replays the same link instead of creating a second one.
         expiresAt: days === 0 ? null : endOfDayIn(days)
