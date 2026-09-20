@@ -11,6 +11,8 @@ export const APP_ROUTES = [
   '/dashboard/booking',
   '/dashboard/commissioning',
   '/dashboard/commissioning/[workPackageId]',
+  '/dashboard/communications',
+  '/dashboard/communications/[communicationId]',
   '/dashboard/files',
   '/dashboard/forms',
   '/dashboard/forms/[id]',
