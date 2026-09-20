@@ -2,9 +2,12 @@
 
 **Part 1 is the audit, written before anything changed.** It records what the
 repository actually contained, and nothing in it changed code, schema, settings
-or storage. **Part 2, at the end, records what was then built** against the
-decisions the audit asked for. No migration has been written and no hosted
-environment has been touched.
+or storage. **Part 2 records the renderer** that was then built against the
+decisions the audit asked for, and **Part 3 the lifecycle around it**.
+
+No hosted environment has been touched: the migration has not been applied
+anywhere but a throwaway in-memory database, and no document has been generated
+for a real job.
 
 The short version: **document generation does not exist.** Not partially, not
 behind a flag. There is no PDF library in `package.json`, no template, no
@@ -715,11 +718,122 @@ quotation carries Tinos only and an ROI carries Poppins only.
 5. **Panel warranty** now follows the catalogue, so an M Class quotation will
    say 40 years where the master said 30. Confirm that is intended.
 
-## Not yet built
+## What came next
 
-The persistence and surface layers are specified in Part 1 (§H, §I) and not
-implemented: `job_documents` / `document_revisions` migration, generation
-commands and worker, Job Detail "Customer documents" card, Files registration,
-Operations-centre exposure, and Communications compose integration. The
-renderer is a pure function of a stored snapshot, which is what those layers
-need — nothing about them requires the rendering core to change.
+The persistence and surface layers specified in §H and §I are built; Part 3
+records what they actually became. The renderer did not change to accommodate
+them, which was the point of making it a pure function of a stored snapshot.
+
+---
+
+# Part 3 — The lifecycle (built)
+
+Migration `20260920280000_document_generation.sql`.
+
+## The revision
+
+`public.document_revisions` is append-only. A revision carries its job, the
+presale it was generated from, its type, its number, its status, the artifact
+(evidence id, storage path, filename, mime type, size, sha256, page count),
+what produced it (template id, template version, renderer version, master
+sha256, input snapshot + sha256), who asked and when, and - when it stops -
+why.
+
+`app.document_revision_guard()` refuses every DELETE, refuses any change to
+identity, and freezes the artifact of a revision that is **Ready or
+Superseded**. Superseded matters as much as Ready: that is the revision an
+email sent last week points at. (The end-to-end acceptance run found this: the
+first version froze only `Ready`, so a superseded revision's hash was still
+editable.)
+
+## Queued, not clicked
+
+`app.document_queue_on_presale()` fires AFTER INSERT on `public.presales` and
+enqueues both document types. Being after the insert, in a trigger that only
+writes queue rows, means **no generation problem can roll back a sale**. The
+rendering happens later, in the worker's own transaction.
+
+`public.document_backfill(limit, job_id)` queues the jobs sold before this
+migration. It is not run by the migration - a few hundred 24-page renders is
+not a deploy side effect - and it derives the same command ids as the trigger,
+so a backfill and a trigger can never both queue the same thing.
+
+## Not a second queue
+
+`public.command_batches` is the right shape but is task-specific:
+`command_batch_items.task_id` is `not null references public.tasks` and
+`operation` is CHECK-constrained to four `TASK_BATCH_*` values. Widening both
+to carry work that has no task would risk the task machinery for no gain.
+
+So `document_revisions` carries the same protocol and calls the same policy
+functions - `app.batch_max_attempts()`, `app.batch_backoff_minutes()`,
+`app.batch_stalled_minutes()`. One retry policy in the system, not two.
+
+| | Function |
+|---|---|
+| Claim (stall sweep, then `for update skip locked`) | `public.document_revision_claim` |
+| Where the bytes go | `public.document_revision_begin_upload` |
+| Finish, verify the object, supersede the old | `public.document_revision_ready` |
+| Stop, with backoff or for good | `public.document_revision_failed` |
+
+All four are granted to `service_role` only, and a test asserts `authenticated`
+cannot execute any of them.
+
+## Idempotency
+
+Three layers, because one is not enough:
+
+1. **The ledger.** `DOCUMENT_GENERATE` is an ordinary command; a replayed
+   `command_id` returns the first result.
+2. **The open-revision check.** `app.document_enqueue` takes an advisory lock
+   on (job, type) and returns the existing Queued/Generating revision instead
+   of making another. Two people pressing Generate get one document.
+3. **The claim.** A claimed revision is already `Generating` with its attempt
+   counted, so a crashed pass is recovered by the stall sweep rather than run
+   twice. Reporting Ready twice is answered as a replay.
+
+## Files
+
+The PDF is registered as `public.evidence` with category `GeneratedDocument`,
+scope `Job`, at `<job_id>/<evidence_id>/<safe name>` in the private `evidence`
+bucket. **There is one object and one row**: Job Detail and the Files manager
+both point at it, and Preview and Download both go through the existing
+`/api/evidence/[evidenceId]` route, which decides access from the evidence row.
+Nothing re-renders on the way out, so Preview, Download and the email
+attachment are the same bytes by construction.
+
+## Communications
+
+`app.cmd_communication_compose` creates a **Draft** in the existing
+communications spine with `attachment_ids = [evidence_id]` of one revision.
+`CustomerDocument` is registered in `app.communication_kinds` with a **null
+`action_type`**, which means it can never be queued for automatic dispatch: a
+person approves it and records that they sent it. The document feature owns no
+transport, no recipient list and no release gate.
+
+The chain is therefore job → revision R1 → communication → attachment R1, and a
+later R2 changes nothing about it. Asserted end to end.
+
+## MCS pages
+
+Still withheld, and now visible rather than silent. The renderer reports the
+withheld pages, `document_revisions.omitted_pages` stores them with the reason,
+and the card shows:
+
+> **MCS calculation pages** — Not generated: required design and reference data
+> unavailable
+
+This is explicitly **not** a failure. The quotation is Ready at 21 pages and
+everything else about it is valid.
+
+## The two meanings of `{{roi}}`
+
+The masters use one token name for two quantities. Internally they are now two
+variables with two names, bound per occurrence:
+
+| Occurrence | Variable | Rendered |
+|---|---|---|
+| ROI report cover and p4 | `roi.payback_years` | "14.5 years" (the master's `%` is absorbed) |
+| Quotation p21, "Return on investment in year 1" | `roi.yield_pct_year1` | a percentage; the master's `%` stays |
+
+Four regression tests pin this.

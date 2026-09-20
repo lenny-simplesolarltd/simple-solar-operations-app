@@ -17,25 +17,28 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 };
 
 /**
- * Pending   - requested, not yet picked up
- * Preparing - resolving variables against canonical data
- * Rendering - drawing the PDF
- * Generated - stored, immutable, downloadable
- * Failed    - stopped with a named reason; retryable
- * Superseded- a later revision replaced it. The file is KEPT.
+ * The lifecycle, as public.document_revisions records it.
+ *
+ *   Queued     requested, waiting for a worker. Also where a retryable
+ *              failure goes back to, with a backoff on next_attempt.
+ *   Generating claimed by a worker; the attempt is already counted, so a
+ *              crash leaves a visibly stuck row rather than a lost one.
+ *   Ready      stored, immutable, downloadable. Never rewritten.
+ *   Failed     stopped with a named reason. A retry makes a NEW revision.
+ *   Superseded a later revision replaced it. The file is KEPT, because an
+ *              email sent last week still points at exactly those bytes.
  */
 export const REVISION_STATUSES = [
-  'Pending',
-  'Preparing',
-  'Rendering',
-  'Generated',
+  'Queued',
+  'Generating',
+  'Ready',
   'Failed',
   'Superseded'
 ] as const;
 export type RevisionStatus = (typeof REVISION_STATUSES)[number];
 
 export const TERMINAL_STATUSES: readonly RevisionStatus[] = [
-  'Generated',
+  'Ready',
   'Failed',
   'Superseded'
 ];

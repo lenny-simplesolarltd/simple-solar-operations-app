@@ -22,6 +22,12 @@ import {
 } from '@/features/jobs/server/queries';
 import { stageLabel } from '@/features/jobs/stages';
 import { JobFilesTab } from '@/features/files/components/job-files-tab';
+import { JobDocumentsCard } from '@/features/documents/components/job-documents-card';
+import {
+  generateDocuments,
+  pokeDocumentWorker
+} from '@/features/documents/server/actions';
+import { getJobDocuments } from '@/features/documents/server/queries';
 import { TaskTable } from '@/features/jobs/task-table';
 import { Button } from '@/components/ui/button';
 import { getCurrentUser } from '@/lib/auth';
@@ -90,6 +96,11 @@ export default async function JobPage({
   // RLS decides visibility: a job you may not see is simply not found.
   const detail = await getJobDetail(jobId);
   if (!detail) notFound();
+
+  // The documents read is its own registry read, and a failure to reach it
+  // must not take the whole job page down - the card simply does not render.
+  const documentsRead = await getJobDocuments(jobId);
+  const documents = documentsRead.ok ? documentsRead.data : null;
 
   const { job, tasks } = detail;
   const openTasks = tasks.filter((t) =>
@@ -270,6 +281,18 @@ export default async function JobPage({
                 </CardContent>
               </Card>
             )}
+
+            {documents ? (
+              <JobDocumentsCard
+                documents={documents}
+                canGenerate={isOfficeClass(user)}
+                generateAction={generateDocuments}
+                pokeAction={pokeDocumentWorker}
+                emailHref={(revision) =>
+                  `/dashboard/communications/compose?job=${job.id}&revision=${revision.revision_id}`
+                }
+              />
+            ) : null}
 
             <section className='flex flex-col gap-3'>
               <h2 className='text-lg font-semibold'>Open tasks</h2>

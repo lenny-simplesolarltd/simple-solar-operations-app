@@ -13,6 +13,7 @@ export const APP_ROUTES = [
   '/dashboard/commissioning/[workPackageId]',
   '/dashboard/communications',
   '/dashboard/communications/[communicationId]',
+  '/dashboard/communications/compose',
   '/dashboard/files',
   '/dashboard/forms',
   '/dashboard/forms/[id]',

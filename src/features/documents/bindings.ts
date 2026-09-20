@@ -265,7 +265,12 @@ export const ROI_BINDINGS: readonly Binding[] = [
   req('segrate', 'roi.seg_rate'),
 
   // --- Contact (p15) ------------------------------------------------------
-  req('surveyorcontact', 'sale.salesperson_phone'),
+  // public.people holds no phone number, so the ROI's "surveyor contact" line
+  // has NO source in the schema. It comes from the `documents.contact_phone`
+  // setting, and when that is unset the line reads as not recorded rather than
+  // carrying a number nobody chose. An absence is honest; an invented direct
+  // line is not, and it is not worth failing a whole report over.
+  opt('surveyorcontact', 'sale.salesperson_phone', '—'),
   req('surveyoremail', 'sale.salesperson_email')
 ];
 

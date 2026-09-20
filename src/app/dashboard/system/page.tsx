@@ -23,6 +23,8 @@ import {
   STATE_LABEL,
   STATE_VARIANT
 } from '@/features/system/operational-health';
+import { DocumentOperationsCard } from '@/features/documents/components/document-operations-card';
+import { getDocumentOperations } from '@/features/documents/server/queries';
 import { getCurrentUser } from '@/lib/auth';
 import { readOps, readR1 } from '@/lib/backend/read';
 import { ReadinessCard } from '@/features/release/readiness-card';
@@ -77,6 +79,9 @@ export default async function SystemPage() {
   if (!user) redirect('/auth/sign-in');
   const admin = isAdmin(user);
   const canResolve = isOfficeManager(user);
+  // Generation work is operational visibility like any other queue: what is
+  // waiting, what is running, what failed and why.
+  const documentOps = await getDocumentOperations();
   // Director reads System Health to record backup evidence; the calendar
   // outbox is office work (CALENDAR_STATUS: Admin / Manager / Office).
   const [status, modes, calendar, readiness] = await Promise.all([
@@ -260,6 +265,8 @@ export default async function SystemPage() {
             </Card>
           </div>
         )}
+
+        {documentOps.ok && <DocumentOperationsCard data={documentOps.data} />}
 
         {calendar && (
           <Card>

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fixtureKitchenSink } from '../../presale/designer/calc/__tests__/fixtures';
 import type { DesignState } from '../../presale/designer/types';
+import { QUOTATION_BINDINGS, ROI_BINDINGS } from '../bindings';
 import { resolveDocument, type DocumentSource } from '../resolve';
 import { GENERATION_ERRORS, GenerationError } from '../types';
 
@@ -212,6 +213,42 @@ describe('the snapshot', () => {
     for (const v of Object.values(input.variables)) {
       expect(v).not.toContain('{{');
     }
+  });
+});
+
+describe('the two meanings of {{roi}}', () => {
+  // The masters use one token name for two different quantities. The ROI
+  // report's cover reads as a payback period; the quotation's Figures page is
+  // labelled "Return on investment in year 1" and prints a %. Treating them as
+  // one field would put a number of years where a percentage belongs.
+  const roi = resolveDocument('ROI', source(), SHA).input;
+  const quotation = resolveDocument('QuotationContract', source(), SHA).input;
+
+  it('resolves payback and yield to separate variables', () => {
+    expect(roi.variables['roi.payback_years']).toBeDefined();
+    expect(roi.variables['roi.yield_pct_year1']).toBeDefined();
+    expect(roi.variables['roi.payback_years']).not.toBe(
+      roi.variables['roi.yield_pct_year1']
+    );
+  });
+
+  it('binds the ROI report\u2019s {{roi}} to payback in years', () => {
+    const binding = ROI_BINDINGS.find((b) => b.token === 'roi');
+    expect(binding?.variable).toBe('roi.payback_years');
+    // The master prints "{{roi}}%", which a period makes wrong, so the % goes.
+    expect(binding?.absorbSuffix).toBe(true);
+  });
+
+  it('binds the quotation\u2019s {{roi}} to the year-one yield', () => {
+    const binding = QUOTATION_BINDINGS.find((b) => b.token === 'roi');
+    expect(binding?.variable).toBe('roi.yield_pct_year1');
+    // That cell's "%" is correct, so it stays.
+    expect(binding?.absorbSuffix).toBeUndefined();
+  });
+
+  it('gives payback a unit and yield none', () => {
+    expect(roi.variables['roi.payback_years']).toMatch(/years$/);
+    expect(quotation.variables['roi.yield_pct_year1']).toMatch(/^[\d.,]+$/);
   });
 });
 
