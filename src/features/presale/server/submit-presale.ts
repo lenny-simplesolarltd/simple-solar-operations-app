@@ -1,5 +1,6 @@
 'use server';
 
+import { kickDocumentWorker } from '@/features/documents/server/kick';
 import { previewWriteBlock } from '@/lib/preview/guard';
 import { createClient } from '@/lib/supabase/server';
 import type {
@@ -54,5 +55,20 @@ export async function submitPresale(
     };
   }
 
-  return { ok: true, result: data as unknown as JobSoldResult };
+  const result = data as unknown as JobSoldResult;
+
+  // The sale is committed, and public.presales' insert trigger has already
+  // queued a Quotation & Contract and an ROI against it. Render them now, so
+  // the surveyor arrives at the job with documents rather than a spinner.
+  //
+  // Deliberately AFTER the sale, and deliberately unable to affect it. The
+  // queue rows are committed either way; if this pass never runs - no service
+  // key, a crash, a dropped connection - they stay Queued and the Documents
+  // card picks them up the moment somebody opens the job.
+  //
+  // It is also skipped for a replay: a resubmitted command returns the
+  // original sale, and its documents were dealt with the first time.
+  if (!result.replay) await kickDocumentWorker();
+
+  return { ok: true, result };
 }

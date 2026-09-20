@@ -1,11 +1,10 @@
 'use server';
 
 import { runCommand } from '@/lib/backend/command';
-import { createClient } from '@supabase/supabase-js';
 import { previewWriteBlock } from '@/lib/preview/guard';
 import { revalidatePath } from 'next/cache';
 import type { DocumentType } from '../types';
-import { runDocumentWorker, type RpcClient } from './worker';
+import { kickDocumentWorker } from './kick';
 
 // Asking for a document, and starting it.
 //
@@ -23,26 +22,6 @@ export interface GenerateResult {
   ok: boolean;
   message?: string;
   code?: string;
-}
-
-/**
- * The worker's client.
- *
- * Service role, because the claim/ready/failed protocol is granted to
- * service_role only - it has no actor and must not be reachable from a
- * browser session. Authorisation for the REQUEST already happened, in the
- * command, under the person's own identity.
- *
- * Returns null rather than throwing when the key is absent: generation is
- * still queued, and the recovery endpoint will pick it up.
- */
-function serviceClient(): RpcClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return null;
-  return createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  }) as unknown as RpcClient;
 }
 
 /**
@@ -77,16 +56,8 @@ export async function generateDocuments(
   }
 
   // Start the work now. A failure to start is not a failure to queue: the row
-  // is committed and recovery will find it, so the person is told it is
-  // queued rather than told it broke.
-  const client = serviceClient();
-  if (client) {
-    try {
-      await runDocumentWorker(client);
-    } catch (error) {
-      console.error('document worker (inline) failed', error);
-    }
-  }
+  // is committed, so the person is told it is queued rather than told it broke.
+  await kickDocumentWorker();
 
   revalidatePath(`/dashboard/jobs/${jobId}`);
   return { ok: true };
@@ -152,11 +123,5 @@ export async function composeDocumentEmail(
  */
 export async function pokeDocumentWorker(): Promise<void> {
   if (await previewWriteBlock()) return;
-  const client = serviceClient();
-  if (!client) return;
-  try {
-    await runDocumentWorker(client, 3);
-  } catch (error) {
-    console.error('document worker (poll) failed', error);
-  }
+  await kickDocumentWorker(3);
 }
