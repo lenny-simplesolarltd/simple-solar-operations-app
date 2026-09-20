@@ -34,6 +34,7 @@ export const APP_ROUTES = [
   '/dashboard/jobs/[jobId]/move',
   '/dashboard/materials',
   '/dashboard/materials/[jobId]',
+  '/dashboard/operations',
   '/dashboard/orders',
   '/dashboard/orders/[orderId]',
   '/dashboard/people',

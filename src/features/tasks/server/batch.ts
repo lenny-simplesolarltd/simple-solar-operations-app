@@ -52,6 +52,12 @@ export interface BatchSubmission {
   args: Record<string, unknown>;
   target: Target;
   source?: 'ui' | 'simplebot';
+  /**
+   * The command_id to submit under. SimpleBot passes its confirmed pending
+   * action's id, so a retried confirmation is answered by the commands ledger
+   * instead of creating a second batch.
+   */
+  commandId?: string;
 }
 
 export type BatchSubmitResult =
@@ -88,7 +94,7 @@ export async function submitBatch(
   submission: BatchSubmission
 ): Promise<BatchSubmitResult> {
   const response = await runCommand({
-    command_id: newCommandId(),
+    command_id: submission.commandId ?? newCommandId(),
     command_type: 'TASK_BATCH_SUBMIT',
     payload: {
       operation: submission.operation,

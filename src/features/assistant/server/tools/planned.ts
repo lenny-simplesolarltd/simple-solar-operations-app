@@ -60,20 +60,11 @@ export const PLANNED_TOOLS: PlannedTool[] = [
     'BD-06 generated documents'
   ),
   // -- mutations -----------------------------------------------------------
-  planned(
-    'complete_task',
-    'mutation',
-    'tasks',
-    'Mark a task complete',
-    'Not a backend gap: TASK_COMPLETE is deployed, but most task types ask for a file or extra fields that only the task screen can collect. A note-only variant is designed and not built yet; staff complete tasks on the task screen.'
-  ),
-  planned(
-    'reopen_task',
-    'mutation',
-    'tasks',
-    'Reopen a completed task',
-    'Not a backend gap: TASK_REOPEN is deployed. Reopening undoes recorded work, so it stays on the task screen where the person sees what they are undoing.'
-  ),
+  // complete_task / reopen_task were planned here. They are now
+  // complete_tasks / override_complete_tasks / reopen_tasks in bulk-tasks.ts:
+  // the batch command resolves the selection server-side and reports per task,
+  // so the "asks for a file or extra fields" case is answered honestly
+  // (reported back untouched) instead of being a reason not to have the tool.
   planned(
     'attach_task_evidence',
     'mutation',

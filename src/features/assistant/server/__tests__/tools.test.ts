@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 
 describe('the production registry', () => {
-  it('exposes read tools, and mutations only for Forms (each a confirmed proposal)', () => {
+  it('exposes read tools, and mutations only for Forms and bulk task work (each a confirmed proposal)', () => {
     const available = registry.all().filter((t) => t.status === 'available');
     expect(
       available
@@ -70,38 +70,52 @@ describe('the production registry', () => {
       'get_job_tasks',
       'get_job_timeline',
       'get_my_tasks',
+      'get_operation_status',
       'get_presale_workflow',
       'get_related_help',
       'get_team_tasks',
       'list_form_responses',
       'list_forms',
       'list_job_files',
+      'plan_task_action',
       'search_files',
       'search_help_articles'
     ]);
     const mutations = available.filter((t) => t.kind === 'mutation');
     expect(mutations.map((t) => t.name).sort()).toEqual([
+      'complete_tasks',
       'create_form',
       'create_form_link',
       'edit_form_draft',
+      'override_complete_tasks',
       'publish_form',
+      'reopen_tasks',
+      'retry_operation',
       'revoke_form_link',
       'save_form_as_template',
       'set_form_status'
     ]);
-    // Every mutation is a Forms adapter that requires a forms.* permission.
+    // Every mutation is an adapter over something the app already exposes:
+    // the Forms service, or the task batch command the Tasks screen submits.
     for (const tool of mutations) {
-      expect(tool.domain).toBe('forms');
-      expect(
-        tool.authorization.permissions.some((p) => p.startsWith('forms.'))
-      ).toBe(true);
+      expect(['forms', 'tasks']).toContain(tool.domain);
+      if (tool.domain === 'forms') {
+        expect(
+          tool.authorization.permissions.some((p) => p.startsWith('forms.'))
+        ).toBe(true);
+      }
     }
+    // The one bulk action that needs its own permission asks for it up front;
+    // the batch command re-checks it per item whatever this says.
+    expect(
+      mutations.find((t) => t.name === 'override_complete_tasks')?.authorization
+        .permissions
+    ).toEqual(['task.read.all', 'task.override_complete']);
   });
 
-  it('keeps every quote, document and task-mutation capability planned and non-executable', () => {
+  it('keeps every quote and document capability planned and non-executable', () => {
     for (const name of [
-      'complete_task',
-      'reopen_task',
+      'attach_task_evidence',
       'create_quote_amendment',
       'compare_quote_revisions',
       'generate_document_pack'
