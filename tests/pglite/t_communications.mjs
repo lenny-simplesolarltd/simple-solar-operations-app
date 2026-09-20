@@ -42,11 +42,32 @@ const types = (await one(`select app.command_types() t`)).t;
 for (const t of ['COMMUNICATION_APPROVE', 'COMMUNICATION_QUEUE', 'COMMUNICATION_RECORD_SENT'])
   assert.ok(types.includes(t), 'registered: ' + t);
 
-assert.equal((await one(`select typed_value #>> '{}' v from public.settings where key='email.mode' order by version desc limit 1`)).v, 'CAPTURE');
-assert.equal((await one(`select typed_value #>> '{}' v from public.settings where key='email.from_mailbox' order by version desc limit 1`)).v, '');
-assert.deepEqual((await one(`select app.setting_text_array('outbound.allowed_recipients') a`)).a, []);
+// 20260920260000 configured the transport: email.mode is LIVE, the sender is a
+// real mailbox, and the adapter is named. Two doors are still shut, and they
+// are the two that hold the line.
+const setting = async (k) =>
+  (await one(`select typed_value #>> '{}' v from public.settings where key='${k}' order by version desc limit 1`)).v;
+
+assert.equal(await setting('email.mode'), 'LIVE');
+assert.equal(await setting('email.from_mailbox'), 'operations@simplesolarltd.co.uk');
+assert.equal(await setting('email.transport'), 'resend');
+
+// THE LAST TWO DOORS. Neither may be opened by a migration: the allow-list
+// carries real third-party addresses and is applied straight to the database,
+// and the release mode is a recorded decision made through RELEASE_CONTROL.
+// If either of these assertions ever fails in CI, something has committed a
+// decision that was supposed to be taken by a person.
+assert.deepEqual((await one(`select app.setting_text_array('outbound.allowed_recipients') a`)).a, [],
+  'the allow-list must never be committed to the repo');
 assert.equal((await one(`select count(*)::int n from public.release_modes where function_id in ('FN-03','FN-04') and mode='Automated'`)).n, 0,
   'FN-03/FN-04 must ship not-Automated');
+
+// And the point of all of it: with the transport fully configured, a claim is
+// STILL refused, because the release mode is the outer gate.
+await assert.rejects(
+  () => one(`select public.outbox_claim(array['EmailOrder']) c`),
+  /must be Automated/,
+  'a configured transport must not be enough to claim a row');
 
 // FN-20 and FN-18 are Manual by decision: they have no action type at all, so
 // no amount of configuration can auto-dispatch a customer/installer notice.
@@ -147,7 +168,9 @@ const o1 = row.outbox_id;
 let out = await outRow(o1);
 assert.equal(out.status, 'Pending');
 assert.equal(out.action_type, 'EmailOrder');
-assert.equal(out.target, 'NOT_CONFIGURED', 'no sender configured yet');
+// The queue stamps the sender the message was queued to go FROM, so a later
+// change of mailbox is detectable (SENDER_CHANGED) rather than silent.
+assert.equal(out.target, 'operations@simplesolarltd.co.uk', 'queued to send from the configured mailbox');
 assert.equal(out.attempt_count, 0);
 assert.match(out.response_summary, /nothing sent/);
 assert.equal(out.payload_hash, (await one(`select app.comm_payload_hash(c) h from public.communications c where c.id=$1`, [c1])).h);
@@ -178,6 +201,10 @@ assert.equal((await outRow(o1)).status, 'Pending', 'a refused claim leaves the r
 // 7. Door 3: the sender. Allow-listed recipient, but no configured mailbox.
 // ---------------------------------------------------------------------------
 await setSetting('outbound.allowed_recipients', ['pat@acme.example']);
+// Unconfigure the mailbox the go-live migration set, so this door is still
+// exercised: a deployment that loses the sender must fail closed, not send
+// from whatever the provider defaults to.
+await setSetting('email.from_mailbox', '');
 let claim = await sql(`select app.outbox_claim(array['EmailOrder'], 10) r`);
 assert.equal(claim.claimed.length, 0, 'nothing claimed for sending');
 assert.equal(claim.settled.length, 1, JSON.stringify(claim));
