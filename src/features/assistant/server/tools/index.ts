@@ -17,6 +17,10 @@ import {
 } from './operations';
 import { PLANNED_TOOLS } from './planned';
 import { PRESALE_MUTATION_TOOLS } from './presale-create';
+import {
+  PRESALE_REVISION_MUTATION_TOOLS,
+  PRESALE_REVISION_READ_TOOLS
+} from './presale-revise';
 import { getPresaleWorkflowTool } from './presale';
 import { getMyTasksTool, getTeamTasksTool } from './tasks';
 
@@ -55,6 +59,15 @@ export function createToolRegistry(
   // raising an issue. Both are existing R1 commands; availability, stage rules
   // and the audit trail stay in the database. See tools/job-operations.ts.
   for (const tool of JOB_OPERATION_TOOLS)
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
+  // Revising a quote: PRESALE_REVISE writes a new immutable version rather
+  // than editing one, and the tool can reach the agreed price and the notes
+  // only - a design change needs recomputed totals the designer alone
+  // produces. See tools/presale-revise.ts.
+  for (const tool of [
+    ...PRESALE_REVISION_READ_TOOLS,
+    ...PRESALE_REVISION_MUTATION_TOOLS
+  ])
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Recording a sale: the same public.submit_presale the New presale wizard
   // submits. It captures no design, and says so on the card and afterwards.
