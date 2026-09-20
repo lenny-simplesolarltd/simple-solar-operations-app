@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type {
+  PresaleSubmission,
+  SubmitResult
+} from '@/features/presale/contract';
+
 vi.mock('server-only', () => ({}));
 
 const getSalespeople = vi.fn(async () => [
@@ -10,7 +15,14 @@ vi.mock('@/features/presale/server/queries', () => ({
   getSalespeople: () => getSalespeople()
 }));
 
-const submitPresale = vi.fn(async (_id?: string, _submission?: unknown) => ({
+// Typed against the real action's contract, not an ad-hoc shape. That is what
+// makes `submitPresale.mock.calls[0]` a [string, PresaleSubmission] below, so
+// the assertions read real fields off a real type instead of casting their way
+// to one - if the submission shape changes, these tests stop compiling, which
+// is the entire point of asserting on it.
+const submitPresale = vi.fn<
+  (commandId: string, submission: PresaleSubmission) => Promise<SubmitResult>
+>(async () => ({
   ok: true as const,
   result: {
     job_id: 'j',
@@ -33,7 +45,7 @@ const submitPresale = vi.fn(async (_id?: string, _submission?: unknown) => ({
   }
 }));
 vi.mock('@/features/presale/server/submit-presale', () => ({
-  submitPresale: (id: string, submission: unknown) =>
+  submitPresale: (id: string, submission: PresaleSubmission) =>
     submitPresale(id, submission)
 }));
 
@@ -92,28 +104,19 @@ describe('what reaches the database', () => {
     ).toBe('£8,500.00');
 
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as unknown as [
-      string,
-      { sale: { agreed_price_pence: number }; computed: unknown }
-    ];
+    const [, submission] = submitPresale.mock.calls[0];
     expect(submission.sale.agreed_price_pence).toBe(850_000);
   });
 
   it('normalises the postcode the way the database stores it', async () => {
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as unknown as [
-      string,
-      { customer: { postcode: string } }
-    ];
+    const [, submission] = submitPresale.mock.calls[0];
     expect(submission.customer.postcode).toBe('PL2 3PD');
   });
 
   it('records no design, and says which it is', async () => {
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as unknown as [
-      string,
-      { design: unknown; catalogue_version: string }
-    ];
+    const [, submission] = submitPresale.mock.calls[0];
     expect(submission.design).toEqual({});
     // Not a borrowed catalogue version pretending a design happened.
     expect(submission.catalogue_version).toBe('simplebot-no-designer');
@@ -137,10 +140,7 @@ describe('what reaches the database', () => {
 describe('whose sale it is', () => {
   it('defaults to the signed-in Surveyor', async () => {
     await createPresaleTool.execute(base, mutationCtx());
-    const [, submission] = submitPresale.mock.calls[0] as unknown as [
-      string,
-      { sale: { salesperson_id: string } }
-    ];
+    const [, submission] = submitPresale.mock.calls[0];
     expect(submission.sale.salesperson_id).toBe(SURVEYOR);
   });
 
