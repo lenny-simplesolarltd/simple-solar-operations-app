@@ -2,8 +2,16 @@
 // Refuses to run against anything that is not local. Re-run after `supabase db reset`.
 import { execFileSync } from 'node:child_process';
 
+// SUPABASE_TEST_WORKDIR points at another local stack (its own config.toml and
+// ports), exactly as tests/helpers.mjs uses it. Without this the script asks
+// the DEFAULT stack for its connection details and installs the hook into the
+// wrong database - or none - while still reporting success, which makes every
+// preview test fail as though the feature were broken.
+const workdir = process.env.SUPABASE_TEST_WORKDIR
+  ? ['--workdir', process.env.SUPABASE_TEST_WORKDIR]
+  : [];
 const env = Object.fromEntries(
-  execFileSync('supabase', ['status', '-o', 'env'], {
+  execFileSync('supabase', ['status', '-o', 'env', ...workdir], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore']
   })

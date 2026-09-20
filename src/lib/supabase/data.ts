@@ -1,7 +1,10 @@
 import 'server-only';
 
-import { PREVIEW_READ_ONLY_MESSAGE } from '@/lib/preview/config';
-import { getActivePreview } from '@/lib/preview/context';
+import {
+  PREVIEW_HEADER,
+  PREVIEW_READ_ONLY_MESSAGE
+} from '@/lib/preview/config';
+import { type ActivePreview, getActivePreview } from '@/lib/preview/context';
 import type { Database } from '@/types/database';
 import {
   createClient as createPlainClient,
@@ -29,17 +32,44 @@ const READ_RPCS = new Set([
   'help_health'
 ]);
 
-/** A client that carries the preview token and physically cannot write. */
+/**
+ * A client that carries the preview credential and physically cannot write.
+ *
+ *  - local mode: an anonymous client bearing the minted preview token, which
+ *    the dev-only hook honours.
+ *  - hosted mode: the REAL user's session client plus the signed preview header.
+ *    auth.uid() stays the developer's; the database decides, from the header it
+ *    authenticates itself, whether to resolve identity as the target instead.
+ */
+export async function createDataReadClient(
+  preview: ActivePreview
+): Promise<SupabaseClient<Database>> {
+  return preview.mode === 'hosted'
+    ? readOnly(
+        await createClient({
+          headers: { [PREVIEW_HEADER]: preview.header ?? '' }
+        })
+      )
+    : createPreviewReadClient(preview.jwt ?? '');
+}
+
+/** A client that carries the local preview token and physically cannot write. */
 export function createPreviewReadClient(jwt: string): SupabaseClient<Database> {
   const { url, anonKey } = getSupabaseEnv();
-  const client = createPlainClient<Database>(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${jwt}` } },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
-    }
-  });
+  return readOnly(
+    createPlainClient<Database>(url, anonKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    })
+  );
+}
+
+/** Wraps a client so that no write can leave the process, whatever calls it. */
+function readOnly(client: SupabaseClient<Database>): SupabaseClient<Database> {
   const refuse = () => {
     throw new Error(PREVIEW_READ_ONLY_MESSAGE);
   };
@@ -75,5 +105,5 @@ export function createPreviewReadClient(jwt: string): SupabaseClient<Database> {
  */
 export async function createDataClient(): Promise<SupabaseClient<Database>> {
   const preview = await getActivePreview();
-  return preview ? createPreviewReadClient(preview.jwt) : createClient();
+  return preview ? createDataReadClient(preview) : createClient();
 }

@@ -50,3 +50,12 @@ next-env.d.ts
 
 # Local-only operator files (initial passwords etc.)
 /.local/
+
+# Historical data imports: raw source exports and private reconciliation
+# outputs contain real customer/staff PII and must never be committed.
+data-import/*/source/*
+!data-import/*/source/.gitkeep
+data-imports/*/source/*
+!data-imports/*/source/.gitkeep
+data-import/*/private/
+data-imports/*/private/

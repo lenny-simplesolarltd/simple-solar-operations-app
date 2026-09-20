@@ -16,13 +16,19 @@ import {
  * `keep` overrides the stored "Keep me signed in" choice (used by sign-in,
  * where the choice is being made in the same request).
  */
-export async function createClient(options: { keep?: boolean } = {}) {
+export async function createClient(
+  options: { keep?: boolean; headers?: Record<string, string> } = {}
+) {
   const cookieStore = await cookies();
   const { url, anonKey } = getSupabaseEnv();
   const keep =
     options.keep ?? keepSignedIn(cookieStore.get(KEEP_SIGNED_IN_COOKIE)?.value);
 
   return createServerClient<Database>(url, anonKey, {
+    // Extra request headers are used by hosted developer preview only, to carry
+    // a server-signed proof the database authenticates for itself. The session
+    // (and therefore auth.uid()) remains the real signed-in user's.
+    global: options.headers ? { headers: options.headers } : undefined,
     cookies: {
       getAll() {
         return cookieStore.getAll();

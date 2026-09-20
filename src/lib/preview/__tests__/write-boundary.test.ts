@@ -9,7 +9,12 @@ const adminInvite = vi.fn();
 vi.mock('@/lib/preview/context', () => ({
   getActivePreview: async () =>
     state.previewing
-      ? { targetPersonId: 't', realAuthUserId: 'r', jwt: 'j' }
+      ? {
+          targetPersonId: 't',
+          realAuthUserId: 'r',
+          mode: 'hosted' as const,
+          header: 'v1.t.1.sig'
+        }
       : null
 }));
 vi.mock('@/lib/supabase/server', () => ({

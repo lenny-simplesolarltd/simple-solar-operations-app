@@ -50,7 +50,15 @@ export const findJobTool: ReadTool<{ query: string }> = {
           customer_name: h.customerName,
           postcode: h.postcode,
           workflow_stage: h.workflowStage,
-          sold_at: h.soldAt
+          sold_at: h.soldAt,
+          // Stated so the assistant never presents finished history as live
+          // work. A historical record has no open tasks and nobody scheduled.
+          record_type: h.isHistorical
+            ? 'historical_import (archived; imported from the previous system, no active work)'
+            : 'live',
+          ...(h.sourceReference
+            ? { previous_system_reference: h.sourceReference }
+            : {})
         })),
         total_matches: total,
         note:
@@ -116,7 +124,18 @@ export const getJobTool: ReadTool<{ jobId: string }> = {
       blocked: open.filter((t) => t.status === 'Blocked').length,
       overdue: open.filter((t) => dueState(t.dueAt) === 'overdue').length
     };
-    const finance = FINANCE_LABEL[job.finance_route] ?? job.finance_route;
+    // A historical import may carry no finance route, no price and no
+    // salesperson: the legacy form did not record them. The assistant must say
+    // "not recorded", never "no" and never "£0.00" - the difference between
+    // unknown and false is exactly what it must not blur.
+    const historical = job.record_class === 'HistoricalImport';
+    const NOT_RECORDED = 'Not recorded in the historical source';
+    const finance =
+      job.finance_route === null
+        ? historical
+          ? NOT_RECORDED
+          : 'Unknown'
+        : (FINANCE_LABEL[job.finance_route] ?? job.finance_route);
 
     return {
       ok: true,
@@ -125,6 +144,18 @@ export const getJobTool: ReadTool<{ jobId: string }> = {
         job_ref: job.job_ref,
         workflow_stage: job.workflow_stage,
         sold_at: job.sold_at,
+        record_type: historical
+          ? 'historical_import (archived; imported from the previous system, no active work)'
+          : 'live',
+        ...(historical
+          ? {
+              historical_note:
+                'This is an imported record of a job completed before this system. It has no open tasks, ' +
+                'nobody is scheduled on it, and any staff names on it are historical facts, not current allocations. ' +
+                'Fields shown as not recorded were never captured by the old form - that is not the same as "no".',
+              previous_system_reference: job.source_reference ?? undefined
+            }
+          : {}),
         // Contact details are deliberately left out of what the model reads.
         customer: {
           name: customerName,
@@ -168,7 +199,12 @@ export const getJobTool: ReadTool<{ jobId: string }> = {
           { label: 'Sold', value: formatDate(job.sold_at) },
           {
             label: 'Agreed price',
-            value: pounds.format(job.original_gross_pence / 100)
+            value:
+              job.original_gross_pence === null
+                ? historical
+                  ? NOT_RECORDED
+                  : 'Unknown'
+                : pounds.format(job.original_gross_pence / 100)
           },
           { label: 'Payment', value: finance },
           ...(presale

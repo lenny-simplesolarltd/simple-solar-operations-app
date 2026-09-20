@@ -134,14 +134,20 @@ before(async () => {
 });
 
 describe('the hook is development-only', () => {
-  test('it is not a migration and no migration knows about preview', () => {
-    const files = readdirSync('supabase/migrations');
-    assert.ok(!files.some((f) => /preview/i.test(f)));
-    for (const f of files)
-      assert.doesNotMatch(
-        readFileSync(`supabase/migrations/${f}`, 'utf8'),
-        /preview_person_id|app_dev/
-      );
+  // The hosted mechanism (app_preview, a signed request header the database
+  // authenticates for itself) IS a migration. What must never be migrated is
+  // THIS hook: trusting a `preview_person_id` claim inside the JWT, which would
+  // require the app to hold Supabase's own signing secret in production.
+  test('no migration trusts a JWT claim or ships the dev schema', () => {
+    for (const f of readdirSync('supabase/migrations')) {
+      // Prose may explain why the claim mechanism is NOT migrated; what must
+      // not appear is SQL that reads it.
+      const code = readFileSync(`supabase/migrations/${f}`, 'utf8')
+        .split('\n')
+        .filter((line) => !line.trim().startsWith('--'))
+        .join('\n');
+      assert.doesNotMatch(code, /preview_person_id|app_dev/, f);
+    }
   });
 });
 

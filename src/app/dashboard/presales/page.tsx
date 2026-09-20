@@ -22,6 +22,17 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+/**
+ * A historical import may record no finance route and no price. Both read as
+ * "not recorded" rather than as a blank or a zero, so an unknown is never
+ * mistaken for "no finance" or a free job. Live jobs always carry both.
+ */
+const financeLabel = (route: string | null) =>
+  route === null ? 'Not recorded' : (FINANCE_LABEL[route] ?? route);
+
+const priceLabel = (pence: number | null) =>
+  pence === null ? 'Not recorded' : pounds.format(pence / 100);
+
 export const metadata: Metadata = {
   title: 'Presales | Simple Solar Operations'
 };
@@ -109,9 +120,9 @@ export default async function PresalesPage() {
                   </Link>
                   <p className='text-muted-foreground mt-2 text-xs'>
                     Sold {soldDate.format(new Date(job.soldAt))} ·{' '}
-                    {FINANCE_LABEL[job.financeRoute] ?? job.financeRoute} ·{' '}
+                    {financeLabel(job.financeRoute)} ·{' '}
                     <span className='text-foreground font-mono'>
-                      {pounds.format(job.agreedPricePence / 100)}
+                      {priceLabel(job.agreedPricePence)}
                     </span>
                   </p>
                 </li>
@@ -155,11 +166,9 @@ export default async function PresalesPage() {
                           ? '-'
                           : `${job.systemKwp.toFixed(2)} kWp · ${job.netPanels} panels`}
                       </TableCell>
-                      <TableCell>
-                        {FINANCE_LABEL[job.financeRoute] ?? job.financeRoute}
-                      </TableCell>
+                      <TableCell>{financeLabel(job.financeRoute)}</TableCell>
                       <TableCell className='text-right font-mono tabular-nums'>
-                        {pounds.format(job.agreedPricePence / 100)}
+                        {priceLabel(job.agreedPricePence)}
                       </TableCell>
                       <TableCell>
                         <Badge variant='secondary'>

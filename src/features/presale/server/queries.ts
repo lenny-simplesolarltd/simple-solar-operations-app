@@ -38,11 +38,13 @@ export interface JobListItem {
   postcode: string;
   soldAt: string;
   workflowStage: string;
-  financeRoute: string;
-  agreedPricePence: number;
+  // Null only on an imported historical record, where the legacy source did
+  // not capture these. Every live job still carries all three.
+  financeRoute: string | null;
+  agreedPricePence: number | null;
   systemKwp: number | null;
   netPanels: number | null;
-  salespersonId: string;
+  salespersonId: string | null;
 }
 
 /** Jobs visible to the current user under RLS (a Surveyor: their own; office: all), newest first. */

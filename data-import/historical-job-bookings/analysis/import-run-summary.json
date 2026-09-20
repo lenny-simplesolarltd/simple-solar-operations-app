@@ -1,0 +1,14 @@
+{
+  "batchId": "68ba678fc082",
+  "importerVersion": "2.0.0",
+  "target": "postgresql://postgres:***@127.0.0.1:56999/hist_iso",
+  "finishedAt": "2026-09-20T03:32:07.419Z",
+  "candidates": 287,
+  "submitted": 277,
+  "heldBack": 10,
+  "imported": 277,
+  "skippedAlreadyImported": 0,
+  "sourceChangedSincePreviousImport": 0,
+  "failed": 0,
+  "rowsWritten": 1430
+}

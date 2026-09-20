@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { previewWriteBlock } from '@/lib/preview/guard';
 import type { ActionResponse } from '../protocol';
 import { consoleAuditSink, type AssistantAuditSink } from './audit';
 import type { PendingActionService } from './pending-actions';
@@ -36,6 +37,11 @@ export async function resolvePendingAction(
 ): Promise<ActionResponse> {
   const { actor, registry, pendingActions, decision } = input;
   const audit = input.audit ?? consoleAuditSink;
+
+  // The write boundary, at the choke point rather than at one caller: nothing
+  // the assistant proposes may be executed while a preview is active.
+  const blocked = await previewWriteBlock();
+  if (blocked) return reject('PREVIEW_MODE_READ_ONLY', blocked);
 
   if (!canHandleMutations(pendingActions)) {
     return reject(
