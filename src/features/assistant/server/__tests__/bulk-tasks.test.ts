@@ -452,3 +452,18 @@ describe('the model cannot widen its reach', () => {
     expect(JSON.stringify(shape)).not.toContain('TASK_BATCH');
   });
 });
+
+describe('override without being made to justify it', () => {
+  it('records a plain default reason when none was given', async () => {
+    // public.tasks requires a non-blank override_reason, so leaving it out
+    // must still produce one rather than failing or prompting.
+    const DEFAULT =
+      'Administrative override requested through SimpleBot. No business fact was recorded.';
+    expect(DEFAULT.trim().length).toBeGreaterThan(0);
+    // It must never read as evidence the work happened.
+    for (const forbidden of ['invoice', 'signed', 'confirmed', 'verified']) {
+      expect(DEFAULT.toLowerCase()).not.toContain(forbidden);
+    }
+    expect(DEFAULT).toMatch(/no business fact was recorded/i);
+  });
+});

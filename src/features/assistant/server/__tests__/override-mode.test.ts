@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 
 import { createToolRegistry } from '../tools';
+import { volatileSystemPrompt } from '../system-prompt';
+import { makeActor } from './helpers';
 
 /**
  * Override mode removes a click, not a check.
@@ -91,5 +93,36 @@ describe('the refusal that points at the override', () => {
     expect(message).toMatch(/still report those requirements as outstanding/i);
     // And it must not invite the assistant to just do it.
     expect(message).toMatch(/unless they ask for it/i);
+  });
+});
+
+describe('what the model is told when the mode is on', () => {
+  const prompt = (on: boolean, actor = makeActor()) =>
+    volatileSystemPrompt(actor, undefined, new Date(), on);
+
+  it('says nothing about override mode when it is off', () => {
+    expect(prompt(false)).not.toMatch(/override mode is on/i);
+  });
+
+  it('tells it to use the override instead of explaining why it cannot', () => {
+    const text = prompt(true);
+    expect(text).toMatch(/override mode is on/i);
+    expect(text).toMatch(/use override_complete_tasks/i);
+    // The complaint that prompted this: it asked for the request to be worded
+    // differently, and for a reason, instead of acting.
+    expect(text).toMatch(/do not ask for a reason/i);
+    expect(text).toMatch(/do not ask them to word the request differently/i);
+  });
+
+  it('still requires it to say what an override did not record', () => {
+    const text = prompt(true);
+    expect(text).toMatch(/no business fact was written/i);
+    expect(text).toMatch(/still report the requirement as outstanding/i);
+  });
+
+  it('is withheld in preview, where nothing can be written', () => {
+    const previewing = makeActor();
+    previewing.previewing = true;
+    expect(prompt(true, previewing)).not.toMatch(/override mode is on/i);
   });
 });
