@@ -7,12 +7,13 @@ import {
   IconBuildingArch,
   IconBolt,
   IconDots,
+  IconHistory,
   IconRotateClockwise,
   IconTools,
   IconUserOff
 } from '@tabler/icons-react';
 import type { CalendarEvent, EventKind } from '../calendar/events';
-import { KIND_LABEL, KIND_STYLE } from '../calendar/events';
+import { KIND_LABEL, KIND_STYLE, isHistorical } from '../calendar/events';
 import { canDrag } from '../calendar/moves';
 
 const KIND_ICON: Record<EventKind, typeof IconTools> = {
@@ -22,7 +23,12 @@ const KIND_ICON: Record<EventKind, typeof IconTools> = {
   Other: IconDots,
   ScaffoldErect: IconBuildingArch,
   ScaffoldStrip: IconBuildingArch,
-  ScaffoldStripForecast: IconBuildingArch
+  ScaffoldStripForecast: IconBuildingArch,
+  // One icon for every historical kind: the point of the chip is that it is
+  // history, not which trade it was.
+  HistoricalRoof: IconHistory,
+  HistoricalElectrical: IconHistory,
+  HistoricalScaffoldErect: IconHistory
 };
 
 /** The legend that tells staff what the colours mean. */
@@ -74,7 +80,16 @@ export function EventChip({
   const draggable = event.draggable && canDrag(event).ok && !!onDragStart;
   const unallocated = !!event.work && !event.work.allocated;
   const unacknowledged = !!event.scaffold && !event.scaffold.acknowledged;
-  const who = event.work?.personName ?? event.scaffold?.company ?? null;
+  const historical = isHistorical(event);
+  const who =
+    event.work?.personName ??
+    event.scaffold?.company ??
+    event.historical?.scaffoldCompany ??
+    // The name the old form recorded, even when it resolved to nobody.
+    event.historical?.people
+      .map((p) => p.displayName ?? p.sourceValue)
+      .join(', ') ??
+    null;
 
   return (
     <button
@@ -89,7 +104,7 @@ export function EventChip({
       onDragEnd={onDragEnd}
       onClick={() => onSelect(event)}
       aria-pressed={selected}
-      title={`${KIND_LABEL[event.kind]} · ${event.jobRef ?? ''}${who ? ` · ${who}` : ''}`}
+      title={`${historical ? 'Historical record — read only. ' : ''}${KIND_LABEL[event.kind]} · ${event.jobRef ?? ''}${who ? ` · ${who}` : ''}`}
       className={cn(
         'w-full rounded border px-1.5 py-1 text-left text-[11px] leading-tight',
         'focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:outline-none',
@@ -101,9 +116,20 @@ export function EventChip({
     >
       <span className='flex items-center gap-1'>
         <Icon className='size-3 shrink-0' aria-hidden />
-        <span className='truncate font-semibold'>
+        <span
+          className={cn(
+            'truncate font-semibold',
+            // Never bold like live work, and never a live trade colour.
+            historical && 'font-normal italic'
+          )}
+        >
           {event.jobRef ?? event.jobDisplay ?? KIND_LABEL[event.kind]}
         </span>
+        {historical && (
+          <span className='border-muted-foreground/40 text-muted-foreground ml-auto shrink-0 rounded-sm border px-1 text-[9px] leading-tight tracking-wide uppercase'>
+            Hist
+          </span>
+        )}
         {unallocated && (
           <IconUserOff
             className='text-warning ml-auto size-3 shrink-0'
@@ -117,6 +143,7 @@ export function EventChip({
           />
         )}
       </span>
+      {historical && <span className='sr-only'>Historical record, read only</span>}
       {!compact && (
         <span className='block truncate opacity-80'>
           {event.jobDisplay ?? KIND_LABEL[event.kind]}

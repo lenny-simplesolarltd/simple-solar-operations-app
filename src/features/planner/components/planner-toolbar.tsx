@@ -20,11 +20,13 @@ import {
 } from '@tabler/icons-react';
 import type { EventKind, PlannerFilters } from '../calendar/events';
 import {
+  HISTORICAL_KINDS,
   KIND_LABEL,
   SCAFFOLD_KINDS,
   WORK_KINDS,
   filtersActive
 } from '../calendar/events';
+import type { RecordMode } from '../types';
 import type { Day, ViewId } from '../calendar/range';
 import { VIEWS, windowTitle } from '../calendar/range';
 
@@ -43,21 +45,25 @@ export function PlannerToolbar({
   anchor,
   filters,
   people,
+  records,
   onView,
   onAnchor,
   onToday,
   onStep,
-  onFilters
+  onFilters,
+  onRecords
 }: {
   view: ViewId;
   anchor: Day;
   filters: PlannerFilters;
   people: { id: string; name: string }[];
+  records: RecordMode;
   onView: (view: ViewId) => void;
   onAnchor: (day: Day) => void;
   onToday: () => void;
   onStep: (direction: 1 | -1) => void;
   onFilters: (filters: PlannerFilters) => void;
+  onRecords: (records: RecordMode) => void;
 }) {
   const toggle = <K extends 'kinds' | 'statuses' | 'people'>(
     key: K,
@@ -139,6 +145,7 @@ export function PlannerToolbar({
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
+        <RecordSwitch value={records} onChange={onRecords} />
         <div className='relative min-w-48 flex-1 sm:max-w-xs'>
           <IconSearch className='text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2' />
           <Input
@@ -164,7 +171,7 @@ export function PlannerToolbar({
           <PopoverContent align='start' className='w-72'>
             <div className='flex flex-col gap-3 text-sm'>
               <FilterGroup label='Work type'>
-                {[...WORK_KINDS, ...SCAFFOLD_KINDS].map((kind) => (
+                {[...WORK_KINDS, ...SCAFFOLD_KINDS, ...HISTORICAL_KINDS].map((kind) => (
                   <Chip
                     key={kind}
                     active={filters.kinds.includes(kind)}
@@ -299,5 +306,56 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+const RECORD_OPTIONS: { value: RecordMode; label: string; hint: string }[] = [
+  { value: 'live', label: 'Live', hint: 'Current operational work only' },
+  {
+    value: 'historical',
+    label: 'Historical',
+    hint: 'Imported records of work that already happened'
+  },
+  { value: 'both', label: 'Both', hint: 'Compare old work with current work' }
+];
+
+/**
+ * Live / Historical / Both.
+ *
+ * The choice is sent to the database with the window, so "Live" genuinely
+ * does not fetch history and "Historical" genuinely does not fetch live work.
+ * Nothing is filtered out in the browser after the fact.
+ */
+function RecordSwitch({
+  value,
+  onChange
+}: {
+  value: RecordMode;
+  onChange: (value: RecordMode) => void;
+}) {
+  return (
+    <div
+      role='radiogroup'
+      aria-label='Which records to show'
+      className='bg-muted flex rounded-lg p-0.5'
+    >
+      {RECORD_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          role='radio'
+          aria-checked={value === o.value}
+          title={o.hint}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'rounded-md px-2.5 py-1 text-sm transition-colors',
+            value === o.value
+              ? 'bg-background shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }

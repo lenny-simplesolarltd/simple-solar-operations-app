@@ -9,7 +9,11 @@
 
 import type { Day } from './range';
 import { addDays, daysBetween, eachDay } from './range';
-import type { PlannerRow, PlannerScaffold } from '../types';
+import type {
+  HistoricalEvent as HistoricalEventRead,
+  PlannerRow,
+  PlannerScaffold
+} from '../types';
 
 export type EventKind =
   | 'Roof'
@@ -18,7 +22,19 @@ export type EventKind =
   | 'Other'
   | 'ScaffoldErect'
   | 'ScaffoldStrip'
-  | 'ScaffoldStripForecast';
+  | 'ScaffoldStripForecast'
+  // Preserved dates from the old Job Booking form. These are distinct kinds
+  // rather than a flag on the live ones, so nothing that switches on kind can
+  // mistake a fact about the past for work someone is expected to do.
+  | 'HistoricalRoof'
+  | 'HistoricalElectrical'
+  | 'HistoricalScaffoldErect';
+
+export const HISTORICAL_KINDS: EventKind[] = [
+  'HistoricalRoof',
+  'HistoricalElectrical',
+  'HistoricalScaffoldErect'
+];
 
 export const WORK_KINDS: EventKind[] = [
   'Roof',
@@ -40,7 +56,11 @@ export const KIND_LABEL: Record<EventKind, string> = {
   Other: 'Other work',
   ScaffoldErect: 'Scaffold up',
   ScaffoldStrip: 'Scaffold down',
-  ScaffoldStripForecast: 'Scaffold down (forecast)'
+  ScaffoldStripForecast: 'Scaffold down (forecast)',
+  // "was" throughout: the label itself says this already happened.
+  HistoricalRoof: 'Roof (historical)',
+  HistoricalElectrical: 'Electrical (historical)',
+  HistoricalScaffoldErect: 'Scaffold up (historical)'
 };
 
 /**
@@ -56,7 +76,17 @@ export const KIND_STYLE: Record<EventKind, string> = {
   ScaffoldErect: 'bg-success-soft text-success border-success/40 border-dashed',
   ScaffoldStrip: 'bg-success-soft text-success border-success/40 border-dashed',
   ScaffoldStripForecast:
-    'bg-muted/60 text-muted-foreground border-border border-dashed'
+    'bg-muted/60 text-muted-foreground border-border border-dashed',
+  // Historical work is deliberately drab and dotted: no colour that reads as
+  // a live trade, so it cannot be mistaken for current work at a glance. The
+  // chip also carries an explicit "Historical" marker; colour alone is never
+  // the only signal.
+  HistoricalRoof:
+    'bg-transparent text-muted-foreground border-muted-foreground/40 border-dotted',
+  HistoricalElectrical:
+    'bg-transparent text-muted-foreground border-muted-foreground/40 border-dotted',
+  HistoricalScaffoldErect:
+    'bg-transparent text-muted-foreground border-muted-foreground/40 border-dotted'
 };
 
 export interface WorkDetail {
@@ -81,6 +111,29 @@ export interface ScaffoldDetail {
   actualRecorded: boolean;
 }
 
+/**
+ * A preserved fact from the old Job Booking form.
+ *
+ * Its presence on an event is what makes the event non-operational: there is
+ * no work package, no allocation and no booking behind it, so there is nothing
+ * a command could act on even if one were somehow called.
+ */
+export interface HistoricalDetail {
+  /** Which column of the source form the date came from. */
+  sourceField: string;
+  sourceSystem: string | null;
+  sourceReference: string | null;
+  scaffoldCompany: string | null;
+  people: {
+    role: string;
+    sourceValue: string;
+    matchKind: string;
+    personId: string | null;
+    displayName: string | null;
+    linked: boolean;
+  }[];
+}
+
 export interface CalendarEvent {
   /** Stable within a render; not a database id. */
   id: string;
@@ -98,11 +151,28 @@ export interface CalendarEvent {
    * drag (see the scaffold rule in the planner docs).
    */
   draggable: boolean;
+  /** Where the job is, for the card and for search. */
+  town?: string | null;
+  postcode?: string | null;
   work?: WorkDetail;
   scaffold?: ScaffoldDetail;
+  /** Set only for an imported record. Its presence means "not operational". */
+  historical?: HistoricalDetail;
 }
 
 export const isScaffold = (e: CalendarEvent) => SCAFFOLD_KINDS.includes(e.kind);
+
+/**
+ * Whether this event is a preserved fact rather than operational work.
+ *
+ * Both halves are checked deliberately: the kind, and the absence of a work
+ * package. A historical event has no `work`, so it carries no work package id,
+ * no version and no allocation - the three things every scheduling command
+ * requires. It cannot be moved because there is nothing to move, not because
+ * a button was hidden.
+ */
+export const isHistorical = (e: CalendarEvent) =>
+  HISTORICAL_KINDS.includes(e.kind) || e.historical !== undefined;
 
 /** A work package row becomes one event spanning its allocated dates. */
 export function workEvent(row: PlannerRow): CalendarEvent {
@@ -117,6 +187,8 @@ export function workEvent(row: PlannerRow): CalendarEvent {
     jobDisplay: row.job_display,
     start: row.start_at,
     end: row.end_at,
+    town: row.town ?? null,
+    postcode: row.postcode ?? null,
     // An unallocated package has no allocation to move, so it is opened and
     // allocated rather than dragged.
     draggable: row.allocated && row.allocation_id !== null,
@@ -146,6 +218,8 @@ export function scaffoldEvent(s: PlannerScaffold): CalendarEvent {
     start: s.date,
     end: s.date,
     draggable: false,
+    town: s.town ?? null,
+    postcode: s.postcode ?? null,
     scaffold: {
       scaffoldBookingId: s.scaffold_booking_id,
       company: s.company,
@@ -157,11 +231,52 @@ export function scaffoldEvent(s: PlannerScaffold): CalendarEvent {
   };
 }
 
+/**
+ * One preserved date becomes one single-day, read-only event.
+ *
+ * Note what is NOT set: `work` and `scaffold`. A historical event therefore
+ * has no work package id, no version and no allocation id, so no scheduling
+ * command can be built from it - the protection is structural, not cosmetic.
+ */
+export function historicalEvent(h: HistoricalEventRead): CalendarEvent {
+  return {
+    id: `hist:${h.job_id}:${h.kind}:${h.event_date}`,
+    kind: `Historical${h.kind}` as EventKind,
+    jobId: h.job_id,
+    jobRef: h.job_ref,
+    jobDisplay: h.job_display,
+    start: h.event_date,
+    end: h.event_date,
+    draggable: false,
+    town: h.town,
+    postcode: h.postcode,
+    historical: {
+      sourceField: h.source_field,
+      sourceSystem: h.source_system,
+      sourceReference: h.source_reference,
+      scaffoldCompany: h.scaffold_company,
+      people: h.people.map((p) => ({
+        role: p.role,
+        sourceValue: p.source_value,
+        matchKind: p.match_kind,
+        personId: p.person_id,
+        displayName: p.display_name,
+        linked: p.linked
+      }))
+    }
+  };
+}
+
 export function toEvents(data: {
   rows: PlannerRow[];
   scaffold: PlannerScaffold[];
+  historical?: HistoricalEventRead[];
 }): CalendarEvent[] {
-  return [...data.rows.map(workEvent), ...data.scaffold.map(scaffoldEvent)];
+  return [
+    ...data.rows.map(workEvent),
+    ...data.scaffold.map(scaffoldEvent),
+    ...(data.historical ?? []).map(historicalEvent)
+  ];
 }
 
 // -----------------------------------------------------------------------------
@@ -199,13 +314,29 @@ export const filtersActive = (f: PlannerFilters) =>
   f.unallocatedOnly ||
   f.scaffoldUnacknowledgedOnly;
 
+/**
+ * The one list of fields planner search looks at.
+ *
+ * Historical events add the fields the imported records actually carry - the
+ * town and postcode the read supplies, the previous-system reference, and the
+ * staff names exactly as the old form recorded them. Everything searchable
+ * lives here, so the list cannot drift apart from what is rendered.
+ */
 const haystack = (e: CalendarEvent) =>
   [
     e.jobRef,
     e.jobDisplay,
     e.work?.personName,
     e.scaffold?.company,
-    KIND_LABEL[e.kind]
+    KIND_LABEL[e.kind],
+    e.town,
+    e.postcode,
+    e.historical?.scaffoldCompany,
+    e.historical?.sourceReference,
+    ...(e.historical?.people ?? []).flatMap((p) => [
+      p.sourceValue,
+      p.displayName
+    ])
   ]
     .filter(Boolean)
     .join(' ')
@@ -222,7 +353,15 @@ export function matchesFilters(e: CalendarEvent, f: PlannerFilters): boolean {
   if (f.statuses.length > 0) {
     if (!e.work || !f.statuses.includes(e.work.status)) return false;
   }
-  if (f.unallocatedOnly && (isScaffold(e) || e.work?.allocated)) return false;
+  // "Nobody allocated" is a prompt to act on current work. A historical
+  // record has nobody allocated because it was never scheduled here, which is
+  // not the same thing and must not be surfaced as something to do.
+  if (
+    f.unallocatedOnly &&
+    (isScaffold(e) || isHistorical(e) || e.work?.allocated)
+  ) {
+    return false;
+  }
   if (f.scaffoldUnacknowledgedOnly) {
     if (!e.scaffold || e.scaffold.acknowledged) return false;
   }

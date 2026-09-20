@@ -6,8 +6,10 @@ import type {
   Candidate,
   ChangeInstallerOptions,
   MoveJobPreview,
+  PlannerHistoricalCount,
   PlannerUnscheduledRead,
   PlannerWindowRead,
+  RecordMode,
   TeamPlannerRead
 } from './types';
 
@@ -38,8 +40,24 @@ export async function changeInstallerOptions(input: {
 export async function readPlannerWindow(input: {
   from: string;
   to: string;
+  /** Which records to include. The database applies this, not the browser. */
+  records?: RecordMode;
 }): Promise<ReadResult<PlannerWindowRead>> {
   return readOps('PLANNER_WINDOW', input);
+}
+
+/**
+ * How much history a window holds, without fetching it.
+ *
+ * Lets an empty operational window offer what is actually there ("14
+ * historical records have dates here") instead of looking broken, and does it
+ * without sending 277 records to a browser that would then hide most of them.
+ */
+export async function readHistoricalCount(input: {
+  from: string;
+  to: string;
+}): Promise<ReadResult<PlannerHistoricalCount>> {
+  return readOps('PLANNER_HISTORICAL_COUNT', input);
 }
 
 /** The resource view: people, their allocations and their canonical leave. */
