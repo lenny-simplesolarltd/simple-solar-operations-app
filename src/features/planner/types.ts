@@ -18,6 +18,8 @@ export interface PlannerRow {
   allocated: boolean;
   start_at: string;
   end_at: string;
+  town?: string | null;
+  postcode?: string | null;
 }
 
 export interface PlannerScaffold {
@@ -34,6 +36,8 @@ export interface PlannerScaffold {
   // without a second read; PLANNER_3_WEEKS/6_WEEKS do not.
   job_ref?: string | null;
   job_display?: string | null;
+  town?: string | null;
+  postcode?: string | null;
 }
 
 export interface PlannerRead {
@@ -52,6 +56,10 @@ export interface PlannerWindowRead {
   rows: PlannerRow[];
   scaffold: PlannerScaffold[];
   holidays: string[];
+  /** Which records were asked for; the database echoes what it applied. */
+  records: RecordMode;
+  /** Empty unless records is 'historical' or 'both'. */
+  historical: HistoricalEvent[];
 }
 
 /** One piece of required work on an actionable job that has no dates yet. */
@@ -279,3 +287,47 @@ export const READINESS_REASON: Record<string, string> = {
   CERTIFICATION_EXPIRES_BEFORE_END: 'Certification expires first',
   APPRENTICE_NEEDS_SUPERVISION: 'Apprentice – needs supervision'
 };
+
+/** Which records the planner is showing. Applied in the database, per window. */
+export type RecordMode = 'live' | 'historical' | 'both';
+
+/**
+ * One genuine date preserved by the historical Job Booking import.
+ *
+ * There is no operational row behind any of this: no work package, no
+ * allocation, no scaffold booking. It is a fact about the past, and
+ * `read_only` is always true.
+ */
+export interface HistoricalEvent {
+  job_id: string;
+  job_ref: string | null;
+  job_display: string | null;
+  kind: 'Roof' | 'Electrical' | 'ScaffoldErect';
+  event_date: string;
+  read_only: true;
+  record_class: 'HistoricalImport';
+  town: string | null;
+  postcode: string | null;
+  /** The column of the source form this date came from, e.g. "Date Roofer". */
+  source_field: string;
+  source_system: string | null;
+  source_reference: string | null;
+  scaffold_company: string | null;
+  people: {
+    role: string;
+    /** Exactly as the old form recorded it. Never normalised away. */
+    source_value: string;
+    match_kind: string;
+    /** Null unless the import resolved it to exactly one active person. */
+    person_id: string | null;
+    display_name: string | null;
+    linked: boolean;
+  }[];
+}
+
+export interface PlannerHistoricalCount {
+  from: string;
+  to: string;
+  events: number;
+  jobs: number;
+}

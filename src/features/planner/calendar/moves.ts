@@ -17,7 +17,7 @@
 // would have refused anyway.
 
 import type { CalendarEvent } from './events';
-import { KIND_LABEL, isScaffold, shiftTo } from './events';
+import { KIND_LABEL, isHistorical, isScaffold, shiftTo } from './events';
 import type { Day } from './range';
 import { formatMedium } from './range';
 
@@ -53,7 +53,9 @@ export const DRAG_REFUSAL = {
   COMPLETE: 'This work is finished.',
   CANCELLED: 'This work is cancelled.',
   SAME_DAY: 'Dropped back on the same dates - nothing to change.',
-  SAME_PERSON: 'That is already who this work is allocated to.'
+  SAME_PERSON: 'That is already who this work is allocated to.',
+  HISTORICAL:
+    'This is an imported record of work that already happened. It is not scheduled work and cannot be changed.'
 } as const;
 
 /**
@@ -70,6 +72,11 @@ const UNDRAGGABLE_STATUS: Record<string, string> = {
 
 /** Whether this event can start a drag at all, and why not if it cannot. */
 export function canDrag(e: CalendarEvent): { ok: true } | Refusal {
+  // First, and before anything that looks at work: an imported record is not
+  // scheduled work. It has no work package, no version and no allocation, so
+  // there is nothing a command could be built from - this check states that
+  // rather than creating it.
+  if (isHistorical(e)) return { ok: false, reason: DRAG_REFUSAL.HISTORICAL };
   if (isScaffold(e)) return { ok: false, reason: DRAG_REFUSAL.SCAFFOLD };
   if (!e.work) return { ok: false, reason: DRAG_REFUSAL.SCAFFOLD };
   if (!e.work.allocated || !e.work.allocationId) {

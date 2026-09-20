@@ -2,6 +2,7 @@
 
 import { ReadFailureState } from '@/components/read-failure';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ReadFailure } from '@/lib/backend/types';
 import { IconInfoCircle } from '@tabler/icons-react';
@@ -13,9 +14,14 @@ import {
   useTransition
 } from 'react';
 import { toast } from 'sonner';
-import { readPlannerWindow, readTeamPlanner } from '../actions';
+import {
+  readHistoricalCount,
+  readPlannerWindow,
+  readTeamPlanner
+} from '../actions';
 import type { CalendarEvent, PlannerFilters } from '../calendar/events';
 import {
+  HISTORICAL_KINDS,
   NO_FILTERS,
   SCAFFOLD_KINDS,
   WORK_KINDS,
@@ -32,7 +38,7 @@ import {
   today as londonToday,
   windowFor
 } from '../calendar/range';
-import type { TeamPlannerRead, UnscheduledWork } from '../types';
+import type { RecordMode, TeamPlannerRead, UnscheduledWork } from '../types';
 import { AgendaList, CalendarGrid } from './calendar-grid';
 import { KindLegend } from './event-chip';
 import { JobPanel } from './job-panel';
@@ -44,6 +50,16 @@ import { TeamGrid } from './team-grid';
 import { UnscheduledPanel } from './unscheduled-panel';
 
 const STORAGE_KEY = 'planner.view';
+const RECORDS_KEY = 'planner.records';
+
+/**
+ * The planner opens on live work.
+ *
+ * It is an operational surface, so its default has to be the work people are
+ * expected to do. History is one click away, and when a window holds no live
+ * work the board says how much history is there rather than looking broken.
+ */
+const DEFAULT_RECORDS: RecordMode = 'live';
 
 /**
  * The operations calendar.
@@ -73,6 +89,8 @@ export function PlannerBoard({
     day: Day | null;
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [records, setRecords] = useState<RecordMode>(DEFAULT_RECORDS);
+  const [historicalHere, setHistoricalHere] = useState<number | null>(null);
   const [unscheduled, setUnscheduled] = useState<UnscheduledWork[]>([]);
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -90,28 +108,41 @@ export function PlannerBoard({
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved && isViewId(saved)) setView(saved);
+      const savedRecords = window.localStorage.getItem(RECORDS_KEY);
+      if (
+        savedRecords === 'live' ||
+        savedRecords === 'historical' ||
+        savedRecords === 'both'
+      ) {
+        setRecords(savedRecords);
+      }
     } catch {
-      // Private window or blocked storage: the default view is fine.
+      // Private window or blocked storage: the defaults are fine.
     }
   }, []);
 
   useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, view);
+      window.localStorage.setItem(RECORDS_KEY, records);
     } catch {
       // Not worth telling anyone about.
     }
-  }, [view]);
+  }, [view, records]);
 
   // One read per visible window. Changing view or date re-reads exactly the
   // new range; nothing accumulates.
   useEffect(() => {
     const range = fetchWindow(view, anchor);
     startLoading(async () => {
-      const [window, teamRead] = await Promise.all([
-        readPlannerWindow(range),
+      const [window, teamRead, count] = await Promise.all([
+        readPlannerWindow({ ...range, records }),
         view === 'team'
           ? readTeamPlanner({ start: visible.from, weeks: 1 })
+          : Promise.resolve(null),
+        // Only worth asking when history is not already on screen.
+        records === 'live'
+          ? readHistoricalCount(range)
           : Promise.resolve(null)
       ]);
       if (!window.ok) {
@@ -123,10 +154,11 @@ export function PlannerBoard({
       setEvents(toEvents(window.data));
       setHolidays(new Set(window.data.holidays));
       setTeam(teamRead && teamRead.ok ? teamRead.data : null);
+      setHistoricalHere(count && count.ok ? count.data.events : null);
     });
     // visible.from is derived from view+anchor, so it is not a separate input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, anchor, refreshKey]);
+  }, [view, anchor, refreshKey, records]);
 
   const shown = useMemo(() => applyFilters(events, filters), [events, filters]);
 
@@ -179,8 +211,11 @@ export function PlannerBoard({
     []
   );
 
-  const legend =
-    view === 'team' ? WORK_KINDS : [...WORK_KINDS, ...SCAFFOLD_KINDS];
+  const legend = [
+    ...(records === 'historical' ? [] : WORK_KINDS),
+    ...(view === 'team' || records === 'historical' ? [] : SCAFFOLD_KINDS),
+    ...(records === 'live' ? [] : HISTORICAL_KINDS)
+  ];
 
   return (
     <div className='flex flex-col gap-4'>
@@ -189,6 +224,8 @@ export function PlannerBoard({
         anchor={anchor}
         filters={filters}
         people={people}
+        records={records}
+        onRecords={setRecords}
         onView={setView}
         onAnchor={setAnchor}
         onToday={() => setAnchor(today)}
@@ -266,6 +303,37 @@ export function PlannerBoard({
               </div>
             </>
           )}
+
+          {/*
+            An operational window with nothing in it is a normal state, but it
+            looks broken when 277 imported records sit just out of view. Say
+            what is actually there, and offer it.
+          */}
+          {records === 'live' &&
+            !loading &&
+            shown.length === 0 &&
+            historicalHere !== null &&
+            historicalHere > 0 && (
+              <Alert>
+                <IconInfoCircle />
+                <AlertTitle>No current work in this window</AlertTitle>
+                <AlertDescription className='flex flex-wrap items-center gap-2'>
+                  <span>
+                    {historicalHere} historical record
+                    {historicalHere === 1 ? '' : 's'} from the old booking form
+                    {historicalHere === 1 ? ' has a date' : ' have dates'} here.
+                    They are read-only and cannot be scheduled.
+                  </span>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => setRecords('both')}
+                  >
+                    Show them
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
 
           <div className='flex flex-wrap items-center justify-between gap-2'>
             <KindLegend kinds={legend} />

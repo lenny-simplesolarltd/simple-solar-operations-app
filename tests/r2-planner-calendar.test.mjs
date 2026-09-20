@@ -482,7 +482,12 @@ describe('the windowed calendar read', { skip }, () => {
           role: 'Lead'
         }
       },
-      /^HISTORICAL_IMPORT/,
+      // Two guards stand in front of this, and either refusing is correct:
+      // app.authorize_job refuses an out-of-scope job (job_in_scope is false
+      // for every HistoricalImport row), and app.assert_normal_work refuses a
+      // historical one inside the handler. Which fires first is an ordering
+      // detail; that nothing can be scheduled is the guarantee.
+      /^(R1A_OUTSIDE_PILOT|HISTORICAL_IMPORT)/,
       'historical job is not actionable'
     );
   });
@@ -975,7 +980,10 @@ describe('the planner has no private write path', { skip }, () => {
       `select string_agg(read_type, ',' order by read_type)
        from app.read_registry where read_type like 'PLANNER_%'`
     );
-    assert.equal(registered, 'PLANNER_UNSCHEDULED,PLANNER_WINDOW');
+    assert.equal(
+      registered,
+      'PLANNER_HISTORICAL_COUNT,PLANNER_UNSCHEDULED,PLANNER_WINDOW'
+    );
     const roles = sql(
       `select string_agg(distinct r, ',' order by r) from app.read_registry,
        unnest(roles) r where read_type = 'PLANNER_WINDOW'`
