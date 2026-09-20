@@ -838,6 +838,134 @@ export type Database = {
           }
         ];
       };
+      command_batch_items: {
+        Row: {
+          attempt_count: number;
+          batch_id: string;
+          claimed_at: string | null;
+          command_id: string;
+          command_type: string;
+          created_at: string;
+          error_code: string | null;
+          error_detail: string | null;
+          expected_version: number | null;
+          id: string;
+          next_attempt: string | null;
+          outcome: Json | null;
+          preflight: Json | null;
+          sequence: number;
+          settled_at: string | null;
+          status: string;
+          task_id: string;
+        };
+        Insert: {
+          attempt_count?: number;
+          batch_id: string;
+          claimed_at?: string | null;
+          command_id: string;
+          command_type: string;
+          created_at?: string;
+          error_code?: string | null;
+          error_detail?: string | null;
+          expected_version?: number | null;
+          id?: string;
+          next_attempt?: string | null;
+          outcome?: Json | null;
+          preflight?: Json | null;
+          sequence: number;
+          settled_at?: string | null;
+          status?: string;
+          task_id: string;
+        };
+        Update: {
+          attempt_count?: number;
+          batch_id?: string;
+          claimed_at?: string | null;
+          command_id?: string;
+          command_type?: string;
+          created_at?: string;
+          error_code?: string | null;
+          error_detail?: string | null;
+          expected_version?: number | null;
+          id?: string;
+          next_attempt?: string | null;
+          outcome?: Json | null;
+          preflight?: Json | null;
+          sequence?: number;
+          settled_at?: string | null;
+          status?: string;
+          task_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'command_batch_items_batch_id_fkey';
+            columns: ['batch_id'];
+            isOneToOne: false;
+            referencedRelation: 'command_batches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'command_batch_items_task_id_fkey';
+            columns: ['task_id'];
+            isOneToOne: false;
+            referencedRelation: 'tasks';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      command_batches: {
+        Row: {
+          actor_person_id: string;
+          command_id: string;
+          created_at: string;
+          finished_at: string | null;
+          id: string;
+          operation: string;
+          payload: Json;
+          selector: Json | null;
+          source: string;
+          started_at: string | null;
+          status: string;
+          total: number;
+        };
+        Insert: {
+          actor_person_id: string;
+          command_id: string;
+          created_at?: string;
+          finished_at?: string | null;
+          id?: string;
+          operation: string;
+          payload?: Json;
+          selector?: Json | null;
+          source?: string;
+          started_at?: string | null;
+          status?: string;
+          total?: number;
+        };
+        Update: {
+          actor_person_id?: string;
+          command_id?: string;
+          created_at?: string;
+          finished_at?: string | null;
+          id?: string;
+          operation?: string;
+          payload?: Json;
+          selector?: Json | null;
+          source?: string;
+          started_at?: string | null;
+          status?: string;
+          total?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'command_batches_actor_person_id_fkey';
+            columns: ['actor_person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       commands: {
         Row: {
           actor_person_id: string;
@@ -1747,18 +1875,26 @@ export type Database = {
           context_type: string | null;
           created_at: string;
           customer_shareable: boolean;
+          display_name: string | null;
           filename: string;
+          filing_version: number;
+          folder_id: string | null;
           id: string;
           issue_id: string | null;
-          job_id: string;
+          job_id: string | null;
           mime_type: string | null;
           original_filename: string | null;
+          purged_at: string | null;
+          purged_by: string | null;
           received_at: string | null;
           registered_at: string | null;
+          scope: string;
           size_bytes: number | null;
           storage_path: string;
           submission_id: string | null;
           task_id: string | null;
+          trashed_at: string | null;
+          trashed_by: string | null;
           upload_status: string;
           uploaded_by: string | null;
           version: number;
@@ -1776,18 +1912,26 @@ export type Database = {
           context_type?: string | null;
           created_at?: string;
           customer_shareable?: boolean;
+          display_name?: string | null;
           filename: string;
+          filing_version?: number;
+          folder_id?: string | null;
           id?: string;
           issue_id?: string | null;
-          job_id: string;
+          job_id?: string | null;
           mime_type?: string | null;
           original_filename?: string | null;
+          purged_at?: string | null;
+          purged_by?: string | null;
           received_at?: string | null;
           registered_at?: string | null;
+          scope?: string;
           size_bytes?: number | null;
           storage_path: string;
           submission_id?: string | null;
           task_id?: string | null;
+          trashed_at?: string | null;
+          trashed_by?: string | null;
           upload_status: string;
           uploaded_by?: string | null;
           version?: number;
@@ -1805,18 +1949,26 @@ export type Database = {
           context_type?: string | null;
           created_at?: string;
           customer_shareable?: boolean;
+          display_name?: string | null;
           filename?: string;
+          filing_version?: number;
+          folder_id?: string | null;
           id?: string;
           issue_id?: string | null;
-          job_id?: string;
+          job_id?: string | null;
           mime_type?: string | null;
           original_filename?: string | null;
+          purged_at?: string | null;
+          purged_by?: string | null;
           received_at?: string | null;
           registered_at?: string | null;
+          scope?: string;
           size_bytes?: number | null;
           storage_path?: string;
           submission_id?: string | null;
           task_id?: string | null;
+          trashed_at?: string | null;
+          trashed_by?: string | null;
           upload_status?: string;
           uploaded_by?: string | null;
           version?: number;
@@ -1838,6 +1990,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'evidence_folder_id_fkey';
+            columns: ['folder_id'];
+            isOneToOne: false;
+            referencedRelation: 'file_folders';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'evidence_issue_id_fkey';
             columns: ['issue_id'];
             isOneToOne: false;
@@ -1849,6 +2008,13 @@ export type Database = {
             columns: ['job_id'];
             isOneToOne: false;
             referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'evidence_purged_by_fkey';
+            columns: ['purged_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           },
           {
@@ -1866,6 +2032,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'evidence_trashed_by_fkey';
+            columns: ['trashed_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'evidence_uploaded_by_fkey';
             columns: ['uploaded_by'];
             isOneToOne: false;
@@ -1877,6 +2050,93 @@ export type Database = {
             columns: ['work_package_id'];
             isOneToOne: false;
             referencedRelation: 'work_packages';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      file_folders: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          depth: number;
+          id: string;
+          job_id: string | null;
+          name: string;
+          parent_id: string | null;
+          path_ids: string[];
+          scope: string;
+          trashed_at: string | null;
+          trashed_by: string | null;
+          updated_at: string;
+          updated_by: string | null;
+          version: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          depth?: number;
+          id?: string;
+          job_id?: string | null;
+          name: string;
+          parent_id?: string | null;
+          path_ids?: string[];
+          scope: string;
+          trashed_at?: string | null;
+          trashed_by?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          depth?: number;
+          id?: string;
+          job_id?: string | null;
+          name?: string;
+          parent_id?: string | null;
+          path_ids?: string[];
+          scope?: string;
+          trashed_at?: string | null;
+          trashed_by?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'file_folders_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'file_folders_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'file_folders_parent_id_fkey';
+            columns: ['parent_id'];
+            isOneToOne: false;
+            referencedRelation: 'file_folders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'file_folders_trashed_by_fkey';
+            columns: ['trashed_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'file_folders_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           }
         ];
@@ -6007,6 +6267,7 @@ export type Database = {
           blocking_reason: string | null;
           completed_at: string | null;
           completed_by: string | null;
+          completion_mode: string;
           completion_note: string | null;
           created_at: string;
           created_by: string | null;
@@ -6018,6 +6279,10 @@ export type Database = {
           job_id: string | null;
           next_followup_at: string | null;
           original_due_at: string | null;
+          override_actor_id: string | null;
+          override_at: string | null;
+          override_bypassed: Json | null;
+          override_reason: string | null;
           owner_id: string;
           priority: number;
           related_entity_id: string | null;
@@ -6037,6 +6302,7 @@ export type Database = {
           blocking_reason?: string | null;
           completed_at?: string | null;
           completed_by?: string | null;
+          completion_mode?: string;
           completion_note?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -6048,6 +6314,10 @@ export type Database = {
           job_id?: string | null;
           next_followup_at?: string | null;
           original_due_at?: string | null;
+          override_actor_id?: string | null;
+          override_at?: string | null;
+          override_bypassed?: Json | null;
+          override_reason?: string | null;
           owner_id: string;
           priority?: number;
           related_entity_id?: string | null;
@@ -6067,6 +6337,7 @@ export type Database = {
           blocking_reason?: string | null;
           completed_at?: string | null;
           completed_by?: string | null;
+          completion_mode?: string;
           completion_note?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -6078,6 +6349,10 @@ export type Database = {
           job_id?: string | null;
           next_followup_at?: string | null;
           original_due_at?: string | null;
+          override_actor_id?: string | null;
+          override_at?: string | null;
+          override_bypassed?: Json | null;
+          override_reason?: string | null;
           owner_id?: string;
           priority?: number;
           related_entity_id?: string | null;
@@ -6132,6 +6407,13 @@ export type Database = {
             columns: ['job_id'];
             isOneToOne: false;
             referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_override_actor_id_fkey';
+            columns: ['override_actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
             referencedColumns: ['id'];
           },
           {
@@ -6610,6 +6892,20 @@ export type Database = {
       execute_command: { Args: { p_request: Json }; Returns: Json };
       execute_operations_read: { Args: { p_request: Json }; Returns: Json };
       execute_read: { Args: { p_request: Json }; Returns: Json };
+      file_browse: { Args: { p_request: Json }; Returns: Json };
+      file_details: { Args: { p_request: Json }; Returns: Json };
+      file_folder_create: { Args: { p_request: Json }; Returns: Json };
+      file_folder_move: { Args: { p_request: Json }; Returns: Json };
+      file_folder_rename: { Args: { p_request: Json }; Returns: Json };
+      file_folder_restore: { Args: { p_request: Json }; Returns: Json };
+      file_folder_trash: { Args: { p_request: Json }; Returns: Json };
+      file_job_index: { Args: { p_request: Json }; Returns: Json };
+      file_move: { Args: { p_request: Json }; Returns: Json };
+      file_purge: { Args: { p_request: Json }; Returns: Json };
+      file_rename: { Args: { p_request: Json }; Returns: Json };
+      file_restore: { Args: { p_request: Json }; Returns: Json };
+      file_search: { Args: { p_request: Json }; Returns: Json };
+      file_trash: { Args: { p_request: Json }; Returns: Json };
       forms_enabled: { Args: never; Returns: boolean };
       forms_public_open: { Args: { p_token: string }; Returns: Json };
       forms_public_submit: {
@@ -6681,6 +6977,10 @@ export type Database = {
         Returns: Json;
       };
       resilience_review_queue: { Args: never; Returns: Json };
+      run_batch_chunk: {
+        Args: { p_batch_id: string; p_limit?: number };
+        Returns: Json;
+      };
       search_evidence: { Args: { p_request: Json }; Returns: Json };
       submit_presale: {
         Args: { p_command_id: string; p_payload: Json };

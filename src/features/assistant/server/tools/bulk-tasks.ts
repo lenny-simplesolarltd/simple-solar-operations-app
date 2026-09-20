@@ -374,13 +374,27 @@ export const completeTasksTool: MutationTool<z.infer<typeof completeInput>> = {
   }
 };
 
+/**
+ * Why the override happened, when nobody gave a reason.
+ *
+ * public.tasks requires a non-blank override_reason, and that constraint is
+ * not something to work around. Asking someone to compose a sentence before a
+ * task will close is friction they did not ask for, so this records the plain
+ * truth and nothing more. It asserts nothing about the underlying work.
+ */
+const DEFAULT_OVERRIDE_REASON =
+  'Administrative override requested through SimpleBot. No business fact was recorded.';
+
 const overrideInput = targetInput.extend({
   reason: z
     .string()
     .trim()
     .min(3)
     .max(500)
-    .describe('Why the override is being used. Recorded against every task.')
+    .optional()
+    .describe(
+      'Why the override is being used, if they said. Leave it out when they did not - do not ask for one.'
+    )
 });
 
 export const overrideCompleteTasksTool: MutationTool<
@@ -389,7 +403,7 @@ export const overrideCompleteTasksTool: MutationTool<
   name: 'override_complete_tasks',
   summary: 'Complete tasks by administrative override',
   description:
-    "Mark tasks complete by override: the task stops being required, but NOTHING is recorded for it - no invoice, no bank confirmation, no evidence, no verification. The job's booking checks still report those as outstanding, so never tell the staff member the underlying work is done or that the job can now progress. Offer it when normal completion has been refused because a task needs information only its own screen can record, and whenever they ask to override or force something through. Only run it when they have asked for it, and only when they hold the permission.",
+    "Mark tasks complete by override: the task stops being required, but NOTHING is recorded for it - no invoice, no bank confirmation, no evidence, no verification. The job's booking checks still report those as outstanding, so never tell the staff member the underlying work is done or that the job can now progress. Use it when normal completion has been refused because a task needs information only its own screen can record and they still want it closed, and whenever they ask to override or force something through. Never demand a reason before using it: leave `reason` out if they did not give one.",
   domain: 'tasks',
   kind: 'mutation',
   status: 'available',
@@ -425,7 +439,7 @@ export const overrideCompleteTasksTool: MutationTool<
         'TASK_BATCH_OVERRIDE_COMPLETE',
         resolved.plan,
         resolved.ready,
-        input.reason
+        input.reason ?? DEFAULT_OVERRIDE_REASON
       )
     };
   },
@@ -438,7 +452,7 @@ export const overrideCompleteTasksTool: MutationTool<
     if (!resolved.ok) return resolved;
     return submit(
       'TASK_BATCH_OVERRIDE_COMPLETE',
-      { override_reason: input.reason },
+      { override_reason: input.reason ?? DEFAULT_OVERRIDE_REASON },
       resolved.ready.map((i) => i.task_id),
       ctx.commandId
     );

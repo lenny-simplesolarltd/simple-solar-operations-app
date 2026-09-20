@@ -29,6 +29,13 @@ export type EvidenceItem = {
   task_title: string | null;
   current: boolean | null;
   can_open: boolean;
+  /** Where it is filed. A null folder_id is the top level of its job. */
+  folder_id: string | null;
+  folder_path: string | null;
+  /** Quote it back on a filing change so a stale view cannot win. */
+  filing_version: number;
+  /** A task, submission or issue relies on it, so it cannot be deleted. */
+  evidence_locked: boolean;
 };
 
 type RpcClient = {
@@ -93,6 +100,9 @@ export interface EvidenceSearchFile {
   submission_id: string | null;
   work_package_id: string | null;
   context_type: string | null;
+  /** Where it is filed. A null folder_id is the top level of its job. */
+  folder_id: string | null;
+  folder_path: string | null;
 }
 
 export interface EvidenceSearchResult {

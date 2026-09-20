@@ -74,13 +74,17 @@ export async function beginEvidenceUpload(input: {
   uploadId: string;
   context: EvidenceContext;
   category?: string;
+  /** The folder it is being dropped into. Filing only; the path is unaffected. */
+  folderId?: string | null;
   file: { name: string; type: string; size: number };
 }): Promise<EvidenceUploadTicket> {
   const blocked = await previewWriteBlock();
   if (blocked) return { ok: false, message: blocked };
+  const library = input.context?.type === 'Library';
   if (
     !EVIDENCE_UUID.test(input.uploadId) ||
-    !EVIDENCE_UUID.test(input.context?.id ?? '')
+    (!library && !EVIDENCE_UUID.test(input.context?.id ?? '')) ||
+    (input.folderId != null && !EVIDENCE_UUID.test(input.folderId))
   )
     return { ok: false, message: FALLBACK };
   const problem = evidenceFileProblem(input.file);
@@ -92,8 +96,10 @@ export async function beginEvidenceUpload(input: {
     p_request: {
       upload_id: input.uploadId,
       context_type: input.context.type,
-      context_id: input.context.id,
+      // A company document has no context object; the database refuses one.
+      ...(library ? {} : { context_id: input.context.id }),
       ...(input.category ? { category: input.category } : {}),
+      ...(input.folderId ? { folder_id: input.folderId } : {}),
       filename: input.file.name,
       mime_type: evidenceMimeType(input.file),
       size_bytes: input.file.size

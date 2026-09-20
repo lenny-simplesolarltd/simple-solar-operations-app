@@ -22,10 +22,16 @@ export const EVIDENCE_ACCEPT = [
   .filter((v, i, all) => all.indexOf(v) === i)
   .join(',');
 
-export type EvidenceContext = {
-  type: 'Task' | 'WorkPackage' | 'Delivery' | 'Job';
-  id: string;
-};
+/**
+ * What an upload is being registered against. The server derives the job (and
+ * so the storage path) from it - never from anything the browser names.
+ * 'Library' is the one context with no domain object behind it: a company
+ * document belongs to no job, and the file.library.manage permission is the
+ * whole authorization.
+ */
+export type EvidenceContext =
+  | { type: 'Task' | 'WorkPackage' | 'Delivery' | 'Job'; id: string }
+  | { type: 'Library'; id?: undefined };
 
 export const EVIDENCE_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

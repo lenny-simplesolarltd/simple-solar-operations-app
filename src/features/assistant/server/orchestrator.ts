@@ -126,7 +126,12 @@ export async function runAssistantTurn(
   const tools = registry.availableFor(actor);
   const system = {
     stable: stableSystemPrompt(registry.planned()),
-    volatile: volatileSystemPrompt(actor, input.context)
+    volatile: volatileSystemPrompt(
+      actor,
+      input.context,
+      new Date(),
+      input.overrideMode === true
+    )
   };
   const toolSpecs = tools.map((tool) => ({
     name: tool.name,

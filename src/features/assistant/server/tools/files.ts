@@ -75,6 +75,7 @@ type FileLike = {
   job_id?: string | null;
   job_ref?: string | null;
   customer_name?: string | null;
+  folder_path?: string | null;
 };
 
 const fileForModel = (f: FileLike, withJob: boolean) => ({
@@ -85,6 +86,8 @@ const fileForModel = (f: FileLike, withJob: boolean) => ({
   added_at: f.added_at,
   added_by: f.added_by_name,
   task_title: f.task_title,
+  // Where staff would look for it, so an answer can say where it lives.
+  folder: f.folder_path ?? 'Top level',
   ...(withJob
     ? {
         job_id: f.job_id ?? null,

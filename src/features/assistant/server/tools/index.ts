@@ -3,6 +3,7 @@ import 'server-only';
 import { formsEnabled } from '@/features/forms/server/service';
 import { ToolRegistry, type PlannedTool } from '../registry';
 import { BULK_TASK_MUTATION_TOOLS, BULK_TASK_READ_TOOLS } from './bulk-tasks';
+import { FILE_MANAGEMENT_TOOLS } from './file-management';
 import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
@@ -34,8 +35,10 @@ export function createToolRegistry(
   // centre are shared rather than re-implemented for the assistant.
   for (const tool of [...BULK_TASK_READ_TOOLS, ...BULK_TASK_MUTATION_TOOLS])
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
-  // Stored files: the same reads as the job Files tab and the Files library.
-  for (const tool of FILE_TOOLS)
+  // Stored files: the same reads as the job Files tab and the Files library,
+  // and the same file-manager commands for filing them. Nothing that deletes a
+  // document is offered to the model - see tools/file-management.ts.
+  for (const tool of [...FILE_TOOLS, ...FILE_MANAGEMENT_TOOLS])
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Help Center: read-only, the same published guides staff read.
   for (const tool of HELP_TOOLS)
