@@ -214,6 +214,8 @@ export interface FileCardData {
 export interface HelpCardArticle {
   title: string;
   summary: string;
+  /** Help Centre category, used to pick the guide's icon. */
+  category?: string;
   /** In-app link (/dashboard/help/<slug>); never an id. */
   href: string;
   switchedOn: boolean;

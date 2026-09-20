@@ -17,7 +17,10 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { describeContext, type AssistantPageContext } from '../context';
 import type { ConversationItem, ConversationState } from '../lib/conversation';
-import type { AssistantCapabilities } from '../protocol';
+import type {
+  AssistantCapabilities,
+  HelpCardArticle
+} from '../protocol';
 import { suggestionsFor, type AssistantSuggestion } from '../suggestions';
 import { ActionCard } from './action-card';
 import {
@@ -26,6 +29,7 @@ import {
 } from './conversation-history';
 import { FormattedText } from './formatted-text';
 import { ResultCard } from './result-cards';
+import { SourcesStrip } from './sources-strip';
 
 export interface AssistantPanelProps {
   /** Off unless the person turned it on this session; never remembered. */
@@ -57,6 +61,47 @@ export interface AssistantPanelProps {
 }
 
 /** The assistant surface. Presentational: every behaviour arrives through props. */
+/**
+ * Consecutive Help Centre results become one sources row.
+ *
+ * Several searches in a row is normal while SimpleBot works something out, and
+ * each one used to render its own card. They say the same thing - here is what
+ * I read - so they are folded together and shown once, in order, above
+ * whatever the turn goes on to say.
+ */
+type RenderEntry =
+  | { kind: 'item'; item: ConversationItem }
+  | { kind: 'sources'; id: string; articles: HelpCardArticle[] };
+
+function helpArticlesOf(item: ConversationItem): HelpCardArticle[] | null {
+  if (item.kind !== 'tool' || item.state !== 'done' || !item.display) {
+    return null;
+  }
+  if (item.display.kind === 'help_articles') return item.display.articles;
+  if (item.display.kind === 'help_article') {
+    return [item.display.article, ...item.display.related];
+  }
+  return null;
+}
+
+export function groupSources(items: ConversationItem[]): RenderEntry[] {
+  const out: RenderEntry[] = [];
+  for (const item of items) {
+    const articles = helpArticlesOf(item);
+    if (!articles) {
+      out.push({ kind: 'item', item });
+      continue;
+    }
+    const last = out.at(-1);
+    if (last?.kind === 'sources') {
+      last.articles = [...last.articles, ...articles];
+    } else {
+      out.push({ kind: 'sources', id: `sources-${item.id}`, articles });
+    }
+  }
+  return out;
+}
+
 export function AssistantPanel({
   conversation,
   page,
@@ -313,17 +358,26 @@ export function AssistantPanel({
             )
           ) : (
             <ol className='flex flex-col gap-3'>
-              {conversation.items.map((item) => (
-                <li key={item.id}>
+              {groupSources(conversation.items).map((entry) =>
+                entry.kind === 'sources' ? (
+                  <li key={entry.id}>
+                    <SourcesStrip
+                      articles={entry.articles}
+                      onNavigate={onNavigate}
+                    />
+                  </li>
+                ) : (
+                <li key={entry.item.id}>
                   <Item
-                    item={item}
+                    item={entry.item}
                     onRetry={onRetry}
                     onDecide={onDecide}
                     onNavigate={onNavigate}
                     busy={working}
                   />
                 </li>
-              ))}
+                )
+              )}
               {showThinking && (
                 <li className='text-muted-foreground flex items-center gap-2 text-sm'>
                   <IconLoader2 aria-hidden className='size-4 animate-spin' />

@@ -36,6 +36,7 @@ const SLUG = z
 const card = (a: PublishedArticle): HelpCardArticle => ({
   title: a.title,
   summary: a.summary,
+  category: a.category ?? undefined,
   href: helpArticleHref(a.slug),
   switchedOn: a.releaseOn
 });
