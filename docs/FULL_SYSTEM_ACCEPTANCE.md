@@ -110,7 +110,7 @@ The effect, with an approved template present:
 - Commissioning review disabled **Accept**, because a form without an approved
   template cannot be accepted.
 
-Fix: additive migration `20260920150000_commissioning_template_match.sql`
+Fix: additive migration `20260920170000_commissioning_template_match.sql`
 makes the read use the same rule as the commands. Regression assertion added to
 `tests/pglite/t_installer.mjs` (it fails without the migration).
 

@@ -215,7 +215,7 @@ w = await wp(elec);
 r = ok(await cmd('inst_b', iw('IW_REPORT_COMPLETION', elec, job, { outcome: 'Complete', actual_end: today }, { expected_version: w.version })), 'complete elec');
 const e1 = r.commissioning_submission.id;
 assert.equal((await sub(e1)).template_version, 'NOT_CONFIGURED');
-// Regression (20260920150000): the draft IW_REPORT_COMPLETION opens is stamped
+// Regression (20260920170000): the draft IW_REPORT_COMPLETION opens is stamped
 // NOT_CONFIGURED, and the read used to demand an exact version match - so the
 // installer's form offered no questions at all and the submission could never
 // leave NOT_CONFIGURED, which in turn disabled Accept. The read must use the
