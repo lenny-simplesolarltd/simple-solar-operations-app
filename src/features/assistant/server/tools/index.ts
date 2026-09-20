@@ -9,7 +9,11 @@ import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
-import { getJobBlockersTool, getJobTimelineTool } from './operations';
+import {
+  getJobBlockersTool,
+  getJobTimelineTool,
+  listJobOperationsTool
+} from './operations';
 import { PLANNED_TOOLS } from './planned';
 import { getPresaleWorkflowTool } from './presale';
 import { getMyTasksTool, getTeamTasksTool } from './tasks';
@@ -28,6 +32,9 @@ export function createToolRegistry(
     .register(getJobTasksTool)
     .register(getJobTimelineTool)
     .register(getJobBlockersTool)
+    // The whole operation surface for one job, straight from ACTION_AVAILABILITY:
+    // what this person can do now, and the database's own reason for the rest.
+    .register(listJobOperationsTool)
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
     .register(getPresaleWorkflowTool);

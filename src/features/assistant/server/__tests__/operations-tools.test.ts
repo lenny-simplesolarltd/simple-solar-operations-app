@@ -256,6 +256,44 @@ describe('get_job_blockers', () => {
     }
   };
 
+  it("lists the whole operation surface, with the database's own reasons", async () => {
+    // The point of this tool is that the model stops guessing. It should be
+    // able to say what is possible on THIS job, what is refused and why, and
+    // which of them it can carry out itself - without inventing a screen.
+    answerWith({ ACTION_AVAILABILITY: ok(availability) });
+    const result = await call('list_job_operations', { jobId: JOB_ID });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const data = result.data as {
+      available: { command: string; simplebot_tool: string | null }[];
+      unavailable: { command: string; reason: string }[];
+      guidance: string;
+    };
+    expect(data.available.map((a) => a.command)).toEqual(['CALL_RECORD']);
+    // CALL_RECORD is task-scoped and has no adapter, so it must not claim one.
+    expect(data.available[0].simplebot_tool).toBeNull();
+    expect(data.unavailable).toEqual([
+      {
+        operation: 'Operational complete',
+        command: 'OPERATIONAL_COMPLETE',
+        reason: 'An open issue blocks completion'
+      }
+    ]);
+    // Unavailable must never read as "not built".
+    expect(data.guidance).toMatch(/refused by the system.*not missing/i);
+    expect(data.guidance).toMatch(/do not invent where/i);
+  });
+
+  it('offers no operations at all on a historical record', async () => {
+    asHistorical();
+    const result = await call('list_job_operations', { jobId: JOB_ID });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const data = result.data as { available: unknown[]; guidance: string };
+    expect(data.available).toEqual([]);
+    expect(data.guidance).toMatch(/imported history/i);
+  });
+
   it('combines the operations read with action availability', async () => {
     answerWith({
       JOB_OPERATIONS: ok(operations),

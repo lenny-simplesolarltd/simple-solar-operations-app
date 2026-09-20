@@ -79,6 +79,7 @@ describe('the production registry', () => {
       'list_form_responses',
       'list_forms',
       'list_job_files',
+      'list_job_operations',
       'plan_task_action',
       'search_files',
       'search_help_articles'

@@ -279,3 +279,134 @@ export const getJobBlockersTool: ReadTool<{ jobId: string }> = {
     };
   }
 };
+
+// -----------------------------------------------------------------------------
+// What can actually be done to this job, right now
+// -----------------------------------------------------------------------------
+
+/**
+ * The application already knows the answer, per job and per person.
+ *
+ * ACTION_AVAILABILITY is the read the job screens use to decide which buttons
+ * to show: it returns every command the backend knows about for that job, a
+ * flag saying whether this staff member may run it now, and the reason when
+ * they may not - stage, assignment, release gate, an unmet prerequisite. The
+ * job's own version comes back with it.
+ *
+ * Exposing it matters more than it looks. Without it the model knows only the
+ * handful of operations it has adapters for, so when somebody asks for
+ * something else it has nothing to say and starts guessing - which is how an
+ * "Edit on the Customer card" that does not exist ends up in an answer. With
+ * it, the model can name what is genuinely possible on this job today, and say
+ * precisely why the rest is not, whether or not it can carry the action out
+ * itself.
+ *
+ * It adds no rule of its own: every flag and every reason is the database's.
+ */
+
+/** Operations SimpleBot can carry out itself, by the command they run. */
+const SELF_SERVICE: Record<string, string> = {
+  TASK_COMPLETE: 'complete_tasks',
+  TASK_REOPEN: 'reopen_tasks',
+  TASK_OVERRIDE_COMPLETE: 'override_complete_tasks',
+  TASK_BATCH_SUBMIT: 'complete_tasks',
+  CUSTOMER_UPDATE: 'update_customer_contact',
+  JOB_SALE_UPDATE: 'set_lead_source'
+};
+
+/** Reads as a sentence rather than a constant. */
+function phrase(command: string): string {
+  const words = command.toLowerCase().split('_').join(' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+export const listJobOperationsTool: ReadTool<{ jobId: string }> = {
+  name: 'list_job_operations',
+  summary: 'List what can be done to a job now, and why the rest cannot',
+  description:
+    "Every operation the system knows about for one job, split into what this staff member can do right now and what is currently refused WITH THE REASON (wrong stage, not assigned, a release gate, an unmet prerequisite). Use it whenever somebody asks whether something can be done to a job - 'can I move this', 'why can't I cancel it', 'what happens next', 'can we change the installer' - and before saying anything is impossible. Some of these you can carry out yourself; the result says which. For the others, say what the operation is and that it is done on the job's own screen - never invent a button, tab or card, and never say a capability is missing without checking here first.",
+  domain: 'jobs',
+  kind: 'read',
+  status: 'available',
+  inputSchema: z.strictObject({
+    jobId: z
+      .string()
+      .trim()
+      .min(1)
+      .describe('The job id from find_job, or its reference')
+  }),
+  authorization: { permissions: [], enforcedBy: BACKEND },
+  async execute({ jobId }) {
+    const historical = await historicalJob(jobId);
+    if (historical === 'NOT_FOUND') {
+      return {
+        ok: false,
+        code: 'NOT_FOUND',
+        message: 'No job with that id is visible to the signed-in staff member.'
+      };
+    }
+    if (historical) {
+      return {
+        ok: true,
+        data: {
+          job_ref: historical.job_ref,
+          record_type: HISTORICAL_RECORD_TYPE,
+          available: [],
+          unavailable: [],
+          guidance:
+            'This is an archived historical record, not live work. Nothing can be done to it - ' +
+            'do not list operations or suggest a screen. Say that it is imported history.'
+        }
+      };
+    }
+
+    const availability = await readR1<JobAvailabilityRead>(
+      'ACTION_AVAILABILITY',
+      { job_id: jobId }
+    );
+    if (!availability.ok) {
+      return {
+        ok: false,
+        code: availability.error.code,
+        message: availability.error.message
+      };
+    }
+    const data = availability.data;
+    if (!data) {
+      return {
+        ok: false,
+        code: 'NOT_FOUND',
+        message: 'No job with that id is visible to the signed-in staff member.'
+      };
+    }
+
+    const entries = Object.entries(data.commands ?? {});
+    return {
+      ok: true,
+      data: {
+        job_ref: data.job_ref,
+        workflow_stage: data.workflow_stage,
+        assigned_to_this_person: data.assigned,
+        available: entries
+          .filter(([, flag]) => flag.available)
+          .map(([command]) => ({
+            operation: phrase(command),
+            command,
+            // Present, and what to call, when SimpleBot can do it itself.
+            simplebot_tool: SELF_SERVICE[command] ?? null
+          })),
+        unavailable: entries
+          .filter(([, flag]) => !flag.available)
+          .map(([command, flag]) => ({
+            operation: phrase(command),
+            command,
+            reason: flag.reason ?? 'The backend did not give a reason.'
+          })),
+        guidance:
+          'This is the whole operation surface for this job. Anything listed as unavailable is ' +
+          'refused by the system for the stated reason, not missing. Where simplebot_tool is null ' +
+          "the operation is done on the job's own screens - say so plainly and do not invent where."
+      }
+    };
+  }
+};

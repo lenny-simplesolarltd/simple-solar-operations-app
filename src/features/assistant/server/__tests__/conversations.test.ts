@@ -742,6 +742,7 @@ describe('history cannot change authorization', () => {
       'get_team_tasks',
       'list_file_folders',
       'list_job_files',
+      'list_job_operations',
       'plan_task_action',
       'reopen_tasks',
       'retry_operation',
