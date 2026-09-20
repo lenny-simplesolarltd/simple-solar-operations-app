@@ -20,7 +20,9 @@ import {
   useState
 } from 'react';
 import { toast } from 'sonner';
+import { newlyUnread, notificationBody, playMessageChime } from '../notify';
 import { totalUnread, type ChatSurface } from '../unread';
+import { conversationName } from '../types';
 import type { ChatConversationRow, ChatMessageRow } from '../types';
 import { newCommandId } from './avatar';
 
@@ -44,6 +46,7 @@ import { newCommandId } from './avatar';
 // carrying no content.
 
 const SURFACE_KEY = 'ss.chat.surface';
+const LAUNCHER_KEY = 'ss.chat.launcher';
 
 type Pending = {
   localId: string;
@@ -62,6 +65,8 @@ interface ChatState {
   pending: Pending[];
   selected: string | null;
   surface: ChatSurface;
+  /** False once the person dismisses the floating launcher with the × control. */
+  launcherVisible: boolean;
   unreadTotal: number;
   loadingThread: boolean;
   attaching: boolean;
@@ -71,6 +76,10 @@ interface ChatState {
   setDraft: (value: string) => void;
   setReplyTo: (message: ChatMessageRow | null) => void;
   setSurface: (surface: ChatSurface) => void;
+  /** The × control: put the floating launcher away entirely. */
+  dismissLauncher: () => void;
+  /** The header control: bring chat back, launcher and all. */
+  showChat: () => void;
   openConversation: (id: string) => void;
   backToList: () => void;
   send: () => Promise<void>;
@@ -110,6 +119,7 @@ export function ChatProvider({
   const [pending, setPending] = useState<Pending[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [surface, setSurfaceState] = useState<ChatSurface>('minimised');
+  const [launcherVisible, setLauncherVisible] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [attaching, setAttaching] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -155,6 +165,9 @@ export function ChatProvider({
       // 'thread' is not restored: without a conversation it means nothing, and
       // restoring one would mark it read before anybody looked at it.
       if (saved === 'list') setSurfaceState('list');
+      setLauncherVisible(
+        window.localStorage.getItem(LAUNCHER_KEY) !== 'hidden'
+      );
     } catch {
       // Private browsing, or storage refused. The default surface is fine.
     }
@@ -172,6 +185,85 @@ export function ChatProvider({
       // Not being able to remember the surface is not worth a failure.
     }
   }, []);
+
+  const dismissLauncher = useCallback(() => {
+    // × puts the whole floating messenger away. The header control is how it
+    // comes back, so this is never a one-way door.
+    setSurfaceState('minimised');
+    setLauncherVisible(false);
+    try {
+      window.localStorage.setItem(LAUNCHER_KEY, 'hidden');
+      window.localStorage.setItem(SURFACE_KEY, 'minimised');
+    } catch {
+      // Forgetting the preference is not worth a failure.
+    }
+  }, []);
+
+  const showChat = useCallback(() => {
+    setLauncherVisible(true);
+    try {
+      window.localStorage.removeItem(LAUNCHER_KEY);
+    } catch {
+      // As above.
+    }
+    setSurface(selectedRef.current ? 'thread' : 'list');
+    // Permission is asked for here rather than on page load: this is a real
+    // click, which is both the polite moment and the one browsers accept.
+    if (
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'default'
+    )
+      void Notification.requestPermission().catch(() => {});
+  }, [setSurface]);
+
+  // Announcing an arrival. Decided from the REFRESHED conversation list, which
+  // is authorized data, never from the realtime payload.
+  const previousUnread = useRef<{ id: string; unread: number }[] | null>(null);
+  const surfaceRef = useRef<ChatSurface>(surface);
+  surfaceRef.current = surface;
+  const viewerRef = useRef(viewerPersonId);
+  viewerRef.current = viewerPersonId;
+
+  useEffect(() => {
+    const snapshot = conversations.map((c) => ({ id: c.id, unread: c.unread }));
+    const before = previousUnread.current;
+    previousUnread.current = snapshot;
+    // The first load is the baseline, not an event: nobody wants six
+    // notifications for messages that arrived while they were logged out.
+    if (before === null) return;
+
+    const visible =
+      surfaceRef.current === 'thread' ? selectedRef.current : null;
+    const arrivals = newlyUnread(
+      before,
+      conversations.map((c) => ({
+        id: c.id,
+        unread: c.unread,
+        name: conversationName(c, viewerRef.current),
+        preview: c.lastMessage?.deleted ? null : (c.lastMessage?.body ?? null)
+      })),
+      visible
+    );
+    if (arrivals.length === 0) return;
+
+    playMessageChime();
+    if (
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    )
+      return;
+    for (const arrival of arrivals) {
+      try {
+        // tag: one notification per conversation, replaced rather than stacked.
+        new Notification(arrival.name, {
+          body: notificationBody(arrival.preview),
+          tag: `ss-chat-${arrival.id}`
+        });
+      } catch {
+        // Some browsers refuse the constructor outside a service worker.
+      }
+    }
+  }, [conversations]);
 
   // ONE realtime subscription for the whole application.
   useEffect(() => {
@@ -413,6 +505,7 @@ export function ChatProvider({
       pending,
       selected,
       surface,
+      launcherVisible,
       unreadTotal: totalUnread(conversations),
       loadingThread,
       attaching,
@@ -421,6 +514,8 @@ export function ChatProvider({
       setDraft,
       setReplyTo,
       setSurface,
+      dismissLauncher,
+      showChat,
       openConversation,
       backToList,
       send,
@@ -439,6 +534,7 @@ export function ChatProvider({
       pending,
       selected,
       surface,
+      launcherVisible,
       loadingThread,
       attaching,
       draft,
@@ -446,6 +542,8 @@ export function ChatProvider({
       setDraft,
       setReplyTo,
       setSurface,
+      dismissLauncher,
+      showChat,
       openConversation,
       backToList,
       send,

@@ -31,9 +31,11 @@ export function ChatDock() {
     enabled,
     surface,
     setSurface,
+    dismissLauncher,
     selected,
     conversations,
     unreadTotal,
+    launcherVisible,
     viewerPersonId,
     backToList
   } = useChat();
@@ -75,6 +77,8 @@ export function ChatDock() {
   // No launcher without the permission, and never alongside the full-screen
   // page: they are two presentations of the same thing.
   if (!enabled || onFullScreen) return null;
+  // Dismissed with ×. The header control brings it back.
+  if (!launcherVisible) return null;
 
   const badge = formatUnread(unreadTotal);
   const current = conversations.find((c) => c.id === selected);
@@ -178,12 +182,12 @@ export function ChatDock() {
         </button>
         <button
           type='button'
-          onClick={() => {
-            setSurface('minimised');
-            requestAnimationFrame(() => launcher.current?.focus());
-          }}
+          // × is not a louder minimise: it puts the floating messenger away
+          // entirely, launcher included. Chat then lives only in the header,
+          // which still carries the unread count.
+          onClick={dismissLauncher}
           aria-label='Close team chat'
-          title='Close'
+          title='Close — reopen from the header'
           className='hover:bg-accent focus-visible:ring-ring rounded-md p-1 focus-visible:ring-2 focus-visible:outline-none'
         >
           <IconX className='size-4' />

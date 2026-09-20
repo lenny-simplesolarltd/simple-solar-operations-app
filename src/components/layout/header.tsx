@@ -8,6 +8,7 @@ import { ModeToggle } from './ThemeToggle/theme-toggle';
 import type { AppUser } from '@/lib/auth';
 import { AssistantTrigger } from '@/features/assistant/components/assistant-trigger';
 import { PageHelpButton } from '@/features/help/components/page-help-button';
+import { ChatHeaderButton } from '@/features/chat/components/chat-header-button';
 import { PreviewSwitcher } from '@/features/dev-preview/preview-switcher';
 import { ProcessingIndicator } from '@/features/operations/processing-indicator';
 import type { PreviewTarget } from '@/features/dev-preview/queries';
@@ -43,6 +44,7 @@ export default function Header({
         )}
         <ProcessingIndicator />
         <PageHelpButton />
+        <ChatHeaderButton />
         <AssistantTrigger />
         <ModeToggle />
         <UserNav user={user} />
