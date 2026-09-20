@@ -16,6 +16,7 @@ import {
   listJobOperationsTool
 } from './operations';
 import { PLANNED_TOOLS } from './planned';
+import { PRESALE_MUTATION_TOOLS } from './presale-create';
 import { getPresaleWorkflowTool } from './presale';
 import { getMyTasksTool, getTeamTasksTool } from './tasks';
 
@@ -54,6 +55,10 @@ export function createToolRegistry(
   // raising an issue. Both are existing R1 commands; availability, stage rules
   // and the audit trail stay in the database. See tools/job-operations.ts.
   for (const tool of JOB_OPERATION_TOOLS)
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
+  // Recording a sale: the same public.submit_presale the New presale wizard
+  // submits. It captures no design, and says so on the card and afterwards.
+  for (const tool of PRESALE_MUTATION_TOOLS)
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Stored files: the same reads as the job Files tab and the Files library,
   // and the same file-manager commands for filing them. Nothing that deletes a

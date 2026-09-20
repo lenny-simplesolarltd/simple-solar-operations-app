@@ -90,6 +90,7 @@ describe('the production registry', () => {
       'create_file_folder',
       'create_form',
       'create_form_link',
+      'create_presale',
       'edit_form_draft',
       'move_files_to_folder',
       'move_job',
@@ -114,7 +115,8 @@ describe('the production registry', () => {
         'evidence',
         'customers',
         'jobs',
-        'calendar'
+        'calendar',
+        'presales'
       ]).toContain(tool.domain);
       // Correcting contact details and lead source is CUSTOMER_UPDATE /
       // JOB_SALE_UPDATE (migration 20260920270000). Each asks for its own
@@ -124,6 +126,11 @@ describe('the production registry', () => {
       }
       if (tool.name === 'set_lead_source') {
         expect(tool.authorization.permissions).toEqual(['job.sale.edit']);
+      }
+      // Recording a sale creates a customer, a job and its tasks, and cannot
+      // be undone. It asks for the same permission the wizard does.
+      if (tool.name === 'create_presale') {
+        expect(tool.authorization.permissions).toEqual(['presale.submit']);
       }
       if (tool.domain === 'evidence') {
         // Filing only. Nothing that removes a document is offered to the model.
