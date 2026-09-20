@@ -194,6 +194,9 @@ export function BulkDialog({
   const [category, setCategory] = useState(OVERRIDE_CATEGORIES[0]);
   const [owner, setOwner] = useState('');
 
+  // Override never reaches this dialog - BulkBar submits it directly - but the
+  // flag is kept so the wording and styling of a mistakenly routed operation
+  // stay honest rather than silently reading as a normal completion.
   const override = operation === 'TASK_BATCH_OVERRIDE_COMPLETE';
 
   // The form belongs to one opening of the dialog: keying the state on the
@@ -393,13 +396,18 @@ export function BulkBar({
   count,
   canOverride,
   canReassign,
+  overriding,
   onAction,
+  onOverride,
   onClear
 }: {
   count: number;
   canOverride: boolean;
   canReassign: boolean;
+  /** True from the click until the batch is acknowledged, so it cannot be sent twice. */
+  overriding: boolean;
   onAction: (operation: BatchOperation) => void;
+  onOverride: () => void;
   onClear: () => void;
 }) {
   if (count === 0) return null;
@@ -418,13 +426,22 @@ export function BulkBar({
           Complete
         </Button>
         {canOverride && (
+          // Choosing "Complete with override" IS the deliberate act, so there
+          // is nothing to confirm: it submits on this click. The button is
+          // disabled the moment it is pressed, so a double click or an
+          // impatient second press cannot start a second batch.
           <Button
             size='sm'
             variant='destructive'
-            onClick={() => onAction('TASK_BATCH_OVERRIDE_COMPLETE')}
+            disabled={overriding}
+            onClick={onOverride}
           >
-            <IconAlertTriangle className='size-4' />
-            Complete with override
+            {overriding ? (
+              <IconLoader2 className='size-4 animate-spin' />
+            ) : (
+              <IconAlertTriangle className='size-4' />
+            )}
+            {overriding ? 'Completing…' : 'Complete with override'}
           </Button>
         )}
         <Button

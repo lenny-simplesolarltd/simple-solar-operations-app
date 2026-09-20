@@ -3,7 +3,7 @@
 import type { BatchOperation, TaskView } from '@/lib/backend/models';
 import type { CommandOutcome } from '@/lib/backend/types';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { StaffOption } from '../server/queries';
 import { driveBatch, getBatchProgress, submitBatch } from '../server/batch';
@@ -25,6 +25,19 @@ const completedElsewhere = (task: TaskView) =>
   (task.template_code ?? '').startsWith('S15-') ||
   task.template_code === 'INS01' ||
   task.template_code === 'INS04';
+
+/**
+ * Why the override happened, recorded automatically.
+ *
+ * public.tasks requires a non-blank override_reason (tasks_override_shape), and
+ * that constraint is not something to relax for a UX change. Choosing
+ * "Complete with override" from the task list is the whole act, so the reason
+ * records exactly that and nothing more. It is deliberately not a business
+ * fact: override never asserts the work happened, and the job's readiness
+ * gates still report the requirement as unmet.
+ */
+const OVERRIDE_REASON =
+  'Administrative override from the task list. No business fact was recorded.';
 
 const VERB: Record<BatchOperation, string> = {
   TASK_BATCH_COMPLETE: 'Completing…',
@@ -67,6 +80,9 @@ export function TaskBoard({
   const [failed, setFailed] = useState<ReadonlyMap<string, string>>(new Map());
   const [operation, setOperation] = useState<BatchOperation | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // State updates are batched, so two clicks in the same tick would both see
+  // submitting === false. A ref changes synchronously and closes that window.
+  const inFlight = useRef(false);
   const [outcome, setOutcome] = useState<CommandOutcome | null>(null);
   // The selection frozen when the dialog opened: state, because the dialog
   // renders from it (a ref read during render is not safe).
@@ -177,7 +193,30 @@ export function TaskBoard({
     [router]
   );
 
+  /**
+   * Override completes on the click that chose it: no dialog, no second
+   * confirmation, no question to answer. The guard is the submitting flag, not
+   * a modal - a second press while the first is in flight does nothing, so one
+   * selection can only ever produce one batch.
+   *
+   * Nothing about authorisation moves. The batch is submitted with every
+   * selected task and the database decides each one on its own merits:
+   * permission, cross-owner rights, live-job requirement, historical
+   * non-actionability, cancellation locks, version and idempotency. Anything
+   * it refuses comes back as a failed item and returns to the list.
+   */
+  const overrideNow = () => {
+    if (inFlight.current || submitting) return;
+    inFlight.current = true;
+    void submit({
+      operation: 'TASK_BATCH_OVERRIDE_COMPLETE',
+      args: { override_reason: OVERRIDE_REASON },
+      taskIds: Array.from(selected)
+    });
+  };
+
   const submit = async ({ operation: op, args, taskIds }: BulkSubmitArgs) => {
+    if (taskIds.length === 0) return;
     setSubmitting(true);
     setOutcome(null);
     const result = await submitBatch({
@@ -186,6 +225,7 @@ export function TaskBoard({
       target: { taskIds }
     });
     setSubmitting(false);
+    inFlight.current = false;
     if (!result.ok) {
       setOutcome(result.outcome);
       return;
@@ -224,7 +264,9 @@ export function TaskBoard({
           count={selected.size}
           canOverride={canOverride}
           canReassign={canReassign}
+          overriding={submitting}
           onAction={openDialog}
+          onOverride={overrideNow}
           onClear={() => setSelected(new Set())}
         />
       )}
