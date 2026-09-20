@@ -28,6 +28,13 @@ interface AssistantShellValue {
   capabilitiesError: boolean;
   /** The open conversation (and, through it, the staff member's others). */
   conversation: AssistantConversations;
+  /**
+   * Override mode. Off every time the app loads - it is not remembered - so a
+   * mode switched on to clear a backlog cannot quietly still be on tomorrow.
+   * It removes the confirmation step for administrative task overrides only.
+   */
+  overrideMode: boolean;
+  setOverrideMode(on: boolean): void;
 }
 
 const AssistantShellContext = createContext<AssistantShellValue | null>(null);
@@ -89,9 +96,18 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
       });
   }, [open]);
 
+  const [overrideMode, setOverrideMode] = useState(false);
+  // Read at send time rather than captured, so toggling applies to the next
+  // message. Synced in an effect because a ref must not be written in render.
+  const overrideRef = useRef(overrideMode);
+  useEffect(() => {
+    overrideRef.current = overrideMode;
+  }, [overrideMode]);
+
   const conversation = useAssistantConversations(
     getContext,
-    capabilities?.conversations ?? 'ephemeral'
+    capabilities?.conversations ?? 'ephemeral',
+    () => overrideRef.current
   );
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
@@ -105,7 +121,9 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
       publishPage,
       capabilities,
       capabilitiesError,
-      conversation
+      conversation,
+      overrideMode,
+      setOverrideMode
     }),
     [
       open,
@@ -114,7 +132,8 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
       publishPage,
       capabilities,
       capabilitiesError,
-      conversation
+      conversation,
+      overrideMode
     ]
   );
 

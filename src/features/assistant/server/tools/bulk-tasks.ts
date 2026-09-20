@@ -334,11 +334,18 @@ export const completeTasksTool: MutationTool<z.infer<typeof completeInput>> = {
     );
     if (!resolved.ok) return resolved;
     if (resolved.ready.length === 0) {
+      // Say what else exists. Without this the answer stops at "cannot be done
+      // here", and the staff member is left to know on their own that an
+      // administrative override is the way through.
       return refuse(
         'TASK_NOTHING_TO_DO',
         `None of the ${resolved.plan.total} matching tasks can be completed this way. ${
           resolved.plan.items[0]?.blocking[0]?.detail ?? ''
-        }`
+        } These tasks record business facts that only their own screen can capture. ` +
+          'If the staff member wants them closed anyway, override_complete_tasks can do it - ' +
+          'tell them that is available and what it means: the task stops being asked for, ' +
+          "nothing about the underlying work is recorded, and the job's checks still report " +
+          'those requirements as outstanding. Do not run it unless they ask for it.'
       );
     }
     return {
@@ -382,7 +389,7 @@ export const overrideCompleteTasksTool: MutationTool<
   name: 'override_complete_tasks',
   summary: 'Complete tasks by administrative override',
   description:
-    "Mark tasks complete by override: the task stops being required, but NOTHING is recorded for it - no invoice, no bank confirmation, no evidence, no verification. The job's booking checks still report those as outstanding, so never tell the staff member the underlying work is done or that the job can now progress. Only offer this when they clearly ask to override or to force it through, and only when they hold the permission.",
+    "Mark tasks complete by override: the task stops being required, but NOTHING is recorded for it - no invoice, no bank confirmation, no evidence, no verification. The job's booking checks still report those as outstanding, so never tell the staff member the underlying work is done or that the job can now progress. Offer it when normal completion has been refused because a task needs information only its own screen can record, and whenever they ask to override or force something through. Only run it when they have asked for it, and only when they hold the permission.",
   domain: 'tasks',
   kind: 'mutation',
   status: 'available',

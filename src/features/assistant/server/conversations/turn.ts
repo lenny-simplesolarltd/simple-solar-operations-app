@@ -35,6 +35,8 @@ export interface ConversationTurnInput {
   provider: AssistantModelProvider;
   registry: ToolRegistry;
   pendingActions: PendingActionService | null;
+  /** Passed straight through: see runTurn for what it does and does not change. */
+  overrideMode?: boolean;
   audit?: AssistantAuditSink;
   signal?: AbortSignal;
   emit: (event: AssistantStreamEvent) => void;
@@ -96,6 +98,7 @@ export async function runConversationTurn(
     provider,
     registry: input.registry,
     pendingActions: input.pendingActions,
+    overrideMode: input.overrideMode,
     audit: input.audit,
     signal: input.signal,
     onUsage: (tokens) => {

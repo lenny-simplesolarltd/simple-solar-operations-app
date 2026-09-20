@@ -283,6 +283,28 @@ function applyEvent(
         ]
       };
 
+    // Override mode ran it already: the same card, but settled on arrival, so
+    // there is nothing to press and no way to run it twice.
+    case 'action_settled':
+      return {
+        ...state,
+        items: [
+          ...items.filter(
+            (item) => !(item.kind === 'tool' && item.callId === event.callId)
+          ),
+          {
+            id,
+            kind: 'proposal',
+            action: event.action,
+            state: event.result.ok ? 'confirmed' : 'failed',
+            message: event.result.ok
+              ? 'Done · override mode'
+              : event.result.error.message,
+            display: event.result.ok ? event.result.display : undefined
+          }
+        ]
+      };
+
     case 'turn_end':
       return {
         ...state,

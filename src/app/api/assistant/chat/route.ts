@@ -48,6 +48,7 @@ export async function POST(request: Request) {
   if (!resolved.ok) return json(503, 'NOT_CONFIGURED', resolved.notice);
 
   const { threadId, message, transcript, context } = parsed.data;
+  const overrideMode = parsed.data.overrideMode === true;
   const runId = parsed.data.runId ?? crypto.randomUUID();
   const store = await openConversationStore(actor).catch((error: unknown) => {
     // eslint-disable-next-line no-console -- server-side diagnostics; chat still works for this session
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
           provider: resolved.provider,
           registry: await createRequestToolRegistry(),
           pendingActions: resolvePendingActions(),
+          overrideMode,
           signal: request.signal,
           emit
         });

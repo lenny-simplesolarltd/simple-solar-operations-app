@@ -9,6 +9,7 @@ import type {
   TranscriptMessage
 } from '../protocol';
 import { consoleAuditSink, type AssistantAuditSink } from './audit';
+import { resolvePendingAction } from './confirm';
 import {
   canHandleMutations,
   issuePendingAction,
@@ -59,12 +60,28 @@ export interface AssistantTurnInput {
   registry: ToolRegistry;
   /** Null when proposals cannot be signed; mutation requests are then refused, never executed. */
   pendingActions: PendingActionService | null;
+  /**
+   * Override mode. Removes the confirmation click for AUTO_CONFIRM_TOOLS only.
+   * It is a preference, not a permission: the action still goes through the
+   * ordinary confirmation path, so every gate, the version check, idempotency
+   * and the audit trail are identical to a human pressing Confirm.
+   */
+  overrideMode?: boolean;
   audit?: AssistantAuditSink;
   signal?: AbortSignal;
   emit: (event: AssistantStreamEvent) => void;
   /** Prompt tokens the provider reported for the last model call of the turn. */
   onUsage?: (promptTokens: number) => void;
 }
+
+/**
+ * The only tools override mode may run without asking.
+ *
+ * Deliberately a list, not a rule: widening it has to be an edit somebody
+ * reviews. Cancelling a job, confirming a booking, publishing a form or
+ * changing who works here are not on it and never fire unasked.
+ */
+const AUTO_CONFIRM_TOOLS = new Set(['override_complete_tasks']);
 
 function toTranscriptMessage(message: ModelMessage): TranscriptMessage {
   const copy = { ...message };
@@ -316,13 +333,53 @@ export async function runAssistantTurn(
           threadId,
           preview: prepared.preview
         });
-        emit({ type: 'proposal', callId: call.id, action });
         void sink.record({
           ...base,
           event: 'action_proposed',
           commandId: action.actionId,
           outcome: 'ok'
         });
+
+        // Override mode: run it now instead of asking. Only the administrative
+        // task override qualifies - choosing it is already the deliberate act,
+        // and it is the one mutation whose purpose is to be the escape hatch.
+        // Everything irreversible still asks, whatever the mode says.
+        if (turnInput.overrideMode && AUTO_CONFIRM_TOOLS.has(tool.name)) {
+          const settled = await resolvePendingAction({
+            actor,
+            decision: 'confirm',
+            token: action.token,
+            registry: turnInput.registry,
+            pendingActions: turnInput.pendingActions,
+            audit: sink
+          });
+          emit({
+            type: 'action_settled',
+            callId: call.id,
+            action,
+            result: settled
+          });
+          return {
+            callId: call.id,
+            name: call.name,
+            ok: true,
+            content: toolEnvelope(call.name, {
+              ok: true,
+              data: {
+                status: settled.ok ? 'DONE' : 'REFUSED',
+                executed: settled.ok,
+                action_id: action.actionId,
+                auto_confirmed: true,
+                result: settled,
+                note: settled.ok
+                  ? "This ran immediately because the staff member has override mode on. Report what actually happened. Nothing about the underlying work was recorded, and the job's checks still report those requirements as outstanding."
+                  : 'The override was refused by the server. Report the refusal; nothing was changed.'
+              }
+            })
+          };
+        }
+
+        emit({ type: 'proposal', callId: call.id, action });
         return {
           callId: call.id,
           name: call.name,

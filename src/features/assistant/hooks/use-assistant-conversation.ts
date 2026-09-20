@@ -94,7 +94,12 @@ async function jsonOrNull<T>(response: Response): Promise<T | null> {
  */
 export function useAssistantConversations(
   getContext: () => AssistantContext | undefined,
-  mode: 'persistent' | 'ephemeral'
+  mode: 'persistent' | 'ephemeral',
+  /**
+   * Read at send time, not captured once, so toggling the mode applies to the
+   * next message rather than to whichever render installed the handler.
+   */
+  getOverrideMode: () => boolean = () => false
 ): AssistantConversations {
   const [state, dispatch] = useReducer(conversationsReducer, undefined, () =>
     initialConversations(newId())
@@ -212,6 +217,7 @@ export function useAssistantConversations(
               message: text,
               // Stored conversations are read from the server, not sent from here.
               ...(mode === 'ephemeral' && { transcript: current.transcript }),
+              overrideMode: getOverrideMode(),
               context: getContext()
             },
             controller.signal

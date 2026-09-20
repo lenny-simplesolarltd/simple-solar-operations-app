@@ -56,6 +56,14 @@ export const chatRequestSchema = z.strictObject({
   runId: z.uuid().optional(),
   message: z.string().trim().min(1).max(4_000),
   /**
+   * Override mode, as the person set it in the composer. It only ever removes
+   * the confirmation click for an administrative task override - the one
+   * action whose whole purpose is to be the deliberate escape hatch. It grants
+   * nothing: the permission, every command gate and the full audit are checked
+   * on the server exactly as if the button had been pressed by hand.
+   */
+  overrideMode: z.boolean().optional(),
+  /**
    * Only used when conversations are NOT persisted (preview mode, or a database
    * without the conversation tables). A persisted conversation's history is
    * always read from the database; anything sent here is then ignored.
@@ -269,6 +277,17 @@ export type AssistantStreamEvent =
       error?: { code: string; message: string };
     }
   | { type: 'proposal'; callId: string; action: PendingActionView }
+  /**
+   * An action that ran without being asked about, because override mode was
+   * on. The card is shown as a record of what happened, never as something to
+   * confirm - it is already settled by the time this arrives.
+   */
+  | {
+      type: 'action_settled';
+      callId: string;
+      action: PendingActionView;
+      result: ActionResponse;
+    }
   | {
       type: 'turn_end';
       /** Messages to append to the transcript for this turn (the user message first). */

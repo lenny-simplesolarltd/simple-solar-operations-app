@@ -28,6 +28,10 @@ import { FormattedText } from './formatted-text';
 import { ResultCard } from './result-cards';
 
 export interface AssistantPanelProps {
+  /** Off unless the person turned it on this session; never remembered. */
+  overrideMode?: boolean;
+  /** Absent when the shell does not offer the mode, which also hides the control. */
+  onOverrideModeChange?: (on: boolean) => void;
   conversation: ConversationState;
   page: AssistantPageContext;
   capabilities: AssistantCapabilities | null;
@@ -69,7 +73,9 @@ export function AssistantPanel({
   headingId = 'assistant-heading',
   history,
   onHandoff,
-  onDismissLong
+  onDismissLong,
+  overrideMode = false,
+  onOverrideModeChange
 }: AssistantPanelProps) {
   const [draft, setDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -372,6 +378,13 @@ export function AssistantPanel({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
+              // Shift+Tab cycles the mode without leaving the keyboard, and
+              // without stealing plain Tab, which still moves focus.
+              if (e.key === 'Tab' && e.shiftKey && onOverrideModeChange) {
+                e.preventDefault();
+                onOverrideModeChange(!overrideMode);
+                return;
+              }
               if (
                 e.key === 'Enter' &&
                 !e.shiftKey &&
@@ -416,9 +429,37 @@ export function AssistantPanel({
             </Button>
           )}
         </form>
+        {onOverrideModeChange && (
+          <button
+            type='button'
+            onClick={() => onOverrideModeChange(!overrideMode)}
+            aria-pressed={overrideMode}
+            className={cn(
+              'mt-1.5 flex w-full items-center gap-1.5 rounded px-1 text-left text-[11px] leading-snug',
+              overrideMode
+                ? 'text-destructive'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block size-1.5 rounded-full',
+                overrideMode ? 'bg-destructive' : 'bg-muted-foreground/40'
+              )}
+              aria-hidden
+            />
+            {overrideMode
+              ? 'Override mode on · task overrides run without asking'
+              : 'Override mode off'}
+            <span className='text-muted-foreground/70 ml-auto font-mono'>
+              shift+tab
+            </span>
+          </button>
+        )}
         <p className='text-muted-foreground mt-1.5 px-1 text-[11px] leading-snug'>
-          Answers come from live job and task data you have access to. Changes
-          always need your confirmation.
+          {overrideMode
+            ? 'Answers come from live job and task data you have access to. Task overrides run straight away; everything else still asks.'
+            : 'Answers come from live job and task data you have access to. Changes always need your confirmation.'}
         </p>
         {capabilities?.diagnostics && (
           <p className='text-muted-foreground/80 mt-1 px-1 font-mono text-[10px]'>
