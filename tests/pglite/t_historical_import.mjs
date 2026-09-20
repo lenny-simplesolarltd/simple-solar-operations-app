@@ -757,6 +757,95 @@ test('41. an unknown view is refused rather than silently widened', async () => 
     /R1A_INVALID_FIELDS/);
 });
 
+// --- Job Detail reads: readable, but never operational -----------------------
+//
+// Opening an imported job's detail page failed on Work, Money, Operations and
+// History with R1A_OUTSIDE_PILOT: app.read_authorize_job refused anything
+// app.job_in_scope excluded, before it ever asked whether the person could
+// read it. Reading a job and being allowed to work on it are different
+// questions, and the read models already answer the second one themselves.
+
+const readAs = async (type, id, roles = ['Admin']) =>
+  (await one(
+    `select app.read_authorize_job(jsonb_build_object('person_id', $1::text,
+       'roles', $2::jsonb), $3) j`,
+    [person.id, JSON.stringify(roles), id]
+  )).j;
+
+test('42. every Job Detail read works for a historical job, and still for a live one', async () => {
+  const h = await historicalJob();
+  const l = await liveJobInsert();
+  for (const [id, label] of [[h.id, 'historical'], [l.id, 'live']]) {
+    const job = await one(`select * from public.jobs where id=$1`, [id]);
+    for (const [name, expr] of [
+      ['JOB_OVERVIEW', 'app.read_job_overview(j)'],
+      ['AUDIT_HISTORY', 'app.read_audit_history(j)'],
+      ['ACTION_AVAILABILITY', `app.read_action_availability(${actor()}, j)`]
+    ]) {
+      const r = await one(
+        `select ${expr} r from public.jobs j where j.id=$1`, [id]);
+      assert.ok(r.r !== null, `${name} must answer for a ${label} job`);
+    }
+    assert.ok(job.id);
+  }
+});
+
+test('43. the read guard authorises on readability, not operational scope', async () => {
+  const h = await historicalJob();
+  // Admin may read it even though it is out of operational scope.
+  const job = await readAs('any', h.id, ['Admin']);
+  assert.ok(job, 'a readable historical job resolves');
+  // job_in_scope stays false; the guard simply no longer consults it.
+  const inv = await one(
+    `select app.job_in_scope(j) s, app.job_actionable(j) a from public.jobs j where j.id=$1`,
+    [h.id]);
+  assert.equal(inv.s, false, 'historical stays out of operational scope');
+  assert.equal(inv.a, false, 'historical stays non-actionable');
+});
+
+test('44. historical support is not a permission bypass', async () => {
+  const h = await historicalJob();
+  await assert.rejects(
+    db.query(
+      `select app.read_authorize_job(jsonb_build_object('person_id', $1::text,
+         'roles', jsonb_build_array('Installer')), $2)`,
+      [person.id, h.id]),
+    /R1A_JOB_ACCESS_DENIED/,
+    'someone who may not read the job is still refused, and not with OUTSIDE_PILOT');
+});
+
+test('45. a missing job is still not found, not readable', async () => {
+  await assert.rejects(
+    db.query(`select app.read_authorize_job(${actor()}, '00000000-0000-0000-0000-000000000000')`),
+    /R1A_JOB_NOT_FOUND/);
+});
+
+test('46. a historical job offers no action while a live one does', async () => {
+  const h = await historicalJob();
+  const l = await liveJobInsert();
+  const avail = async (id) => {
+    const r = await one(
+      `select app.read_action_availability(${actor()}, j) r from public.jobs j where j.id=$1`, [id]);
+    return Object.entries(r.r?.commands ?? {}).filter(([, f]) => f?.available).map(([k]) => k);
+  };
+  assert.deepEqual(await avail(h.id), [], 'nothing may be done to a historical record');
+  // The live job is still assessed - every command is weighed and answered -
+  // whereas before this fix the historical one could not be assessed at all.
+  const live = await one(
+    `select app.read_action_availability(${actor()}, j) r from public.jobs j where j.id=$1`, [l.id]);
+  assert.ok(Object.keys(live.r?.commands ?? {}).length > 0,
+    'a live job is assessed, so the empty historical answer is a decision not a failure');
+});
+
+test('47. commands still refuse a historical job outright', async () => {
+  const h = await historicalJob();
+  // The command guard is a different function and keeps its scope check.
+  await assert.rejects(
+    db.query(`select app.authorize_job(${actor()}, $1::uuid)`, [h.id]),
+    /R1A_OUTSIDE_PILOT/,
+    'app.authorize_job must still reject historical records');
+});
+
 // --- Run ---------------------------------------------------------------------
 
 for (const [name, fn] of tests) {
