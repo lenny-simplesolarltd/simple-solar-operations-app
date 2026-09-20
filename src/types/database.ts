@@ -2793,6 +2793,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      historical_job_people: {
+        Row: {
+          created_at: string;
+          id: string;
+          job_id: string;
+          match_kind: string;
+          person_id: string | null;
+          role: string;
+          source_column: number | null;
+          source_value: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          job_id: string;
+          match_kind: string;
+          person_id?: string | null;
+          role: string;
+          source_column?: number | null;
+          source_value: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          job_id?: string;
+          match_kind?: string;
+          person_id?: string | null;
+          role?: string;
+          source_column?: number | null;
+          source_value?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'historical_job_people_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'jobs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'historical_job_people_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       holidays: {
         Row: {
           created_at: string;
@@ -3495,14 +3543,14 @@ export type Database = {
           operational_complete_by: string | null;
           original_gross_pence: number | null;
           quote_reference: string | null;
+          record_class: string;
           roof_required: boolean;
           salesperson_id: string | null;
-          record_class: string;
-          source_system: string | null;
-          source_reference: string | null;
           scaffold_required: boolean;
           sold_at: string;
           sold_booking_match_status: string;
+          source_reference: string | null;
+          source_system: string | null;
           updated_at: string;
           updated_by: string | null;
           valuation_basis: string | null;
@@ -3547,14 +3595,14 @@ export type Database = {
           operational_complete_by?: string | null;
           original_gross_pence?: number | null;
           quote_reference?: string | null;
+          record_class?: string;
           roof_required: boolean;
           salesperson_id?: string | null;
-          record_class?: string;
-          source_system?: string | null;
-          source_reference?: string | null;
           scaffold_required: boolean;
           sold_at: string;
           sold_booking_match_status?: string;
+          source_reference?: string | null;
+          source_system?: string | null;
           updated_at?: string;
           updated_by?: string | null;
           valuation_basis?: string | null;
@@ -3599,14 +3647,14 @@ export type Database = {
           operational_complete_by?: string | null;
           original_gross_pence?: number | null;
           quote_reference?: string | null;
+          record_class?: string;
           roof_required?: boolean;
           salesperson_id?: string | null;
-          record_class?: string;
-          source_system?: string | null;
-          source_reference?: string | null;
           scaffold_required?: boolean;
           sold_at?: string;
           sold_booking_match_status?: string;
+          source_reference?: string | null;
+          source_system?: string | null;
           updated_at?: string;
           updated_by?: string | null;
           valuation_basis?: string | null;

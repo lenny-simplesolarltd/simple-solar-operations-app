@@ -547,6 +547,94 @@ test('25. a historical job is not commissionable, with an approved template pres
   assert.equal(n.n, 0, 'no work package means nothing can be commissioned');
 });
 
+// --- Discovery: the Jobs screen vs Job Search --------------------------------
+//
+// The operational queue and the search surface answer different questions, and
+// the split is the whole point: JOBS is scoped to live work so archived
+// imports never flood the working list, while JOB_SEARCH is deliberately not
+// scoped so a job that predates this system stays findable. Before the fix the
+// application only ever called JOBS, so historical jobs were unreachable from
+// the UI even though this read had them all along.
+
+const searchAs = async (who, term) =>
+  (await one(
+    `select app.read_job_search(${actor()}, $1) r`,
+    [term]
+  )).r;
+
+test('26. the operational JOBS read still excludes archived historical jobs', async () => {
+  const j = await historicalJob();
+  const ref = (await one(`select job_ref from public.jobs where id=$1`, [j.id])).job_ref;
+  const r = await one(
+    `select app.read_jobs(jsonb_build_object('read_type','JOBS','q',$1::text), ${actor()}) r`, [ref]);
+  assert.equal((r.r.jobs ?? []).length, 0,
+    'a historical job must never appear in the working queue');
+});
+
+test('27. a live job still appears in the operational JOBS read', async () => {
+  const j = await liveJobInsert();
+  const ref = (await one(`select job_ref from public.jobs where id=$1`, [j.id])).job_ref;
+  const r = await one(
+    `select app.read_jobs(jsonb_build_object('read_type','JOBS','q',$1::text), ${actor()}) r`, [ref]);
+  assert.equal((r.r.jobs ?? []).length, 1, 'live work must still be listed');
+});
+
+test('28. Job Search finds a historical job by its current job ref', async () => {
+  const j = await historicalJob();
+  const ref = (await one(`select job_ref from public.jobs where id=$1`, [j.id])).job_ref;
+  const hits = (await searchAs('tanya', ref)).results ?? [];
+  assert.equal(hits.length, 1, `searching ${ref} must find it`);
+  assert.equal(hits[0].record_class, 'HistoricalImport',
+    'the result must declare itself historical so the UI can badge it');
+  assert.ok(hits[0].id, 'the result carries the job id, so the normal Job Detail route works');
+});
+
+test('29. Job Search finds a historical job by surname and by postcode', async () => {
+  const c = await one(
+    `insert into public.customers (first_name, last_name, address_line1, town, postcode, email)
+     values ('Nadia', 'Quillfeather', '9 Test Lane', 'Testville', 'ZZ9 9ZZ', 'nq@test.invalid')
+     returning id`);
+  const j = await historicalJob({ customer_id: c.id });
+  assert.ok(j.id);
+  for (const term of ['Quillfeather', 'ZZ9 9ZZ']) {
+    const hits = (await searchAs('tanya', term)).results ?? [];
+    assert.ok(hits.some((h) => h.record_class === 'HistoricalImport'),
+      `searching "${term}" must find the historical record`);
+  }
+});
+
+test('30. Job Search enforces readability, it does not hand out every job', async () => {
+  const j = await historicalJob();
+  const ref = (await one(`select job_ref from public.jobs where id=$1`, [j.id])).job_ref;
+  // A surveyor may see their own sales, not somebody else's job.
+  const mine = (await one(
+    `select app.read_job_search(jsonb_build_object('person_id', $1::text,
+       'roles', jsonb_build_array('Installer')), $2) r`, [person.id, ref])).r;
+  assert.equal((mine.results ?? []).length, 0,
+    'search must not bypass app.can_read_job');
+});
+
+// --- Invariants the fix must not weaken --------------------------------------
+
+test('31. job_in_scope and job_actionable remain false for historical', async () => {
+  const j = await historicalJob();
+  const r = await one(
+    `select app.job_in_scope(j) s, app.job_actionable(j) a from public.jobs j where j.id=$1`,
+    [j.id]);
+  assert.equal(r.s, false, 'historical must stay out of operational scope');
+  assert.equal(r.a, false, 'historical must stay non-actionable');
+});
+
+test('32. a historical job still creates no invoice stage when built', async () => {
+  const j = await historicalJob();
+  const n = async () => (await one(
+    `select count(*)::int c from public.invoice_stages where job_id=$1`, [j.id])).c;
+  const before = await n();
+  await db.query(`select app.build_invoice_stages($1)`, [j.id]).catch(() => {});
+  assert.equal(await n(), before,
+    'invoice stages stay gated for historical records');
+});
+
 // --- Run ---------------------------------------------------------------------
 
 for (const [name, fn] of tests) {

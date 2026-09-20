@@ -13,6 +13,42 @@ const createDataClient = vi.fn(async () => ({ rpc }));
 vi.mock('@/lib/supabase/data', () => ({
   createDataClient: () => createDataClient()
 }));
+// Both tools ask what kind of record this is before choosing a path. A live
+// job is the default so the existing expectations below are unchanged.
+const getJobDetail = vi.fn(async (_id?: string) => ({
+  job: { id: JOB_ID, job_ref: 'SS-ABCD-0001', record_class: 'Live' },
+  tasks: []
+}));
+vi.mock('@/features/jobs/server/queries', () => ({
+  getJobDetail: (id: string) => getJobDetail(id),
+  OPEN_TASK_STATUSES: ['Open', 'Waiting', 'InProgress', 'Blocked']
+}));
+const getHistoricalPeople = vi.fn(async (_id?: string) => [] as unknown[]);
+vi.mock('@/features/jobs/server/historical', () => ({
+  getHistoricalPeople: (id: string) => getHistoricalPeople(id),
+  historicalPersonNote: (m: string) =>
+    m === 'Ambiguous'
+      ? 'more than one person could have been meant, so it was not linked to anybody'
+      : 'matched to a member of staff'
+}));
+
+/** Makes the next lookup answer "this is an archived historical import". */
+function asHistorical(over: Record<string, unknown> = {}) {
+  getJobDetail.mockResolvedValueOnce({
+    job: {
+      id: JOB_ID,
+      job_ref: 'SS-HIST-0001',
+      record_class: 'HistoricalImport',
+      sold_at: '2025-04-11T15:16:19Z',
+      archived_at: '2026-09-20T05:00:00Z',
+      source_reference: 'TQ125DB21',
+      source_system: 'historical-job-booking-form',
+      workflow_stage: 'OperationallyComplete',
+      ...over
+    },
+    tasks: []
+  } as never);
+}
 
 import { resolveToolCall } from '../registry';
 import { createToolRegistry } from '../tools';
@@ -45,6 +81,8 @@ function answerWith(map: Record<string, ReturnType<typeof ok>>) {
 beforeEach(() => {
   rpc.mockReset();
   createDataClient.mockClear();
+  getJobDetail.mockClear();
+  getHistoricalPeople.mockClear();
 });
 
 describe('get_job_timeline', () => {
@@ -258,5 +296,106 @@ describe('the registry no longer claims these are unavailable', () => {
       expect(tool?.status, name).toBe('available');
       expect(tool?.kind, name).toBe('read');
     }
+  });
+});
+
+describe('an archived historical import', () => {
+  it('get_job_timeline answers from recorded facts and never calls AUDIT_HISTORY', async () => {
+    asHistorical();
+    getHistoricalPeople.mockResolvedValueOnce([
+      {
+        role: 'Installer',
+        source_value: 'Dave',
+        match_kind: 'Ambiguous',
+        person: null
+      },
+      {
+        role: 'Salesperson',
+        source_value: 'Mike Bater',
+        match_kind: 'ExactMatch',
+        person: { display_name: 'Mike Bater' }
+      }
+    ] as never);
+
+    const result = await call('get_job_timeline', { jobId: JOB_ID });
+    // The operational read is gated on scope and would refuse; it must not run.
+    expect(rpc).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const data = result.data as {
+      record_type: string;
+      previous_system_reference: string;
+      events: { what: string }[];
+      workflow_history_available: boolean;
+      people_recorded_on_the_job: {
+        role: string;
+        linked_person: string | null;
+        note: string;
+      }[];
+    };
+    expect(data.record_type).toMatch(/historical_import/);
+    expect(data.previous_system_reference).toBe('TQ125DB21');
+    // Only facts that exist: the recorded sale and the import itself.
+    expect(data.events.map((e) => e.what)).toEqual([
+      'Recorded as sold in the previous system',
+      'Imported into this system as an archived historical record'
+    ]);
+    expect(data.workflow_history_available).toBe(false);
+    // An ambiguous name is reported, never resolved to somebody.
+    const installer = data.people_recorded_on_the_job.find(
+      (p) => p.role === 'Installer'
+    );
+    expect(installer?.linked_person).toBeNull();
+    expect(installer?.note).toMatch(/more than one person/);
+  });
+
+  it('get_job_timeline invents no workflow events when nothing was recorded', async () => {
+    asHistorical({ sold_at: null, archived_at: null });
+    const result = await call('get_job_timeline', { jobId: JOB_ID });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const data = result.data as {
+      events: unknown[];
+      workflow_history_note: string;
+    };
+    expect(data.events).toEqual([]);
+    expect(data.workflow_history_note).toMatch(/recorded no workflow events/i);
+  });
+
+  it('get_job_blockers says blockers do not apply, without running the operational reads', async () => {
+    asHistorical();
+    const result = await call('get_job_blockers', { jobId: JOB_ID });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const data = result.data as {
+      applicable: boolean;
+      not_applicable_reason: string;
+      blocking_issue_count: number | null;
+      completion: unknown;
+      guidance: string;
+    };
+    expect(data.applicable).toBe(false);
+    // Never "0 blockers": that would read as a live job being clear to proceed.
+    expect(data.blocking_issue_count).toBeNull();
+    expect(data.completion).toBeNull();
+    expect(data.not_applicable_reason).toMatch(/not the same as a live job/i);
+    expect(data.guidance).toMatch(/do not describe this job as clear/i);
+  });
+
+  it('offers no mutation for a historical job', async () => {
+    // The registry has no mutation outside Forms, and nothing historical adds one.
+    const mutations = registry
+      .all()
+      .filter((t) => t.kind === 'mutation' && t.status === 'available');
+    expect(mutations.map((t) => t.domain)).not.toContain('jobs');
+  });
+
+  it('reports a job it cannot see as not found, not as historical', async () => {
+    getJobDetail.mockResolvedValueOnce(null as never);
+    const result = await call('get_job_blockers', { jobId: JOB_ID });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe('NOT_FOUND');
   });
 });
