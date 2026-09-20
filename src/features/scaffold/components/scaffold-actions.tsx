@@ -18,6 +18,24 @@ type Booking = {
 
 const pence = (v: string) => (v ? Math.round(Number(v) * 100) : undefined);
 
+/** Today in Europe/London, as the date inputs and the server both write it. */
+const today = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(
+    new Date()
+  );
+
+/**
+ * "It happened on" dates are prefilled from the plan, but the server refuses a
+ * date in the future. When the work happens early the planned date is still
+ * ahead of today, so prefilling it would guarantee a refusal - offer today
+ * instead and let the person correct it.
+ */
+const happenedOn = (planned: string | null) => {
+  const now = today();
+  if (!planned) return now;
+  return planned > now ? now : planned;
+};
+
 export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
   const req = { job_id: booking.job_id, expected_version: booking.version };
   const withId = (v: Record<string, unknown>) =>
@@ -69,7 +87,7 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
                 label: 'Date it went up',
                 kind: 'date',
                 required: true,
-                initial: booking.erect_planned_at ?? ''
+                initial: happenedOn(booking.erect_planned_at)
               }
             ]}
             payload={(v) => withId({ erect_actual_at: v.erect_actual_at })}
@@ -98,6 +116,7 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
               label: 'Strip date',
               kind: 'date',
               required: true,
+              // A planned strip date is normally in the future.
               initial: booking.strip_planned_at ?? ''
             }
           ]}
@@ -127,7 +146,7 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
               label: 'Date it came down',
               kind: 'date',
               required: true,
-              initial: booking.strip_planned_at ?? ''
+              initial: happenedOn(booking.strip_planned_at)
             },
             { key: 'actual_cost', label: 'Final cost (£)', kind: 'number' },
             { key: 'invoice_reference', label: 'Scaffolder invoice reference' }
@@ -156,6 +175,8 @@ export function ScaffoldBookingActions({ booking }: { booking: Booking }) {
                     key: 'erect_planned_at',
                     label: 'New erect date',
                     kind: 'date' as const,
+                    // A planned date may be in the future; only the "it
+                    // happened on" dates are capped at today.
                     initial: booking.erect_planned_at ?? ''
                   }
                 ]),

@@ -4,7 +4,7 @@ title: System health
 summary: What the System health screen shows, what Verified, Stale, Failed and Unknown mean, and how to record a backup or recovery check.
 category: administration
 roles: ["Admin", "Manager", "Director", "Office"]
-release_function: none
+release_function: FN-14
 routes: ["/dashboard/system"]
 tools: []
 keywords: ["system health", "backup", "restore", "recovery", "health check", "integrations", "calendar sync", "verified", "stale", "unknown", "operational evidence"]

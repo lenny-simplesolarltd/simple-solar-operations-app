@@ -4,7 +4,7 @@ title: Uploading a file
 summary: Where you can add a file or photo in the app today, which file types and sizes are allowed, and what to do if an upload fails.
 category: files
 roles: []
-release_function: FN-01
+release_function: FN-01, FN-03, FN-05, FN-06
 routes: ["/dashboard/tasks/[taskId]", "/dashboard/jobs/[jobId]", "/dashboard/installs/[workPackageId]", "/dashboard/goods-in"]
 tools: []
 keywords: ["upload", "file", "photo", "evidence", "PDF", "attach", "file size", "file type", "HEIC"]

@@ -4,7 +4,7 @@ title: Reviewing commissioning forms
 summary: How the office checks commissioning forms that installers have submitted, and accepts them or returns them with notes.
 category: commissioning
 roles: ["Admin", "Manager", "Office"]
-release_function: FN-06, FN-07
+release_function: FN-06, FN-07, FN-08
 routes: ["/dashboard/commissioning", "/dashboard/commissioning/[workPackageId]"]
 tools: []
 keywords: ["commissioning", "review", "accept", "return", "returned", "installer form", "submitted", "to review", "no template", "handover"]

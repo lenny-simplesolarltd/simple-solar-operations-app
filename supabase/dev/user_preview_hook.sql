@@ -50,13 +50,16 @@ exception when others then
 end
 $$;
 
--- Same body as the production function, plus the preview branch.
+-- Same body as the production function, plus the local claim branch. The hosted
+-- header branch (app_preview.*, a real migration) is kept ahead of the else, so
+-- a local stack exercises exactly the production mechanism as well as this one.
 create or replace function app.current_person_id()
 returns uuid
 language sql stable security definer set search_path = ''
 as $$
   select case
     when app_dev.preview_claimed() then app_dev.preview_target()
+    when app_preview.requested() then app_preview.target()
     else (select p.id from public.people p where p.auth_user_id = (select auth.uid()) and p.active)
   end
 $$;

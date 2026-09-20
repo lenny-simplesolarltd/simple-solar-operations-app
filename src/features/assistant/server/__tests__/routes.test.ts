@@ -81,6 +81,8 @@ describe('signed in', () => {
       'find_job',
       'get_job',
       'get_job_tasks',
+      'get_job_timeline',
+      'get_job_blockers',
       'get_my_tasks',
       'get_presale_workflow',
       'list_job_files',

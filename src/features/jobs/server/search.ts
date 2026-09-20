@@ -7,16 +7,27 @@ export interface JobSearchHit {
   postcode: string;
   workflowStage: string;
   soldAt: string;
+  /**
+   * True for a record imported from a system that predates this one. Read-only
+   * and purely descriptive: a caller that ignores it behaves exactly as before,
+   * but the assistant needs it so it never presents finished history as
+   * current work.
+   */
+  isHistorical: boolean;
+  /** The reference the old system knew the job by, when there is one. */
+  sourceReference: string | null;
 }
 
 const JOB_SELECT =
-  'id, job_ref, sold_at, workflow_stage, customers!inner(first_name, last_name, postcode)';
+  'id, job_ref, sold_at, workflow_stage, record_class, source_reference, customers!inner(first_name, last_name, postcode)';
 
 type JobRow = {
   id: string;
   job_ref: string;
   sold_at: string;
   workflow_stage: string;
+  record_class: string;
+  source_reference: string | null;
   customers: { first_name: string; last_name: string; postcode: string };
 };
 
@@ -41,7 +52,9 @@ const toHit = (job: JobRow): JobSearchHit => ({
   customerName: `${job.customers.first_name} ${job.customers.last_name}`,
   postcode: job.customers.postcode,
   workflowStage: job.workflow_stage,
-  soldAt: job.sold_at
+  soldAt: job.sold_at,
+  isHistorical: job.record_class === 'HistoricalImport',
+  sourceReference: job.source_reference
 });
 
 /**
@@ -90,7 +103,11 @@ export async function searchVisibleJobs(
     .order('sold_at', { ascending: false })
     .limit(limit);
   for (const term of terms) {
-    byRef = byRef.ilike('job_ref', `%${term}%`);
+    // An imported job is just as likely to be looked up by the reference the
+    // office used before this system as by its new job_ref.
+    byRef = byRef.or(
+      `job_ref.ilike.%${term}%,source_reference.ilike.%${term}%`
+    );
   }
 
   const [customerMatch, refMatch] = await Promise.all([byCustomer, byRef]);

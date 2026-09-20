@@ -17,7 +17,9 @@
     "test:unit": "vitest run",
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
     "dev:preview:install": "node scripts/dev-preview-install.mjs",
-    "test:db:pglite": "node tests/pglite/run.mjs"
+    "test:db:pglite": "node tests/pglite/run.mjs",
+    "import:historical-bookings": "jiti scripts/imports/historical-job-bookings/run.ts",
+    "import:historical-bookings:docs": "jiti scripts/imports/historical-job-bookings/docs.ts"
   },
   "lint-staged": {
     "**/*.{js,jsx,tsx,ts,css,less,scss,sass}": [

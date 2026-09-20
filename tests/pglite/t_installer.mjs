@@ -215,6 +215,15 @@ w = await wp(elec);
 r = ok(await cmd('inst_b', iw('IW_REPORT_COMPLETION', elec, job, { outcome: 'Complete', actual_end: today }, { expected_version: w.version })), 'complete elec');
 const e1 = r.commissioning_submission.id;
 assert.equal((await sub(e1)).template_version, 'NOT_CONFIGURED');
+// Regression (20260920170000): the draft IW_REPORT_COMPLETION opens is stamped
+// NOT_CONFIGURED, and the read used to demand an exact version match - so the
+// installer's form offered no questions at all and the submission could never
+// leave NOT_CONFIGURED, which in turn disabled Accept. The read must use the
+// same rule as app.iw_approved_template.
+rd = await opsRead('inst_b', { read_type: 'INSTALLER_WORKFLOW', work_package_id: elec });
+assert.equal(rd.data.submission.template_version, 'NOT_CONFIGURED');
+assert.deepEqual(rd.data.questions.map((q) => q.question_key).sort(), ['inverter_serial', 'panels_fitted'],
+  'a NOT_CONFIGURED draft still offers the approved template questions');
 w = await wp(elec);
 await expectRefusal('inst_b', iw('IW_COMMISSIONING_DRAFT', elec, job, { submission_id: e1, expected_submission_version: 1, answers: [{ question_key: 'panels_fitted', value_number: '12' }] }, { expected_version: w.version }), 'R1C_INVALID_ANSWER');
 await expectRefusal('inst_b', iw('IW_COMMISSIONING_DRAFT', elec, job, { submission_id: e1, expected_submission_version: 1, answers: [{ question_key: 'roof_angle', value_number: 30 }] }, { expected_version: w.version }), 'R1C_APPROVED_QUESTION_REQUIRED');

@@ -4,7 +4,7 @@
 // first). Every assertion goes through the real path:
 //   Supabase Auth session -> auth.uid() -> people -> person_roles -> RLS.
 import assert from 'node:assert/strict';
-import { before, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import {
   PASSWORD,
   anon,
@@ -381,6 +381,22 @@ describe('constraints', () => {
 });
 
 // Keep last: these revoke access from sessions used above.
+//
+// They must also put the people back. This file runs first in the glob, and
+// the suites after it read the same database: leaving Hannah deactivated
+// takes the owner off ISS01, so R1 readiness reports "No active owner for:
+// ISS01" and every later readiness assertion fails for a reason that has
+// nothing to do with what it is testing.
+after(async () => {
+  const mikeRow = await person('PERSON-mike');
+  const hannahRow = await person('PERSON-hannah');
+  await service
+    .from('person_roles')
+    .update({ active: true })
+    .eq('person_id', mikeRow.id);
+  await service.from('people').update({ active: true }).eq('id', hannahRow.id);
+});
+
 describe('revocation takes effect immediately', () => {
   test('revoking the only role leaves a live session with nothing', async () => {
     const mikeRow = await person('PERSON-mike');

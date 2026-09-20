@@ -34,6 +34,15 @@ export const metadata: Metadata = { title: 'Job | Simple Solar Operations' };
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
+/**
+ * What a historical import shows where the legacy source recorded nothing.
+ * Deliberately not '-' or a zero: an unknown price is not a free job, and an
+ * unknown salesperson is not "nobody sold it".
+ */
+const NOT_RECORDED = (
+  <span className='text-muted-foreground font-normal italic'>Not recorded</span>
+);
+
 // Stages at which BOOKING_INTAKE accepts a booking form (the page re-checks).
 const BOOKING_STAGES = ['Prebooking', 'ReadyToBook', 'BookingInProgress'];
 // Stages at which MOVE_JOB accepts a move.
@@ -117,6 +126,16 @@ export default async function JobPage({
           />
           <div className='flex flex-wrap items-center gap-2'>
             <Badge>{stageLabel(job.workflow_stage)}</Badge>
+            {job.record_class === 'HistoricalImport' && (
+              // An imported record of a job that predates this system. Badged
+              // so it is never mistaken for an active installation.
+              <Badge
+                variant='secondary'
+                title='Imported from the historical Job Booking form. Read-only history; no active work.'
+              >
+                Historical record
+              </Badge>
+            )}
             {isOfficeClass(user) &&
               BOOKING_STAGES.includes(job.workflow_stage) && (
                 <Button asChild size='sm' variant='outline'>
@@ -182,7 +201,9 @@ export default async function JobPage({
                 </CardHeader>
                 <CardContent>
                   <Row label='Agreed price'>
-                    {pounds.format(job.original_gross_pence / 100)}
+                    {job.original_gross_pence === null
+                      ? NOT_RECORDED
+                      : pounds.format(job.original_gross_pence / 100)}
                   </Row>
                   {presale &&
                     presale.computed_total_pence !==
@@ -192,10 +213,15 @@ export default async function JobPage({
                       </Row>
                     )}
                   <Row label='Payment'>
-                    {FINANCE_LABEL[job.finance_route] ?? job.finance_route}
+                    {job.finance_route === null
+                      ? NOT_RECORDED
+                      : (FINANCE_LABEL[job.finance_route] ?? job.finance_route)}
                   </Row>
                   <Row label='Salesperson'>
-                    {job.salesperson?.display_name ?? '-'}
+                    {job.salesperson?.display_name ??
+                      (job.record_class === 'HistoricalImport'
+                        ? NOT_RECORDED
+                        : '-')}
                   </Row>
                   <Row label='Lead source'>{job.lead_source ?? '-'}</Row>
                   <Row label='Quote reference'>

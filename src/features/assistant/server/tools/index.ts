@@ -6,6 +6,7 @@ import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
+import { getJobBlockersTool, getJobTimelineTool } from './operations';
 import { PLANNED_TOOLS } from './planned';
 import { getPresaleWorkflowTool } from './presale';
 import { getMyTasksTool, getTeamTasksTool } from './tasks';
@@ -22,6 +23,8 @@ export function createToolRegistry(
     .register(findJobTool)
     .register(getJobTool)
     .register(getJobTasksTool)
+    .register(getJobTimelineTool)
+    .register(getJobBlockersTool)
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
     .register(getPresaleWorkflowTool);

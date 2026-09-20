@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { previewWriteBlock } from '@/lib/preview/guard';
 import { createClient } from '@/lib/supabase/server';
 import type {
   ClaimResult,
@@ -28,6 +29,10 @@ export type PendingActionRpc = (
 ) => Promise<{ data: unknown; error: { message: string } | null }>;
 
 async function sessionRpc(): Promise<PendingActionRpc> {
+  // Every function in this store writes, so the whole store is closed under
+  // preview - registering, claiming, releasing and completing alike.
+  const blocked = await previewWriteBlock();
+  if (blocked) throw new Error(blocked);
   const supabase = await createClient();
   return (fn, args) =>
     (supabase.rpc as unknown as PendingActionRpc).call(supabase, fn, args);

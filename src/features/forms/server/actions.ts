@@ -1,5 +1,6 @@
 'use server';
 
+import { previewWriteBlock } from '@/lib/preview/guard';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { fieldSchema } from '../definition';
@@ -164,12 +165,20 @@ export async function listSurveyorsAction() {
   return forms.listSurveyors();
 }
 
-/** The recipient page's submit. No staff session is needed or used. */
+/**
+ * The recipient page's submit. No staff session is needed or used - but a
+ * developer who is previewing must not be able to write a real response either,
+ * even holding a valid recipient token.
+ */
 export async function submitPublicFormAction(
   token: string,
   submissionId: string,
   answers: unknown
 ) {
+  const blocked = await previewWriteBlock();
+  if (blocked) {
+    return { ok: false as const, state: 'open' as const, message: blocked };
+  }
   if (
     typeof answers !== 'object' ||
     answers === null ||

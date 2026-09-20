@@ -18,7 +18,7 @@ export interface AppUser {
   roles: RoleCode[];
   imageUrl?: string;
   /**
-   * Present only in development "View as user" preview: this AppUser is the
+   * Present only in "View as user" developer preview: this AppUser is the
    * EFFECTIVE (previewed) person and `preview` names the REAL signed-in one.
    */
   preview?: { realPersonId: string; realName: string; realEmail: string };
@@ -66,7 +66,7 @@ export async function getAuthenticatedUser(): Promise<AppUser | null> {
 
 /**
  * The EFFECTIVE person for presentation and read authorization: normally the
- * authenticated user; in development preview, the previewed person - whose
+ * authenticated user; in developer preview, the previewed person - whose
  * identity and roles are read back FROM THE DATABASE through the preview token,
  * never taken from the browser. If the database does not confirm the target
  * (hook not installed, target inactive/unknown), preview silently does not apply.
@@ -79,10 +79,9 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
   const preview = await getActivePreview();
   if (!preview) return real;
 
-  const { createPreviewReadClient } = await import('@/lib/supabase/data');
-  const { data } = await createPreviewReadClient(preview.jwt).rpc(
-    'current_actor'
-  );
+  const { createDataReadClient } = await import('@/lib/supabase/data');
+  const client = await createDataReadClient(preview);
+  const { data } = await client.rpc('current_actor');
   const target = data?.[0];
   if (
     !target ||
