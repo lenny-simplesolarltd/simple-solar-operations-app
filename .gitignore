@@ -68,3 +68,10 @@ data-import/*/analysis/column-mapping.md
 data-import/*/analysis/dry-run-report.json
 data-imports/*/analysis/column-mapping.md
 data-imports/*/analysis/dry-run-report.json
+
+# Generated document samples and visual-regression artifacts (rebuilt on demand)
+tmp/
+
+# Python bytecode from the document template build scripts
+__pycache__/
+*.pyc

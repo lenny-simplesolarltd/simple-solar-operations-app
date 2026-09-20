@@ -1,0 +1,26 @@
+[
+  {
+    "name": "delivery_cost",
+    "page": 3,
+    "match": "\u00a3600.00",
+    "select": "\u00a3600.00",
+    "align": "right",
+    "why": "Printed literally in the master, but design.pricing.deliveryWaste is an editable field (DEFAULT_DELIVERY_WASTE = 600). Must render the agreed figure."
+  },
+  {
+    "name": "vat_amount",
+    "page": 3,
+    "match": "VAT\u00a30",
+    "select": "\u00a30",
+    "align": "right",
+    "why": "Printed literally, but design.pricing.vat is an editable field (DEFAULT_VAT = 0)."
+  },
+  {
+    "name": "panel_warranty_years",
+    "page": 4,
+    "match": "Panels30",
+    "select": "30",
+    "align": "left",
+    "why": "Master prints 30 for every panel; catalogue says mclass-475 is 40 and p7-510 is 30. Must follow the selected panel."
+  }
+]

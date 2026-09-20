@@ -1,0 +1,2388 @@
+{
+  "master": "document-templates/presale/quotation/master.pdf",
+  "masterSha256": "f82659babbc65cdca6e411839c46552028ea5bcc68af41aa78f6bfd5a561064f",
+  "extractorVersion": 1,
+  "pageCount": 24,
+  "regionCount": 71,
+  "pages": [
+    {
+      "page": 1,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{fullname}}",
+          "name": "fullname",
+          "x0": 72.0,
+          "x1": 126.72,
+          "top": 97.67,
+          "bottom": 107.67,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 736.5,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{firstline}}",
+          "name": "firstline",
+          "x0": 72.0,
+          "x1": 122.29,
+          "top": 110.89,
+          "bottom": 120.89,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 723.27,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{city}}",
+          "name": "city",
+          "x0": 72.0,
+          "x1": 106.18,
+          "top": 124.12,
+          "bottom": 134.12,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 710.05,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{postcode}}",
+          "name": "postcode",
+          "x0": 72.0,
+          "x1": 126.73,
+          "top": 137.34,
+          "bottom": 147.34,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 696.82,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{date}}",
+          "name": "date",
+          "x0": 72.0,
+          "x1": 107.84,
+          "top": 163.79,
+          "bottom": 173.79,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 670.38,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{ref}}",
+          "name": "ref",
+          "x0": 92.81,
+          "x1": 120.59,
+          "top": 192.88,
+          "bottom": 202.88,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 641.28,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 90.31,
+          "freeX1": 560.0,
+          "freeX0Abs": 90.31,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{firstname}}",
+          "name": "firstname",
+          "x0": 93.92,
+          "x1": 150.86,
+          "top": 222.33,
+          "bottom": 232.33,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 611.84,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": ",",
+          "suffixX1": 153.36,
+          "align": "left",
+          "freeX0": 91.42,
+          "freeX1": 150.86,
+          "freeX0Abs": 91.42,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 3,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{fullname}}",
+          "name": "fullname",
+          "x0": 174.0,
+          "x1": 228.72,
+          "top": 137.67,
+          "bottom": 147.67,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 696.5,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 141.48,
+          "freeX1": 336.75,
+          "freeX0Abs": 141.48,
+          "freeX1Abs": 336.75,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{ref}}",
+          "name": "ref",
+          "x0": 423.0,
+          "x1": 453.29,
+          "top": 137.67,
+          "bottom": 147.67,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 696.5,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 408.12,
+          "freeX1": 560.0,
+          "freeX0Abs": 408.12,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{fulladdress}}",
+          "name": "fulladdress",
+          "x0": 174.0,
+          "x1": 237.05,
+          "top": 162.42,
+          "bottom": 172.42,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 671.75,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 156.35,
+          "freeX1": 560.0,
+          "freeX0Abs": 156.35,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{surveyor}}",
+          "name": "surveyor",
+          "x0": 174.0,
+          "x1": 228.17,
+          "top": 187.17,
+          "bottom": 197.17,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 647.0,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 155.27,
+          "freeX1": 336.75,
+          "freeX0Abs": 155.27,
+          "freeX1Abs": 336.75,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{date}}",
+          "name": "date",
+          "x0": 423.0,
+          "x1": 458.84,
+          "top": 187.17,
+          "bottom": 197.17,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 647.0,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 383.5,
+          "freeX1": 560.0,
+          "freeX0Abs": 383.5,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{panel}}",
+          "name": "panel",
+          "x0": 144.75,
+          "x1": 179.94,
+          "top": 241.26,
+          "bottom": 250.26,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 9.0,
+          "baseline": 593.68,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 142.5,
+          "freeX1": 479.98,
+          "freeX0Abs": 142.5,
+          "freeX1Abs": 479.98,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{panelq}}",
+          "name": "panelq",
+          "x0": 479.98,
+          "x1": 521.25,
+          "top": 241.26,
+          "bottom": 250.26,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 593.68,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 179.94,
+          "freeX1": 560.0,
+          "freeX0Abs": 179.94,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{inverter}}",
+          "name": "inverter",
+          "x0": 115.23,
+          "x1": 160.4,
+          "top": 259.86,
+          "bottom": 268.86,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 9.0,
+          "baseline": 575.08,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 112.98,
+          "freeX1": 471.49,
+          "freeX0Abs": 112.98,
+          "freeX1Abs": 471.49,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{inverterq}}",
+          "name": "inverterq",
+          "x0": 471.49,
+          "x1": 521.25,
+          "top": 259.86,
+          "bottom": 268.86,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 575.08,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 160.4,
+          "freeX1": 560.0,
+          "freeX0Abs": 160.4,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{battery}}",
+          "name": "battery",
+          "x0": 117.73,
+          "x1": 159.91,
+          "top": 297.06,
+          "bottom": 306.06,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 9.0,
+          "baseline": 537.89,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 115.48,
+          "freeX1": 474.48,
+          "freeX0Abs": 115.48,
+          "freeX1Abs": 474.48,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{batteryq}}",
+          "name": "batteryq",
+          "x0": 474.48,
+          "x1": 521.25,
+          "top": 297.06,
+          "bottom": 306.06,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 537.89,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 159.91,
+          "freeX1": 560.0,
+          "freeX0Abs": 159.91,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{ev}}",
+          "name": "ev",
+          "x0": 207.64,
+          "x1": 230.32,
+          "top": 315.66,
+          "bottom": 324.66,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 9.0,
+          "baseline": 519.29,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 205.39,
+          "freeX1": 490.98,
+          "freeX0Abs": 205.39,
+          "freeX1Abs": 490.98,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{evq}}",
+          "name": "evq",
+          "x0": 490.98,
+          "x1": 521.25,
+          "top": 315.66,
+          "bottom": 324.66,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 519.29,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 230.32,
+          "freeX1": 560.0,
+          "freeX0Abs": 230.32,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{backup}}",
+          "name": "backup",
+          "x0": 115.01,
+          "x1": 157.71,
+          "top": 334.26,
+          "bottom": 343.26,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 9.0,
+          "baseline": 500.69,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 112.76,
+          "freeX1": 474.64,
+          "freeX0Abs": 112.76,
+          "freeX1Abs": 474.64,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{offgridq}}",
+          "name": "offgridq",
+          "x0": 474.64,
+          "x1": 521.25,
+          "top": 334.26,
+          "bottom": 343.26,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 500.69,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 157.71,
+          "freeX1": 560.0,
+          "freeX0Abs": 157.71,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{birdnettingq}}",
+          "name": "birdnettingq",
+          "x0": 459.98,
+          "x1": 521.25,
+          "top": 352.86,
+          "bottom": 361.86,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 482.09,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 122.5,
+          "freeX1": 560.0,
+          "freeX0Abs": 122.5,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{iboostq}}",
+          "name": "iboostq",
+          "x0": 477.47,
+          "x1": 521.25,
+          "top": 371.46,
+          "bottom": 380.46,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 463.49,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 99.75,
+          "freeX1": 560.0,
+          "freeX0Abs": 99.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{immersionq}}",
+          "name": "immersionq",
+          "x0": 460.97,
+          "x1": 521.25,
+          "top": 390.06,
+          "bottom": 399.06,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 444.89,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 140.98,
+          "freeX1": 560.0,
+          "freeX0Abs": 140.98,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{optimisersq}}",
+          "name": "optimisersq",
+          "x0": 461.97,
+          "x1": 521.25,
+          "top": 408.66,
+          "bottom": 417.66,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 426.29,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 118.25,
+          "freeX1": 560.0,
+          "freeX0Abs": 118.25,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{gt}}",
+          "name": "gt",
+          "x0": 494.28,
+          "x1": 521.25,
+          "top": 427.4,
+          "bottom": 437.4,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 406.76,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 489.28,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 494.28,
+          "freeX1": 560.0,
+          "freeX0Abs": 450.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{scaffq}}",
+          "name": "scaffq",
+          "x0": 482.15,
+          "x1": 521.25,
+          "top": 469.5,
+          "bottom": 478.5,
+          "font": "TimesNewRomanPSMT",
+          "size": 9.0,
+          "baseline": 365.44,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 119.26,
+          "freeX1": 560.0,
+          "freeX0Abs": 119.26,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{st}}",
+          "name": "st",
+          "x0": 495.39,
+          "x1": 521.25,
+          "top": 525.45,
+          "bottom": 535.45,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 308.71,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 490.39,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 495.39,
+          "freeX1": 560.0,
+          "freeX0Abs": 450.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{gsst}}",
+          "name": "gsst",
+          "x0": 486.5,
+          "x1": 521.25,
+          "top": 545.2,
+          "bottom": 555.2,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 288.96,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 481.5,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 486.5,
+          "freeX1": 560.0,
+          "freeX0Abs": 450.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "[[delivery_cost]]",
+          "name": "delivery_cost",
+          "literal": "\u00a3600.00",
+          "x0": 488.76,
+          "x1": 521.25,
+          "top": 564.95,
+          "bottom": 574.95,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 269.21,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "align": "right",
+          "freeX0": 450.75,
+          "freeX1": 560.0,
+          "freeX0Abs": 450.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "[[vat_amount]]",
+          "name": "vat_amount",
+          "literal": "\u00a30",
+          "x0": 511.25,
+          "x1": 521.25,
+          "top": 584.7,
+          "bottom": 594.7,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 249.47,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "align": "right",
+          "freeX0": 450.75,
+          "freeX1": 560.0,
+          "freeX0Abs": 450.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{totalcost}}",
+          "name": "totalcost",
+          "x0": 469.41,
+          "x1": 521.25,
+          "top": 608.45,
+          "bottom": 618.45,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 225.72,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 464.41,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 469.41,
+          "freeX1": 560.0,
+          "freeX0Abs": 450.75,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 4,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "[[panel_warranty_years]]",
+          "name": "panel_warranty_years",
+          "literal": "30",
+          "x0": 462.5,
+          "x1": 472.5,
+          "top": 148.67,
+          "bottom": 158.67,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 685.5,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "align": "left",
+          "freeX0": 103.52,
+          "freeX1": 489.06,
+          "freeX0Abs": 103.52,
+          "freeX1Abs": 489.06,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{25}}",
+          "name": "25",
+          "x0": 488.75,
+          "x1": 514.5,
+          "top": 468.8,
+          "bottom": 478.8,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 365.36,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 483.75,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 488.75,
+          "freeX1": 560.0,
+          "freeX0Abs": 380.95,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{35}}",
+          "name": "35",
+          "x0": 488.75,
+          "x1": 514.5,
+          "top": 518.45,
+          "bottom": 528.45,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 315.72,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 483.75,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 488.75,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{40}}",
+          "name": "40",
+          "x0": 488.75,
+          "x1": 514.5,
+          "top": 572.69,
+          "bottom": 582.69,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 261.47,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 483.75,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 488.75,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{fullname}}",
+          "name": "fullname",
+          "x0": 133.5,
+          "x1": 188.22,
+          "top": 305.15,
+          "bottom": 315.15,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 529.01,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 98.81,
+          "freeX1": 560.0,
+          "freeX0Abs": 98.81,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{date}}",
+          "name": "date",
+          "x0": 133.5,
+          "x1": 169.34,
+          "top": 372.15,
+          "bottom": 382.15,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 462.01,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 96.31,
+          "freeX1": 560.0,
+          "freeX0Abs": 96.31,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 7,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 8,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 9,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 10,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 11,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 12,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 13,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 14,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 15,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 16,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 17,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    },
+    {
+      "page": 18,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{fullname}}",
+          "name": "fullname",
+          "x0": 204.75,
+          "x1": 259.47,
+          "top": 320.39,
+          "bottom": 330.39,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 513.77,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 151.01,
+          "freeX1": 560.0,
+          "freeX0Abs": 151.01,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{fulladdress}}",
+          "name": "fulladdress",
+          "x0": 204.75,
+          "x1": 267.8,
+          "top": 369.52,
+          "bottom": 379.52,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 464.65,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{date}}",
+          "name": "date",
+          "x0": 204.75,
+          "x1": 240.59,
+          "top": 505.49,
+          "bottom": 515.49,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 328.68,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 560.0,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 19,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{ref}}",
+          "name": "ref",
+          "x0": 192.0,
+          "x1": 222.29,
+          "top": 158.01,
+          "bottom": 168.01,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 676.15,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 155.02,
+          "freeX1": 560.0,
+          "freeX0Abs": 155.02,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{fulladdress}}",
+          "name": "fulladdress",
+          "x0": 192.0,
+          "x1": 255.05,
+          "top": 209.89,
+          "bottom": 219.89,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 624.28,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 165.27,
+          "freeX1": 560.0,
+          "freeX0Abs": 165.27,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{surveyor}}",
+          "name": "surveyor",
+          "x0": 192.0,
+          "x1": 246.17,
+          "top": 259.76,
+          "bottom": 269.76,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 574.4,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 172.09,
+          "freeX1": 560.0,
+          "freeX0Abs": 172.09,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{date}}",
+          "name": "date",
+          "x0": 192.0,
+          "x1": 227.84,
+          "top": 281.51,
+          "bottom": 291.51,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 552.65,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 140.71,
+          "freeX1": 560.0,
+          "freeX0Abs": 140.71,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 20,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{capacity}}",
+          "name": "capacity",
+          "x0": 430.51,
+          "x1": 483.0,
+          "top": 240.39,
+          "bottom": 250.39,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 593.78,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 260.94,
+          "freeX1": 499.07,
+          "freeX0Abs": 260.94,
+          "freeX1Abs": 499.07,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{orientation}}",
+          "name": "orientation",
+          "x0": 420.5,
+          "x1": 483.0,
+          "top": 262.51,
+          "bottom": 272.51,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 571.65,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 278.33,
+          "freeX1": 493.62,
+          "freeX0Abs": 278.33,
+          "freeX1Abs": 493.62,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{inclination}}",
+          "name": "inclination",
+          "x0": 421.06,
+          "x1": 483.0,
+          "top": 284.26,
+          "bottom": 294.26,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 549.9,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 279.72,
+          "freeX1": 493.62,
+          "freeX0Abs": 279.72,
+          "freeX1Abs": 493.62,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{postcodezone}}",
+          "name": "postcodezone",
+          "x0": 455.16,
+          "x1": 528.75,
+          "top": 304.64,
+          "bottom": 314.64,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 529.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 143.03,
+          "freeX1": 560.0,
+          "freeX0Abs": 143.03,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{kk}}",
+          "name": "kk",
+          "x0": 453.81,
+          "x1": 483.0,
+          "top": 355.64,
+          "bottom": 365.64,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 478.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 187.47,
+          "freeX1": 560.0,
+          "freeX0Abs": 187.47,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{sf}}",
+          "name": "sf",
+          "x0": 502.34,
+          "x1": 528.75,
+          "top": 383.63,
+          "bottom": 393.63,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 450.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 153.49,
+          "freeX1": 560.0,
+          "freeX0Abs": 153.49,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{output}}",
+          "name": "output",
+          "x0": 438.26,
+          "x1": 483.0,
+          "top": 409.13,
+          "bottom": 419.13,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 425.03,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 264.89,
+          "freeX1": 499.07,
+          "freeX0Abs": 264.89,
+          "freeX1Abs": 499.07,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{archetype}}",
+          "name": "archetype",
+          "x0": 470.71,
+          "x1": 528.75,
+          "top": 460.88,
+          "bottom": 470.88,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 373.28,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 206.62,
+          "freeX1": 560.0,
+          "freeX0Abs": 206.62,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{consume}}",
+          "name": "consume",
+          "x0": 428.28,
+          "x1": 483.0,
+          "top": 485.63,
+          "bottom": 495.63,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 348.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 248.75,
+          "freeX1": 499.07,
+          "freeX0Abs": 248.75,
+          "freeX1Abs": 499.07,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{output}}",
+          "name": "output",
+          "x0": 438.26,
+          "x1": 483.0,
+          "top": 509.63,
+          "bottom": 519.63,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 324.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 333.48,
+          "freeX1": 499.07,
+          "freeX0Abs": 333.48,
+          "freeX1Abs": 499.07,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{selfconsume}}",
+          "name": "selfconsume",
+          "x0": 413.84,
+          "x1": 483.0,
+          "top": 534.76,
+          "bottom": 544.76,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 299.4,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 214.03,
+          "freeX1": 499.07,
+          "freeX0Abs": 214.03,
+          "freeX1Abs": 499.07,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{pvdep}}",
+          "name": "pvdep",
+          "x0": 439.38,
+          "x1": 483.0,
+          "top": 560.26,
+          "bottom": 570.26,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 273.9,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 274.52,
+          "freeX1": 504.63,
+          "freeX0Abs": 274.52,
+          "freeX1Abs": 504.63,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{battkwh}}",
+          "name": "battkwh",
+          "x0": 431.6,
+          "x1": 483.0,
+          "top": 585.76,
+          "bottom": 595.76,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 248.4,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 125.99,
+          "freeX1": 499.07,
+          "freeX0Abs": 125.99,
+          "freeX1Abs": 499.07,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 21,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{archetype}}",
+          "name": "archetype",
+          "x0": 110.02,
+          "x1": 168.06,
+          "top": 169.14,
+          "bottom": 179.14,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 665.02,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": ".",
+          "suffixX1": 170.56,
+          "align": "left",
+          "freeX0": 107.52,
+          "freeX1": 168.06,
+          "freeX0Abs": 107.52,
+          "freeX1Abs": 173.06,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{selfconsumeperc}}",
+          "name": "selfconsumeperc",
+          "x0": 339.93,
+          "x1": 426.02,
+          "top": 169.14,
+          "bottom": 179.14,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 665.02,
+          "colour": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "%",
+          "suffixX1": 436.02,
+          "align": "left",
+          "freeX0": 337.43,
+          "freeX1": 426.02,
+          "freeX0Abs": 337.43,
+          "freeX1Abs": 438.51,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{exportperc}}",
+          "name": "exportperc",
+          "x0": 72.0,
+          "x1": 134.2,
+          "top": 192.14,
+          "bottom": 202.14,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 642.02,
+          "colour": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "%",
+          "suffixX1": 144.2,
+          "align": "left",
+          "freeX0": 36.0,
+          "freeX1": 134.2,
+          "freeX0Abs": 36.0,
+          "freeX1Abs": 144.2,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{savingsyear1}}",
+          "name": "savingsyear1",
+          "x0": 416.02,
+          "x1": 486.75,
+          "top": 248.01,
+          "bottom": 258.01,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 586.15,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 411.02,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 416.02,
+          "freeX1": 495.47,
+          "freeX0Abs": 375.35,
+          "freeX1Abs": 495.47,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{segyear1}}",
+          "name": "segyear1",
+          "x0": 433.8,
+          "x1": 486.75,
+          "top": 280.64,
+          "bottom": 290.64,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 553.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 428.8,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 433.8,
+          "freeX1": 495.47,
+          "freeX0Abs": 376.21,
+          "freeX1Abs": 495.47,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{totalcost}}",
+          "name": "totalcost",
+          "x0": 477.66,
+          "x1": 529.5,
+          "top": 489.38,
+          "bottom": 499.38,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 344.78,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 472.66,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 477.66,
+          "freeX1": 560.0,
+          "freeX0Abs": 167.02,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{savings}}",
+          "name": "savings",
+          "x0": 482.63,
+          "x1": 529.5,
+          "top": 522.76,
+          "bottom": 532.76,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 311.41,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 477.64,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 482.64,
+          "freeX1": 560.0,
+          "freeX0Abs": 222.64,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{totsavings}}",
+          "name": "totsavings",
+          "x0": 470.98,
+          "x1": 529.5,
+          "top": 558.01,
+          "bottom": 568.01,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 10.0,
+          "baseline": 276.16,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "\u00a3",
+          "prefixX0": 465.98,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "right",
+          "freeX0": 470.98,
+          "freeX1": 560.0,
+          "freeX0Abs": 223.44,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{roi}}",
+          "name": "roi",
+          "x0": 484.14,
+          "x1": 517.5,
+          "top": 589.41,
+          "bottom": 601.41,
+          "font": "TimesNewRomanPS-BoldMT",
+          "size": 12.0,
+          "baseline": 243.19,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "%",
+          "suffixX1": 529.5,
+          "align": "left",
+          "freeX0": 208.19,
+          "freeX1": 517.5,
+          "freeX0Abs": 208.19,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 22,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{date}}",
+          "name": "date",
+          "x0": 133.09,
+          "x1": 168.93,
+          "top": 249.64,
+          "bottom": 259.64,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 584.53,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 130.59,
+          "freeX1": 560.0,
+          "freeX0Abs": 130.59,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        },
+        {
+          "token": "{{surveyor}}",
+          "name": "surveyor",
+          "x0": 234.79,
+          "x1": 288.96,
+          "top": 272.86,
+          "bottom": 282.86,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 561.3,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 232.29,
+          "freeX1": 560.0,
+          "freeX0Abs": 232.29,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 23,
+      "width": 596,
+      "height": 842,
+      "static": false,
+      "regions": [
+        {
+          "token": "{{ref}}",
+          "name": "ref",
+          "x0": 289.05,
+          "x1": 319.34,
+          "top": 355.75,
+          "bottom": 365.75,
+          "font": "TimesNewRomanPSMT",
+          "size": 10.0,
+          "baseline": 478.41,
+          "colour": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "prefix": "",
+          "prefixX0": null,
+          "suffix": "",
+          "suffixX1": null,
+          "align": "left",
+          "freeX0": 286.55,
+          "freeX1": 560.0,
+          "freeX0Abs": 286.55,
+          "freeX1Abs": 560.0,
+          "background": [
+            255,
+            255,
+            255
+          ],
+          "background_uniform": true
+        }
+      ]
+    },
+    {
+      "page": 24,
+      "width": 596,
+      "height": 842,
+      "static": true,
+      "regions": []
+    }
+  ]
+}
