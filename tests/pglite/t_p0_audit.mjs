@@ -68,7 +68,10 @@ const REQUIRED = {
   // added
   roles: 'IUD',
   permissions: 'IUD',
-  skills: 'IUD'
+  skills: 'IUD',
+  // 20260920240000: the filing hierarchy business documents live in, registered
+  // in app.audit_required by that migration.
+  file_folders: 'IUD'
 };
 const RESTORED = [
   'companies',

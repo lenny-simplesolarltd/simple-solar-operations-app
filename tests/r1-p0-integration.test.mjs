@@ -441,7 +441,16 @@ describe('R1 end to end: Sold -> OperationallyComplete', { skip }, () => {
                       and entity_id = '${second.evidence_id}'`), '1');
     const cov = JSON.parse(sql('select app.audit_coverage()'));
     assert.equal(cov.state, 'Verified');
-    assert.equal(cov.covered_tables, 26);
+    // Every table the database says must be audited, is. Counted from
+    // app.audit_required rather than written down here, so a migration that
+    // registers a new table does not fail this test for the wrong reason -
+    // Verified above already means nothing registered is missing a trigger.
+    assert.equal(
+      cov.covered_tables,
+      Number(sql('select count(*) from app.audit_required')),
+      'every registered table is covered'
+    );
+    assert.ok(cov.covered_tables >= 26, 'coverage never shrinks');
     const leaks = sql(`select count(*) from public.audit_events a join public.evidence e on e.job_id in ('${A}', '${B}')
                        where coalesce(a.before_json::text, '') || coalesce(a.after_json::text, '') || coalesce(a.reason, '')
                              like '%' || e.storage_path || '%'`);

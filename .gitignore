@@ -59,3 +59,12 @@ data-imports/*/source/*
 !data-imports/*/source/.gitkeep
 data-import/*/private/
 data-imports/*/private/
+
+# Generated import analysis. The customer columns are redacted, but free-text
+# columns (order notes, access instructions) still quote supplier and
+# subcontractor contact details verbatim, so these are kept out of the repo.
+# Regenerate locally with `npm run import:historical-bookings:docs`.
+data-import/*/analysis/column-mapping.md
+data-import/*/analysis/dry-run-report.json
+data-imports/*/analysis/column-mapping.md
+data-imports/*/analysis/dry-run-report.json
