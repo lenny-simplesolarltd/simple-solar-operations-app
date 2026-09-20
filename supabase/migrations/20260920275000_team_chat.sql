@@ -696,6 +696,14 @@ insert into app.read_registry (read_type, roles, modes, module, notes) values
 -- Guarded: the publication is created by the Supabase platform, and is absent
 -- on a bare Postgres (the pglite test harness). Its absence must not stop the
 -- schema being created - it only means nothing is streaming there.
+-- REPLICA IDENTITY FULL is not optional here. Realtime evaluates this table's
+-- RLS policy against the replicated row to decide who may receive the event,
+-- and with the default identity only the primary key is replicated - so the
+-- policy cannot be evaluated, every event is withheld, and the subscription
+-- fails with CHANNEL_ERROR while looking perfectly healthy from the client.
+alter table public.chat_messages replica identity full;
+alter table public.chat_reactions replica identity full;
+
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then

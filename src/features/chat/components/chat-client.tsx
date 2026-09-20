@@ -58,9 +58,14 @@ export function ChatClient({
   initialJobRefs: Record<string, string>;
 }) {
   const [conversations, setConversations] = useState(initialConversations);
-  const [selected, setSelected] = useState<string | null>(
-    initialConversations[0]?.id ?? null
-  );
+  // Deliberately NOT auto-selecting the first conversation.
+  //
+  // Opening a conversation is what marks it read, so auto-selecting on load
+  // marked Ben's unread message read before he had seen it - the badge
+  // appeared and vanished within a second. Landing on the list means an unread
+  // conversation stays unread until somebody actually opens it, which is what
+  // the badge is claiming.
+  const [selected, setSelected] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [jobRefs, setJobRefs] = useState(initialJobRefs);
   const [pending, setPending] = useState<Pending[]>([]);
@@ -71,6 +76,10 @@ export function ChatClient({
   const [loaded, setLoaded] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // The subscription is created once; this is how its callback knows which
+  // conversation is on screen without being torn down on every switch.
+  const selectedRef = useRef<string | null>(selected);
+  selectedRef.current = selected;
 
   const load = useCallback(async (conversationId: string) => {
     const res = await fetch(`/api/chat/${conversationId}`, {
@@ -90,12 +99,21 @@ export function ChatClient({
 
   useEffect(() => {
     if (!selected) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load is async; the state lands after a fetch the rule cannot see
+
     setLoaded(false);
     setPending([]);
     setReplyTo(null);
     void load(selected);
   }, [selected, load]);
+
+  const loadConversations = useCallback(async () => {
+    const res = await fetch('/api/chat/conversations', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      conversations: ChatConversationRow[];
+    };
+    setConversations(data.conversations);
+  }, []);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end' });
@@ -104,25 +122,52 @@ export function ChatClient({
   // Live updates. RLS applies to the subscription, so a client only receives
   // rows for a conversation it is a member of.
   useEffect(() => {
-    if (!selected) return;
     const supabase = createClient();
-    const channel = supabase
-      .channel(`chat:${selected}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `conversation_id=eq.${selected}`
-        },
-        () => void load(selected)
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    void (async () => {
+      // THE REALTIME SOCKET NEEDS THE SESSION EXPLICITLY.
+      //
+      // The browser client restores its session from cookies, which is enough
+      // for HTTP, but the websocket opens separately and starts out
+      // unauthenticated. Row level security then hides every row from it, so
+      // the subscription connects, reports SUBSCRIBED, and silently delivers
+      // nothing. Passing the access token is what makes RLS evaluate the
+      // subscription as the signed-in person.
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      if (cancelled) return;
+
+      // No conversation filter, deliberately. RLS already limits this to
+      // conversations the viewer is a member of, and a message in ANOTHER
+      // conversation still has to move its unread count.
+      channel = supabase
+        .channel('chat')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'chat_messages' },
+          (payload) => {
+            const row = (payload.new ?? payload.old) as {
+              conversation_id?: string;
+            } | null;
+            void loadConversations();
+            if (
+              row?.conversation_id &&
+              row.conversation_id === selectedRef.current
+            )
+              void load(row.conversation_id);
+          }
+        )
+        .subscribe();
+    })();
+
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [selected, load]);
+  }, [load, loadConversations]);
 
   // Opening a conversation is what marks it read.
   useEffect(() => {
