@@ -3,6 +3,7 @@ import {
   IconAlertTriangle,
   IconBan,
   IconFolders,
+  IconMailForward,
   IconPhoneCall,
   IconToggleRight,
   IconArrowRight,
@@ -99,5 +100,6 @@ export const Icons = {
   issues: IconAlertOctagon,
   cancellations: IconBan,
   files: IconFolders,
+  communications: IconMailForward,
   release: IconToggleRight
 };

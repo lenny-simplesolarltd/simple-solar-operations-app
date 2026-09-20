@@ -229,6 +229,18 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
+    label: 'Communications',
+    items: [
+      {
+        title: 'Communications',
+        url: '/dashboard/communications',
+        icon: 'communications',
+        shortcut: ['c', 'm'],
+        access: 'communications'
+      }
+    ]
+  },
+  {
     label: 'Help',
     items: [
       {

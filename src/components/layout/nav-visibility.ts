@@ -80,6 +80,12 @@ export function canSee(
       return has(user, ['Admin', 'Manager', 'Office']);
     case 'resourcing':
       return isOfficeClass(user);
+    case 'communications':
+      // Mirrors the communications_select RLS policy (app.is_office_class()),
+      // plus VariationApprover, who the read registry also lets look. Not
+      // release-gated: the office must be able to work through captured drafts
+      // and record their own sends while every function is still Disabled.
+      return isOfficeClass(user) || has(user, ['VariationApprover']);
     case 'forms':
       // Hidden, not merely disabled, while Forms is switched off.
       return released.forms && permissions.has('forms.read');

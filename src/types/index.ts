@@ -32,6 +32,7 @@ export type NavAccess =
   | 'installer'
   | 'commissioning'
   | 'resourcing'
+  | 'communications'
   | 'forms';
 
 export interface NavEntry {

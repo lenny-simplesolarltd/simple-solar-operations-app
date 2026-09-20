@@ -115,6 +115,40 @@ describe('visibleNavGroups', () => {
   });
 });
 
+describe('Communications', () => {
+  const commUrls = (roles: RoleCode[]) =>
+    urls(roles).filter((u) => u.startsWith('/dashboard/communications'));
+
+  it('is offered to the office class and to VariationApprover', () => {
+    for (const role of [
+      'Admin',
+      'Manager',
+      'Director',
+      'Office',
+      'VariationApprover'
+    ] as RoleCode[]) {
+      expect(commUrls([role])).toEqual(['/dashboard/communications']);
+    }
+  });
+
+  it('is hidden from the field and from read-only staff', () => {
+    for (const role of [
+      'Installer',
+      'Scaffolder',
+      'ReadOnly',
+      'Store'
+    ] as RoleCode[]) {
+      expect(commUrls([role])).toEqual([]);
+    }
+  });
+
+  // Approving and recording are not release-gated: the office has to be able
+  // to work through captured drafts while every function is still Disabled.
+  it('does not depend on a release gate', () => {
+    expect(commUrls(['Office'])).toEqual(['/dashboard/communications']);
+  });
+});
+
 describe('Forms behind its release gate', () => {
   const formsUrls = (released: boolean, permissions: string[]) =>
     visibleNavGroups(navGroups, user(['Office']), new Set(permissions), {
