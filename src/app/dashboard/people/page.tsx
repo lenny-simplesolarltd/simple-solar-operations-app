@@ -1,5 +1,4 @@
 import PageContainer from '@/components/layout/page-container';
-import { Badge } from '@/components/ui/badge';
 import { Heading } from '@/components/ui/heading';
 import {
   Table,
@@ -10,12 +9,9 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { ReadFailureState } from '@/components/read-failure';
-import { InviteButton } from '@/features/people/invite-button';
-import {
-  ActiveToggleButton,
-  AddPersonButton,
-  RoleChangeButton
-} from '@/features/people/staff-admin';
+import { describeLogin } from '@/features/people/invite-state';
+import { LoginBadge, PersonActions } from '@/features/people/person-actions';
+import { AddPersonButton } from '@/features/people/staff-admin';
 import { getCurrentUser } from '@/lib/auth';
 import type { StaffAdminRead } from '@/lib/backend/admin-models';
 import { readOps } from '@/lib/backend/read';
@@ -53,10 +49,17 @@ export default async function PeoplePage() {
   const { data: authUsers } = await createAdminClient().auth.admin.listUsers({
     perPage: 1000
   });
-  const pendingEmails = new Set(
+  // Keyed by address, because email is what the linking trigger matches on.
+  const authByEmail = new Map(
     (authUsers?.users ?? [])
-      .filter((u) => !u.email_confirmed_at)
-      .map((u) => u.email)
+      .filter((u) => u.email)
+      .map((u) => [
+        u.email as string,
+        {
+          emailConfirmedAt: u.email_confirmed_at ?? null,
+          invitedAt: u.invited_at ?? u.confirmation_sent_at ?? null
+        }
+      ])
   );
 
   return (
@@ -85,13 +88,13 @@ export default async function PeoplePage() {
                 const roles = person.roles
                   .filter((r) => r.active)
                   .map((r) => r.role_code);
-                const pending =
-                  !!person.email && pendingEmails.has(person.email);
-                const canInvite =
-                  person.active &&
-                  !!person.email &&
-                  !person.has_login &&
-                  roles.length > 0;
+                const status = describeLogin({
+                  email: person.email,
+                  hasLogin: person.has_login,
+                  authUser: person.email
+                    ? (authByEmail.get(person.email) ?? null)
+                    : null
+                });
                 return (
                   <TableRow
                     key={person.id}
@@ -115,33 +118,17 @@ export default async function PeoplePage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {person.has_login ? (
-                        <Badge variant='success'>Active login</Badge>
-                      ) : pending ? (
-                        <Badge variant='warning'>Invited</Badge>
-                      ) : (
-                        <Badge variant='outline'>No login</Badge>
-                      )}
+                      <LoginBadge status={status} />
+                      <p className='text-muted-foreground mt-1 text-xs'>
+                        {status.detail}
+                      </p>
                     </TableCell>
                     <TableCell>
-                      <div className='flex flex-wrap justify-end gap-2'>
-                        {canInvite && (
-                          <InviteButton personId={person.id} resend={pending} />
-                        )}
-                        {person.active && (
-                          <RoleChangeButton
-                            person={person}
-                            roles={grantable}
-                            mode='grant'
-                          />
-                        )}
-                        <RoleChangeButton
-                          person={person}
-                          roles={grantable}
-                          mode='withdraw'
-                        />
-                        <ActiveToggleButton person={person} />
-                      </div>
+                      <PersonActions
+                        person={person}
+                        status={status}
+                        grantableRoles={grantable}
+                      />
                     </TableCell>
                   </TableRow>
                 );
