@@ -107,13 +107,21 @@ export function PlannerToolbar({
           Jump to date
         </label>
         <div className='relative'>
-          <IconCalendar className='text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2' />
+          <IconCalendar className='text-muted-foreground pointer-events-none absolute top-1/2 left-2 z-10 size-4 -translate-y-1/2' />
           <Input
             id='planner-date'
             type='date'
             value={anchor}
             onChange={(e) => e.target.value && onAnchor(e.target.value)}
-            className='w-40 pl-8'
+            // The browser draws its own calendar button inside a date input.
+            // Next to our own icon that is two calendars, and at this width the
+            // native one was clipped by the right border. Stretch it over the
+            // whole control instead and make it invisible: the field keeps one
+            // calendar affordance, clicking anywhere on it opens the picker,
+            // and there is nothing left on the right edge to clip. Browsers
+            // without that pseudo-element (Firefox, Safari) simply keep their
+            // own control, which the extra width now accommodates.
+            className='relative w-44 pl-8 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0'
           />
         </div>
 
@@ -171,15 +179,17 @@ export function PlannerToolbar({
           <PopoverContent align='start' className='w-72'>
             <div className='flex flex-col gap-3 text-sm'>
               <FilterGroup label='Work type'>
-                {[...WORK_KINDS, ...SCAFFOLD_KINDS, ...HISTORICAL_KINDS].map((kind) => (
-                  <Chip
-                    key={kind}
-                    active={filters.kinds.includes(kind)}
-                    onClick={() => toggle('kinds', kind)}
-                  >
-                    {KIND_LABEL[kind as EventKind]}
-                  </Chip>
-                ))}
+                {[...WORK_KINDS, ...SCAFFOLD_KINDS, ...HISTORICAL_KINDS].map(
+                  (kind) => (
+                    <Chip
+                      key={kind}
+                      active={filters.kinds.includes(kind)}
+                      onClick={() => toggle('kinds', kind)}
+                    >
+                      {KIND_LABEL[kind as EventKind]}
+                    </Chip>
+                  )
+                )}
               </FilterGroup>
 
               <Separator />
