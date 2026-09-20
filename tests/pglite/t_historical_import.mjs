@@ -635,6 +635,26 @@ test('32. a historical job still creates no invoice stage when built', async () 
     'invoice stages stay gated for historical records');
 });
 
+test('33. every function the historical policies call is executable by authenticated', async () => {
+  // A row-level security expression runs as the querying role, so a policy that
+  // calls a function `authenticated` cannot execute fails the whole read with
+  // "permission denied for function ..." instead of returning no rows. The
+  // historical_job_people policy calls app.can_read_job, which was owner-only,
+  // so the table was unreadable by the application and nobody noticed until
+  // something actually read it.
+  const missing = await all(`
+    select p.proname
+    from pg_policy pol
+    join pg_class c on c.oid = pol.polrelid
+    join pg_proc p on position(p.proname in pg_get_expr(pol.polqual, pol.polrelid)) > 0
+    join pg_namespace n on n.oid = p.pronamespace
+    where c.relname = 'historical_job_people'
+      and n.nspname = 'app'
+      and not has_function_privilege('authenticated', p.oid, 'execute')`);
+  assert.deepEqual(missing.map((r) => r.proname), [],
+    'these functions are used by the historical RLS policy but authenticated cannot execute them');
+});
+
 // --- Run ---------------------------------------------------------------------
 
 for (const [name, fn] of tests) {

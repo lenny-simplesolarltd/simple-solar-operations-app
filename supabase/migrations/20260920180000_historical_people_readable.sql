@@ -1,0 +1,26 @@
+-- =============================================================================
+-- Fix: nobody could read public.historical_job_people, so an imported job's
+-- recorded staff were unreachable from the application.
+--
+-- 20260920150000 created the table with the right policy:
+--
+--   create policy historical_job_people_select on public.historical_job_people
+--     for select to authenticated
+--     using (app.can_read_job((select app.current_actor()), job_id));
+--
+-- but app.can_read_job has no grant to `authenticated`. A row-level security
+-- expression is evaluated as the querying role, so every read of that table
+-- failed with "permission denied for function can_read_job" rather than
+-- returning no rows. It went unnoticed because nothing in the application read
+-- the table until SimpleBot's historical timeline did.
+--
+-- The sibling functions the other policies rely on - app.current_actor,
+-- app.current_person_id, app.has_permission - are already granted the same
+-- way, so this restores the intended arrangement rather than widening it.
+--
+-- This grants no data. app.can_read_job is a read-only predicate returning a
+-- boolean, and it answers the same question a caller can already answer by
+-- selecting the job.
+-- =============================================================================
+
+grant execute on function app.can_read_job(jsonb, uuid) to authenticated;
