@@ -655,6 +655,108 @@ test('33. every function the historical policies call is executable by authentic
     'these functions are used by the historical RLS policy but authenticated cannot execute them');
 });
 
+// --- Browsing: Active / Historical / All --------------------------------------
+//
+// The archive has to be reachable without already knowing what to search for,
+// but it must not leak into the working queue. The JOBS read takes a `view`
+// for exactly that, and app.job_in_scope is left alone so nothing becomes
+// operational.
+
+const jobsRead = async (req) =>
+  (await one(
+    `select app.read_jobs($1::jsonb, ${actor()}) r`,
+    [JSON.stringify({ read_type: 'JOBS', ...req })]
+  )).r;
+
+test('34. the default view is the operational queue and excludes historical', async () => {
+  await historicalJob();
+  const live = await liveJobInsert();
+  const r = await jobsRead({});
+  assert.equal(r.view, 'active', 'omitting view must mean active');
+  const refs = (r.jobs ?? []).map((j) => j.job_ref);
+  const liveRef = (await one(`select job_ref from public.jobs where id=$1`, [live.id])).job_ref;
+  assert.ok(refs.includes(liveRef), 'live work is listed');
+  const historicalRefs = (await all(
+    `select job_ref from public.jobs where record_class='HistoricalImport'`)).map((x) => x.job_ref);
+  assert.equal(refs.filter((x) => historicalRefs.includes(x)).length, 0,
+    'no archived record may appear in the operational queue');
+});
+
+test('35. counts are authoritative and add up', async () => {
+  const r = await jobsRead({});
+  const expected = await one(`select
+      count(*) filter (where app.job_in_scope(j))::int a,
+      count(*) filter (where j.record_class='HistoricalImport')::int h,
+      count(*)::int t from public.jobs j`);
+  assert.equal(r.counts.active, expected.a);
+  assert.equal(r.counts.historical, expected.h);
+  assert.equal(r.counts.all, expected.t);
+  assert.equal(r.counts.active + r.counts.historical, r.counts.all,
+    'every job is either operational or archived');
+});
+
+test('36. the historical view returns only archived records', async () => {
+  const r = await jobsRead({ view: 'historical' });
+  assert.ok(r.total > 0, 'there is an archive to browse');
+  assert.equal(r.total, r.counts.historical);
+  for (const j of r.jobs) {
+    assert.equal(j.record_class, 'HistoricalImport',
+      'the historical view must not contain live work');
+  }
+});
+
+test('37. the all view returns both, still marked apart', async () => {
+  const r = await jobsRead({ view: 'all' });
+  assert.equal(r.total, r.counts.all);
+  const classes = new Set(r.jobs.map((j) => j.record_class));
+  assert.ok(classes.has('HistoricalImport'), 'archived records are included');
+  assert.ok(classes.has('Live'), 'live work is included');
+});
+
+test('38. historical browsing pages on the server', async () => {
+  // Enough rows to page through without relying on the fixture count.
+  for (let i = 0; i < 4; i += 1) await historicalJob();
+  const first = await jobsRead({ view: 'historical', limit: '2' });
+  const second = await jobsRead({ view: 'historical', limit: '2', offset: '2' });
+  assert.equal(first.jobs.length, 2, 'a page is the size asked for');
+  assert.equal(second.jobs.length, 2);
+  assert.equal(first.total, second.total, 'the total is the whole population');
+  assert.ok(first.total > 2 && first.truncated, 'more remains after page one');
+  const overlap = first.jobs.filter((a) => second.jobs.some((b) => b.id === a.id));
+  assert.deepEqual(overlap, [], 'pages must not repeat rows');
+});
+
+test('39. historical search works, including the previous-system reference', async () => {
+  const c = await one(
+    `insert into public.customers (first_name, last_name, address_line1, town, postcode, email)
+     values ('Bilbo','Underhill','13 Rivendell Way','Hobbiton','ZZ1 9ZZ','bu@test.invalid') returning id`);
+  const j = await historicalJob({ customer_id: c.id, source_reference: 'OLDREF-13RW' });
+  const ref = (await one(`select job_ref from public.jobs where id=$1`, [j.id])).job_ref;
+  for (const term of [ref, 'OLDREF-13RW', 'Underhill', '13 Rivendell Way', 'Hobbiton', 'ZZ1 9ZZ']) {
+    const r = await jobsRead({ view: 'historical', q: term });
+    assert.ok((r.jobs ?? []).some((x) => x.job_ref === ref),
+      `historical search must find it by "${term}"`);
+  }
+  // Scoped: the same term finds nothing in the operational queue.
+  const active = await jobsRead({ view: 'active', q: 'OLDREF-13RW' });
+  assert.equal((active.jobs ?? []).length, 0, 'active search stays operational');
+});
+
+test('40. browsing enforces readability and never bypasses it', async () => {
+  const mine = (await one(
+    `select app.read_jobs('{"read_type":"JOBS","view":"all"}'::jsonb,
+       jsonb_build_object('person_id', $1::text, 'roles', jsonb_build_array('Installer'))) r`,
+    [person.id])).r;
+  assert.equal(mine.total, 0, 'a role with no job visibility browses nothing');
+  assert.equal(mine.counts.all, 0, 'counts respect permissions too');
+});
+
+test('41. an unknown view is refused rather than silently widened', async () => {
+  await assert.rejects(
+    db.query(`select app.read_jobs('{"read_type":"JOBS","view":"everything"}'::jsonb, ${actor()})`),
+    /R1A_INVALID_FIELDS/);
+});
+
 // --- Run ---------------------------------------------------------------------
 
 for (const [name, fn] of tests) {

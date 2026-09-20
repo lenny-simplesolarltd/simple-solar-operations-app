@@ -171,6 +171,8 @@ export interface JobRow {
   workflow_stage: string;
   finance_route: string | null;
   sold_at: string | null;
+  /** 'Live' or 'HistoricalImport'. Absent on databases before the views. */
+  record_class?: string;
   salesperson_name: string | null;
   next_action_at: string | null;
   booking_approved_at: string | null;
@@ -188,11 +190,23 @@ export interface JobRow {
 export interface JobsRead {
   q: string | null;
   stage: string[] | null;
+  /** Which population this page came from. Absent on databases before the views. */
+  view?: JobsView;
+  offset?: number;
   count: number;
   total: number;
   truncated: boolean;
+  /** Authoritative totals per view, so the screen never hard-codes them. */
+  counts?: Record<JobsView, number>;
   jobs: JobRow[];
 }
+
+/**
+ * Active is the operational queue and the default. Historical is the archive of
+ * imported jobs, which is deliberately outside operational scope. All is both.
+ */
+export const JOBS_VIEWS = ['active', 'historical', 'all'] as const;
+export type JobsView = (typeof JOBS_VIEWS)[number];
 
 /**
  * JOB_SEARCH (execute_read). Deliberately NOT narrowed to operational scope:

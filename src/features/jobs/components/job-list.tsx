@@ -85,6 +85,11 @@ export function JobList({ jobs }: { jobs: JobRow[] }) {
                     <span className='decoration-primary font-mono font-semibold underline decoration-2 underline-offset-4'>
                       {job.job_ref}
                     </span>
+                    {job.record_class === 'HistoricalImport' && (
+                      <Badge variant='secondary' className='ml-2 align-middle'>
+                        Historical
+                      </Badge>
+                    )}
                     <span className='text-muted-foreground block text-xs'>
                       {[job.customer_name, job.postcode]
                         .filter(Boolean)

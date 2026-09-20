@@ -4,18 +4,18 @@ import { Badge } from '@/components/ui/badge';
 import { Heading } from '@/components/ui/heading';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { JobFilterBar } from '@/features/jobs/components/job-filter-bar';
-import { HistoricalResults } from '@/features/jobs/components/historical-results';
 import { JobList } from '@/features/jobs/components/job-list';
 import { formatDate } from '@/features/jobs/format';
 import { searchVisibleJobs } from '@/features/jobs/server/search';
 import { stageLabel } from '@/features/jobs/stages';
 import { getCurrentUser } from '@/lib/auth';
 import {
+  JOBS_VIEWS,
   WORKFLOW_STAGES,
-  type JobSearchRead,
-  type JobsRead
+  type JobsRead,
+  type JobsView
 } from '@/lib/backend/models';
-import { readOps, readR1 } from '@/lib/backend/read';
+import { readOps } from '@/lib/backend/read';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -44,25 +44,24 @@ export default async function JobsPage({
     .split(',')
     .filter((s) => (WORKFLOW_STAGES as readonly string[]).includes(s));
 
-  // The operational list stays exactly as it was: JOBS is scoped to live work,
-  // so archived historical imports never appear in the working queue.
-  //
-  // JOB_SEARCH is the canonical read that is deliberately NOT scoped that way
-  // (see 20260920150000, section 7), so it is the only way to reach a job that
-  // predates this system. It is asked only when somebody actually searches, and
-  // its historical matches are shown separately. Searching the two reads side
-  // by side keeps the stage filters working and adds no second implementation
-  // of search in TypeScript.
-  const [result, historical] = await Promise.all([
-    readOps<JobsRead>('JOBS', { q, stage: stages.join(',') }),
-    q ? readR1<JobSearchRead>('JOB_SEARCH', { query: q }) : null
-  ]);
-  const historicalRows =
-    historical && historical.ok
-      ? (historical.data?.results ?? []).filter(
-          (r) => r.record_class === 'HistoricalImport'
-        )
-      : [];
+  // Active is the default and is exactly the operational queue it always was.
+  // Historical browses the archive of imported jobs, which app.job_in_scope
+  // deliberately keeps out of operational scope; All is both. The read applies
+  // the view, so there is no second search implementation here, and it returns
+  // authoritative per-view counts for the control.
+  const view = (JOBS_VIEWS as readonly string[]).includes(first(params.view))
+    ? (first(params.view) as JobsView)
+    : 'active';
+  const page = Math.max(1, Number(first(params.page)) || 1);
+  const perPage = 50;
+
+  const result = await readOps<JobsRead>('JOBS', {
+    q,
+    stage: view === 'active' ? stages.join(',') : '',
+    view,
+    limit: String(perPage),
+    offset: String((page - 1) * perPage)
+  });
 
   const context = (
     <AssistantPageContext
@@ -79,20 +78,37 @@ export default async function JobsPage({
       {context}
       <div className='flex w-full flex-col gap-4'>
         <Heading
-          title='Job search'
-          description='Every job you can see, newest sale first. Search by reference, customer, postcode, quote or phone.'
+          title='Jobs'
+          description='Current work and the archive of jobs imported from the previous system. Search by reference, previous reference, customer, address, postcode, quote or phone.'
         />
-        <JobFilterBar />
+        <JobFilterBar counts={result.ok ? result.data.counts : undefined} />
         {result.ok ? (
           <>
+            {view !== 'active' && (
+              <p className='bg-muted text-muted-foreground rounded-md px-3 py-2 text-sm'>
+                Historical records are read-only history imported from the
+                previous system. There is no active work on them, and nothing
+                can be actioned.
+              </p>
+            )}
             <p className='text-muted-foreground text-sm' aria-live='polite'>
-              {result.data.truncated
-                ? `Showing the newest ${result.data.count} of ${result.data.total} jobs. Search to narrow it down.`
-                : `${result.data.total} ${result.data.total === 1 ? 'job' : 'jobs'}`}
-              {stages.length > 0 && ` · ${stages.map(stageLabel).join(', ')}`}
+              {result.data.total === 0
+                ? 'No jobs'
+                : `${result.data.total} ${result.data.total === 1 ? 'job' : 'jobs'}` +
+                  (result.data.count < result.data.total
+                    ? ` · showing ${(page - 1) * perPage + 1}-${(page - 1) * perPage + result.data.count}`
+                    : '')}
+              {view === 'active' &&
+                stages.length > 0 &&
+                ` · ${stages.map(stageLabel).join(', ')}`}
             </p>
             <JobList jobs={result.data.jobs} />
-            <HistoricalResults jobs={historicalRows} />
+            <Pager
+              page={page}
+              perPage={perPage}
+              total={result.data.total}
+              params={params}
+            />
           </>
         ) : result.error.kind === 'unavailable' ? (
           <LegacySearch q={q} />
@@ -101,6 +117,60 @@ export default async function JobsPage({
         )}
       </div>
     </PageContainer>
+  );
+}
+
+/**
+ * Server-side paging. The read returns one page at a time, so the archive is
+ * never loaded into the browser in one lump.
+ */
+function Pager({
+  page,
+  perPage,
+  total,
+  params
+}: {
+  page: number;
+  perPage: number;
+  total: number;
+  params: Record<string, string | string[] | undefined>;
+}) {
+  const pages = Math.ceil(total / perPage);
+  if (pages <= 1) return null;
+  const href = (n: number) => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (k === 'page') continue;
+      const one = Array.isArray(v) ? v[0] : v;
+      if (one) next.set(k, one);
+    }
+    if (n > 1) next.set('page', String(n));
+    const qs = next.toString();
+    return qs ? `/dashboard/jobs?${qs}` : '/dashboard/jobs';
+  };
+  return (
+    <nav
+      className='flex items-center justify-between gap-2'
+      aria-label='Pages of jobs'
+    >
+      {page > 1 ? (
+        <Link href={href(page - 1)} className='text-sm hover:underline'>
+          ← Previous
+        </Link>
+      ) : (
+        <span />
+      )}
+      <span className='text-muted-foreground text-sm tabular-nums'>
+        Page {page} of {pages}
+      </span>
+      {page < pages ? (
+        <Link href={href(page + 1)} className='text-sm hover:underline'>
+          Next →
+        </Link>
+      ) : (
+        <span />
+      )}
+    </nav>
   );
 }
 
