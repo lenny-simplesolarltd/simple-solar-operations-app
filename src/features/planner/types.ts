@@ -30,6 +30,10 @@ export interface PlannerScaffold {
   acknowledged: boolean;
   confirmed: boolean;
   actual_recorded: boolean;
+  // PLANNER_WINDOW carries the job's identity so a scaffold chip can name it
+  // without a second read; PLANNER_3_WEEKS/6_WEEKS do not.
+  job_ref?: string | null;
+  job_display?: string | null;
 }
 
 export interface PlannerRead {
@@ -38,6 +42,46 @@ export interface PlannerRead {
   weeks: number;
   rows: PlannerRow[];
   scaffold: PlannerScaffold[];
+}
+
+/** PLANNER_WINDOW: the same rows, for an arbitrary date range. */
+export interface PlannerWindowRead {
+  from: string;
+  to: string;
+  days: number;
+  rows: PlannerRow[];
+  scaffold: PlannerScaffold[];
+  holidays: string[];
+}
+
+/** One piece of required work on an actionable job that has no dates yet. */
+export interface UnscheduledWork {
+  work_package_id: string;
+  work_package_version: number;
+  job_id: string;
+  job_ref: string | null;
+  job_display: string | null;
+  trade: string;
+  status: string;
+  need_by_date: string | null;
+  sequence: number;
+  workflow_stage: string | null;
+  town: string | null;
+  postcode: string | null;
+  scaffold: {
+    scaffold_booking_id: string;
+    status: string;
+    erect_planned_at: string | null;
+    strip_planned_at: string | null;
+  } | null;
+  open_issues: number;
+}
+
+export interface PlannerUnscheduledRead {
+  generated_at: string;
+  limit: number;
+  total: number;
+  work: UnscheduledWork[];
 }
 
 export interface Alloc {

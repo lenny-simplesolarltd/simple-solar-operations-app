@@ -1,13 +1,13 @@
 import PageContainer from '@/components/layout/page-container';
-import { ReadFailureState } from '@/components/read-failure';
 import { Heading } from '@/components/ui/heading';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
-import { ListFilters } from '@/features/operations/list-filters';
-import { PlannerList } from '@/features/planner/components/planner-list';
-import { TeamBoard } from '@/features/planner/components/team-board';
-import type { PlannerRead, TeamPlannerRead } from '@/features/planner/types';
+import { PlannerBoard } from '@/features/planner/components/planner-board';
+import {
+  isViewId,
+  today,
+  type ViewId
+} from '@/features/planner/calendar/range';
 import { getCurrentUser } from '@/lib/auth';
-import { readOps, readR1 } from '@/lib/backend/read';
 import { isOfficeClass } from '@/lib/roles';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
@@ -21,11 +21,16 @@ const first = (v: string | string[] | undefined) =>
   ((Array.isArray(v) ? v[0] : v) ?? '').trim();
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-const VIEWS = [
-  { value: '3w', label: '3 weeks' },
-  { value: '6w', label: '6 weeks' },
-  { value: 'board', label: 'Team board' }
-];
+/**
+ * Three weeks is the default.
+ *
+ * It is the window the backend's own planner read was built around
+ * (PLANNER_3_WEEKS is the canonical R1 read, and RP_TEAM_PLANNER defaults to
+ * three weeks too), and it is the horizon the office actually works to:
+ * scaffold goes up before an install and comes down after it, so a single
+ * week rarely shows a whole job.
+ */
+const DEFAULT_VIEW: ViewId = '3w';
 
 export default async function PlannerPage({
   searchParams
@@ -35,54 +40,27 @@ export default async function PlannerPage({
   const user = await getCurrentUser();
   if (!user) redirect('/auth/sign-in');
   const params = await searchParams;
-  const view = VIEWS.some((v) => v.value === first(params.view))
-    ? first(params.view)
-    : '3w';
-  const from = DATE.test(first(params.from)) ? first(params.from) : undefined;
 
-  const planner =
-    view === 'board'
-      ? null
-      : await readR1<PlannerRead>(
-          view === '6w' ? 'PLANNER_6_WEEKS' : 'PLANNER_3_WEEKS',
-          { as_of: from }
-        );
-  const board =
-    view === 'board'
-      ? await readOps<TeamPlannerRead>('RP_TEAM_PLANNER', { start: from })
-      : null;
+  const requested = first(params.view);
+  const view = isViewId(requested) ? requested : DEFAULT_VIEW;
+  const from = first(params.from);
+  const anchor = DATE.test(from) ? from : today();
 
   return (
     <PageContainer>
       <AssistantPageContext
-        page={{
-          kind: 'operations',
-          surface: 'planner',
-          view: VIEWS.find((v) => v.value === view)?.label
-        }}
+        page={{ kind: 'operations', surface: 'planner', view }}
       />
       <div className='flex w-full flex-col gap-4'>
         <Heading
           title='Planner'
-          description='Installs and scaffold in date order. Allocate, change or move work from a row; each change is checked against leave, skills and capacity.'
+          description='Everything scheduled, in date order. Drag work to move it or hand it to someone else - each change is checked against leave, skills and capacity before anything is saved.'
         />
-        <ListFilters
-          defaults={{ view: '3w' }}
-          tabs={{ key: 'view', label: 'Planner view', options: VIEWS }}
-          selects={[]}
+        <PlannerBoard
+          canPlan={isOfficeClass(user)}
+          initialView={view}
+          initialAnchor={anchor}
         />
-        {planner &&
-          (planner.ok ? (
-            <PlannerList data={planner.data} canPlan={isOfficeClass(user)} />
-          ) : (
-            <ReadFailureState failure={planner.error} />
-          ))}
-        {board &&
-          (board.ok ? (
-            <TeamBoard data={board.data} />
-          ) : (
-            <ReadFailureState failure={board.error} />
-          ))}
       </div>
     </PageContainer>
   );
