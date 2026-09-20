@@ -32,6 +32,14 @@ vi.mock('@/features/jobs/server/historical', () => ({
       : 'matched to a member of staff'
 }));
 
+// The contact-correction tools read the job's customer (and both row versions)
+// before proposing anything. Mocked here so the historical refusal below can be
+// exercised without a database.
+const customerContact = vi.fn(async (_id?: string) => LIVE_CONTACT);
+vi.mock('@/features/customers/server/contact', () => ({
+  getCustomerContact: (id: string) => customerContact(id)
+}));
+
 /** Makes the next lookup answer "this is an archived historical import". */
 function asHistorical(over: Record<string, unknown> = {}) {
   getJobDetail.mockResolvedValueOnce({
@@ -53,6 +61,24 @@ function asHistorical(over: Record<string, unknown> = {}) {
 import { resolveToolCall } from '../registry';
 import { createToolRegistry } from '../tools';
 import { JOB_ID, makeActor, THREAD } from './helpers';
+
+/** A live job's customer, as getCustomerContact returns it. */
+const LIVE_CONTACT = {
+  customerId: '00000000-0000-4000-8000-0000000000c1',
+  version: 1,
+  name: 'Parton',
+  phone: null,
+  email: 'parton@example.com',
+  alternateContact: null,
+  contactNotes: null,
+  jobId: JOB_ID,
+  jobRef: 'SS-ABCD-0001',
+  leadSource: null,
+  jobVersion: 1,
+  recordClass: 'Live'
+};
+
+const ctx = () => ({ actor: makeActor(), threadId: THREAD });
 
 const registry = createToolRegistry({ forms: false });
 
@@ -383,12 +409,41 @@ describe('an archived historical import', () => {
     expect(data.guidance).toMatch(/do not describe this job as clear/i);
   });
 
-  it('offers no mutation for a historical job', async () => {
-    // The registry has no mutation outside Forms, and nothing historical adds one.
-    const mutations = registry
+  it('refuses every job-scoped mutation on a historical job', async () => {
+    // This used to assert that no mutation had the 'jobs' domain at all, which
+    // was a proxy for the real rule and stopped being true when contact
+    // corrections arrived. The rule itself is unchanged: an imported record is
+    // an archive of what the previous system held, and nothing may edit it.
+    // So ask the tools directly rather than inspecting their labels.
+    const jobScoped = registry
       .all()
-      .filter((t) => t.kind === 'mutation' && t.status === 'available');
-    expect(mutations.map((t) => t.domain)).not.toContain('jobs');
+      .filter(
+        (t) =>
+          t.kind === 'mutation' &&
+          t.status === 'available' &&
+          (t.domain === 'jobs' || t.domain === 'customers')
+      );
+    expect(jobScoped.length).toBeGreaterThan(0);
+
+    for (const tool of jobScoped) {
+      if (tool.status !== 'available' || tool.kind !== 'mutation') continue;
+      customerContact.mockResolvedValueOnce({
+        ...LIVE_CONTACT,
+        jobRef: 'SS-HIST-0001',
+        recordClass: 'HistoricalImport'
+      });
+      const prepared = await tool.prepare(
+        { job: JOB_ID, phone: '01752 000000', lead_source: 'Facebook' },
+        ctx()
+      );
+      expect(prepared.ok, `${tool.name} must refuse a historical job`).toBe(
+        false
+      );
+      if (prepared.ok) continue;
+      expect(prepared.code).toBe('HISTORICAL_IMPORT');
+      // And it must say so plainly rather than inviting another attempt.
+      expect(prepared.message).toMatch(/imported historical record/i);
+    }
   });
 
   it('reports a job it cannot see as not found, not as historical', async () => {

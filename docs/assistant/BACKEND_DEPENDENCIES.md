@@ -82,3 +82,28 @@ stay unbuilt for product reasons, not backend ones, and `planned.ts` now says wh
   RLS owner-only, migration `20260919180000_assistant_conversations.sql` (see ARCHITECTURE.md,
   "Conversations"). Not yet applied to hosted.
 - **Still open:** a retention policy (how long conversations are kept) is a business decision.
+
+## BD-10 Customer contact details and lead source (CLOSED)
+
+This one was never written down as a dependency, which is the interesting part: it was not a
+capability anybody had decided to defer, it was a hole nobody had noticed. Staff asked SimpleBot to
+add a phone number to a job and it answered, correctly, that it had no tool for it. The reason was
+not the assistant. `public.customers` carried a `SELECT` policy and nothing else, no command touched
+it, no screen edited it, and so a contact detail captured at intake was permanent for everyone -
+office staff included. The assistant then suggested a "Customer card" on the job Overview tab, which
+does not exist; the gap was invisible enough that the model invented a way to fill it.
+
+- **Implemented as:** `CUSTOMER_UPDATE` and `JOB_SALE_UPDATE` in migration
+  `20260920270000_customer_and_sale_edit.sql`, with permissions `customer.edit` and `job.sale.edit`
+  (Admin, Manager, Director, Office). Both are anchored to a job the actor can already see
+  (`app.can_read_job`), refuse imported historical records, take `expected_version` and are audited
+  by the existing `customers_audit` / `jobs_audit` triggers.
+- **Tools:** `get_customer_contact` (read), `update_customer_contact`, `set_lead_source`. Each
+  mutation is a confirmed proposal on the normal pending-action path.
+- **Deliberately out of scope**, and refused by the payload allow-list rather than by convention:
+  the customer's **name and address** (the job reference and the identity spine are derived from
+  them) and the **agreed commercial terms** - price, finance route, quote reference, salesperson.
+  Those need a screen showing the contract, not a sentence.
+- **Still open:** there is no staff-facing screen for either. Both capabilities exist only through
+  the assistant today, which is the wrong way round - a command should not be reachable only by
+  asking a model. A Customer card with an Edit action on the job Overview tab would close it.

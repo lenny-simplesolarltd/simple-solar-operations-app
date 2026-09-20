@@ -3,6 +3,7 @@ import 'server-only';
 import { formsEnabled } from '@/features/forms/server/service';
 import { ToolRegistry, type PlannedTool } from '../registry';
 import { BULK_TASK_MUTATION_TOOLS, BULK_TASK_READ_TOOLS } from './bulk-tasks';
+import { CUSTOMER_MUTATION_TOOLS, CUSTOMER_READ_TOOLS } from './customers';
 import { FILE_MANAGEMENT_TOOLS } from './file-management';
 import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
@@ -34,6 +35,12 @@ export function createToolRegistry(
   // permissions, the requirement policy, the idempotency and the processing
   // centre are shared rather than re-implemented for the assistant.
   for (const tool of [...BULK_TASK_READ_TOOLS, ...BULK_TASK_MUTATION_TOOLS])
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
+  // Customer contact details and lead source: CUSTOMER_UPDATE / JOB_SALE_UPDATE,
+  // the commands added in 20260920270000. Contact details and where the enquiry
+  // came from only - never the customer's name or address, never the agreed
+  // commercial terms. See tools/customers.ts.
+  for (const tool of [...CUSTOMER_READ_TOOLS, ...CUSTOMER_MUTATION_TOOLS])
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Stored files: the same reads as the job Files tab and the Files library,
   // and the same file-manager commands for filing them. Nothing that deletes a

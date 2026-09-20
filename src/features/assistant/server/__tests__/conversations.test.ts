@@ -724,6 +724,11 @@ describe('history cannot change authorization', () => {
     expect(officeOnly.map((t) => t.name).sort()).toEqual([
       'complete_tasks',
       'find_job',
+      // A read, permissioned by the job's own visibility: seeing the number on
+      // file is not the same as being allowed to change it, and the two
+      // contact mutations are absent here because this actor lacks
+      // customer.edit / job.sale.edit.
+      'get_customer_contact',
       'get_help_article',
       'get_help_for_route',
       'get_job',

@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 
 describe('the production registry', () => {
-  it('exposes read tools, and mutations only for Forms, bulk task work and filing (each a confirmed proposal)', () => {
+  it('exposes read tools, and mutations only for Forms, bulk task work, filing and contact corrections (each a confirmed proposal)', () => {
     const available = registry.all().filter((t) => t.status === 'available');
     expect(
       available
@@ -61,6 +61,7 @@ describe('the production registry', () => {
         .sort()
     ).toEqual([
       'find_job',
+      'get_customer_contact',
       'get_form',
       'get_form_response',
       'get_help_article',
@@ -96,13 +97,26 @@ describe('the production registry', () => {
       'retry_operation',
       'revoke_form_link',
       'save_form_as_template',
-      'set_form_status'
+      'set_form_status',
+      'set_lead_source',
+      'update_customer_contact'
     ]);
     // Every mutation is an adapter over something the app already exposes:
     // the Forms service, the task batch command the Tasks screen submits, or
     // the file-manager commands the Files screen calls.
     for (const tool of mutations) {
-      expect(['forms', 'tasks', 'evidence']).toContain(tool.domain);
+      expect(['forms', 'tasks', 'evidence', 'customers', 'jobs']).toContain(
+        tool.domain
+      );
+      // Correcting contact details and lead source is CUSTOMER_UPDATE /
+      // JOB_SALE_UPDATE (migration 20260920270000). Each asks for its own
+      // permission up front; the command re-checks it whatever this says.
+      if (tool.name === 'update_customer_contact') {
+        expect(tool.authorization.permissions).toEqual(['customer.edit']);
+      }
+      if (tool.name === 'set_lead_source') {
+        expect(tool.authorization.permissions).toEqual(['job.sale.edit']);
+      }
       if (tool.domain === 'evidence') {
         // Filing only. Nothing that removes a document is offered to the model.
         expect(tool.authorization.permissions).toContain('file.manage');
