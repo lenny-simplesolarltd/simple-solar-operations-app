@@ -592,3 +592,46 @@ assert.equal(a01.owner_id, people.tanya);
 }
 
 console.log('\nt_batches: all assertions passed');
+
+// ---------------------------------------------------------------------------
+// 19. The override is visible wherever the task is shown
+// ---------------------------------------------------------------------------
+{
+  const s = await sell('tanya', { customer: { first_name: 'Visible', last_name: 'Test', postcode: 'LS6 6FF' } });
+  const t = await task(s.job_id, 'PRE01');
+  const r = await runBatch('tanya', {
+    operation: 'TASK_BATCH_OVERRIDE_COMPLETE',
+    override_reason: 'Invoice raised outside the system', task_ids: [t.id] });
+  assert.equal(r.progress.succeeded, 1);
+
+  // The task list (History) distinguishes it from an ordinary completion.
+  const list = await readOps('tanya', {
+    read_type: 'TASKS', scope: 'all', status: 'closed', job_id: s.job_id });
+  const row = list.data.tasks.find((x) => x.id === t.id);
+  assert.equal(row.status, 'Complete');
+  assert.equal(row.completion_mode, 'override');
+  assert.equal(row.override_by, 'Tanya');
+  assert.equal(row.override_reason, 'Invoice raised outside the system');
+  assert.ok(row.override_unrecorded.length > 0, 'the list says what was not recorded');
+
+  // An ordinary completion is not dressed up as one.
+  const other = await noteOnlyTask(s.job_id);
+  await runBatch('tanya', {
+    operation: 'TASK_BATCH_COMPLETE', completion_note: 'Done properly', task_ids: [other.id] });
+  const plain = (await readOps('tanya', {
+    read_type: 'TASKS', scope: 'all', status: 'closed', job_id: s.job_id
+  })).data.tasks.find((x) => x.id === other.id);
+  assert.equal(plain.completion_mode, 'normal');
+  assert.equal(plain.override_by, null);
+  assert.equal(plain.override_unrecorded, null);
+
+  // And the job surface can explain why it is still gated.
+  const debt = await readOps('tanya', { read_type: 'JOB_OVERRIDE_DEBT', job_id: s.job_id });
+  assert.ok(debt.ok, JSON.stringify(debt));
+  assert.equal(debt.data.overrides.length, 1);
+  assert.equal(debt.data.overrides[0].template_code, 'PRE01');
+  console.log('override visible in lists and on the job:',
+    debt.data.overrides[0].unrecorded.join(', '));
+}
+
+console.log('t_batches: override visibility checks passed');

@@ -49,6 +49,13 @@ export const navGroups: NavGroup[] = [
         icon: 'history',
         shortcut: ['r', 'r'],
         access: 'any'
+      },
+      {
+        title: 'Operations',
+        url: '/dashboard/operations',
+        icon: 'activity',
+        shortcut: ['o', 'p'],
+        access: 'any'
       }
     ]
   },

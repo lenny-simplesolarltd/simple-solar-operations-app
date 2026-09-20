@@ -1692,3 +1692,85 @@ revoke execute on function public.run_batch_chunk(uuid, int) from public, anon;
 grant execute on function public.run_batch_chunk(uuid, int) to authenticated;
 -- The recovery sweep is pg_cron's (and a migration/operator's); never a client's.
 revoke execute on function app.run_batch_recovery(int, int) from public, anon, authenticated;
+
+-- -----------------------------------------------------------------------------
+-- 15. Making the override visible wherever a task is shown
+--
+-- An override-completed task LOOKS like any other Complete task, and that is
+-- exactly the confusion to avoid: it left the queue without its business fact
+-- being recorded. Every task view carries the distinction, so the History
+-- list, the task screen, the processing centre and SimpleBot all say the same
+-- thing rather than each deciding for themselves.
+--
+-- The fields are appended AFTER search_text is computed: an override reason is
+-- shown, not something staff search jobs by.
+-- -----------------------------------------------------------------------------
+
+create or replace function app.s17_task_view(p_task public.tasks, p_as_of date default null)
+returns jsonb
+language plpgsql stable security definer
+set search_path = ''
+as $$
+declare
+  v_job public.jobs;
+  v_customer public.customers;
+  v_due jsonb := app.due_window(p_task.due_at, p_as_of);
+  v_row jsonb;
+begin
+  if p_task.job_id is not null then
+    select * into v_job from public.jobs where id = p_task.job_id;
+    if v_job.customer_id is not null then
+      select * into v_customer from public.customers where id = v_job.customer_id;
+    end if;
+  end if;
+  v_row := jsonb_build_object(
+    'id', p_task.id, 'job_id', p_task.job_id, 'title', p_task.title, 'group', p_task.task_group,
+    'owner_id', p_task.owner_id, 'backup_id', p_task.backup_id, 'due_at', v_due -> 'due_at',
+    'status', p_task.status, 'priority', p_task.priority, 'blocking_reason', p_task.blocking_reason,
+    'template_code', p_task.template_code, 'related_entity_type', p_task.related_entity_type,
+    'related_entity_id', p_task.related_entity_id, 'version', p_task.version,
+    'due_class', v_due -> 'class', 'due_class_label', v_due -> 'label', 'days_delta', v_due -> 'days_delta',
+    'job_ref', nullif(app.s17_clean(v_job.job_ref), ''),
+    'customer_name', app.s17_customer_name(v_customer.first_name, v_customer.last_name),
+    'postcode', nullif(app.s17_clean(v_customer.postcode), ''),
+    'owner_name', app.s17_person_name(p_task.owner_id),
+    'backup_name', app.s17_person_name(p_task.backup_id),
+    'job_label', case when v_job.id is not null
+                      then app.s17_job_label(v_job.job_ref, v_customer.last_name, v_customer.postcode) end);
+  return v_row
+    || jsonb_build_object('search_text', app.s17_search_text(v_row))
+    || jsonb_build_object(
+         'completion_mode', p_task.completion_mode,
+         'override_at', p_task.override_at,
+         'override_reason', p_task.override_reason,
+         'override_by', app.s17_person_name(p_task.override_actor_id),
+         -- What normal completion would have recorded and this override did not.
+         'override_unrecorded', case when p_task.completion_mode = 'override'
+           then coalesce((select jsonb_agg(b -> 'detail')
+                          from jsonb_array_elements(app.task_business_requirements(p_task.template_code)) b),
+                         '[]'::jsonb) end);
+end
+$$;
+
+-- JOB_OVERRIDE_DEBT: the read the job and booking surfaces use to explain why
+-- a job is still gated when its tasks look done.
+create function app.read_job_override_debt(p_request jsonb, p_actor jsonb)
+returns jsonb
+language plpgsql stable security definer
+set search_path = ''
+as $$
+declare
+  v_job uuid := app.req_uuid(p_request, 'job_id');
+begin
+  perform app.req_keys(p_request, array['job_id']);
+  if not app.can_read_job(p_actor, v_job) then
+    perform app.fail('R1A_JOB_ACCESS_DENIED');
+  end if;
+  return jsonb_build_object('job_id', v_job, 'overrides', app.job_override_debt(v_job));
+end
+$$;
+
+insert into app.read_registry (read_type, roles, modes, module, notes) values
+  ('JOB_OVERRIDE_DEBT', array['Admin', 'Manager', 'Director', 'Office', 'VariationApprover',
+                              'Surveyor', 'Finance', 'Store'], '[]'::jsonb, 'command-batches',
+   'Tasks on this job that were completed by override, and the business facts none of them recorded.');

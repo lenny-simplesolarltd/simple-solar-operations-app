@@ -119,6 +119,9 @@ export default async function TaskPage({
             <h1 className='text-2xl font-bold text-balance'>{task.title}</h1>
             <div className='mt-2 flex flex-wrap items-center gap-2 text-sm'>
               <TaskStatusBadge status={task.status} />
+              {task.completion_mode === 'override' && (
+                <Badge variant='warning'>Completed by override</Badge>
+              )}
               {task.revision_required && (
                 <Badge variant='warning'>Revision required</Badge>
               )}
@@ -139,6 +142,29 @@ export default async function TaskPage({
               ` · follow up ${formatDateTime(task.next_followup_at)}`}
           </p>
         )}
+
+        {/* An override takes the task off the list; it does not record what
+            the task was for. Saying so here is the only thing standing between
+            "done" and a job nobody can explain the hold-up on. */}
+        {task.completion_mode === 'override' &&
+          (task.override_unrecorded?.length ?? 0) > 0 && (
+            <div className='bg-warning-soft text-warning rounded-md px-3 py-2 text-sm'>
+              <p className='font-medium'>
+                This task was completed by override, so nothing was recorded for
+                it.
+              </p>
+              <p className='mt-1'>Still not recorded:</p>
+              <ul className='mt-0.5 list-disc pl-5'>
+                {task.override_unrecorded?.map((u) => <li key={u}>{u}</li>)}
+              </ul>
+              {task.job_id && (
+                <p className='mt-1'>
+                  The job&rsquo;s booking checks still treat this as
+                  outstanding. Reopen the task to record it properly.
+                </p>
+              )}
+            </div>
+          )}
 
         <div className='grid gap-4 lg:grid-cols-2'>
           <Card>
@@ -164,6 +190,17 @@ export default async function TaskPage({
               )}
               {task.completion_note && (
                 <Row label='Note'>{task.completion_note}</Row>
+              )}
+              {task.completion_mode === 'override' && (
+                <Row label='Override'>
+                  <span className='block'>
+                    {task.override_by} ·{' '}
+                    {task.override_at && formatDateTime(task.override_at)}
+                  </span>
+                  <span className='block font-normal'>
+                    {task.override_reason}
+                  </span>
+                </Row>
               )}
             </CardContent>
           </Card>
