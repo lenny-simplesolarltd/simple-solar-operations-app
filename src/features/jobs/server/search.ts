@@ -19,7 +19,7 @@ export interface JobSearchHit {
 }
 
 const JOB_SELECT =
-  'id, job_ref, sold_at, workflow_stage, record_class, source_reference, customers!inner(first_name, last_name, postcode)';
+  'id, job_ref, sold_at, workflow_stage, record_class, source_reference, customers!inner(first_name, last_name, postcode, address_line1, town)';
 
 type JobRow = {
   id: string;
@@ -91,8 +91,12 @@ export async function searchVisibleJobs(
     .limit(limit);
   for (const term of terms) {
     const like = `*${term}*`;
+    // The same customer fields the canonical reads match on. An imported job
+    // is as likely to be asked for by its address as by a name or postcode -
+    // "find job 13 Rivendell Way" has to work.
     byCustomer = byCustomer.or(
-      `first_name.ilike.${like},last_name.ilike.${like},postcode.ilike.${like}`,
+      `first_name.ilike.${like},last_name.ilike.${like},postcode.ilike.${like},` +
+        `address_line1.ilike.${like},town.ilike.${like}`,
       { referencedTable: 'customers' }
     );
   }
