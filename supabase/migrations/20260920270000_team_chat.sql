@@ -280,7 +280,8 @@ declare
 begin
   for v_ref in
     select distinct upper(m[1])
-    from regexp_matches(coalesce(p_body, ''), '(SS-[A-Za-z]{4}-[0-9]{4})', 'g') m
+    -- Case-insensitive: people type ss-abcd-1234. job_ref is stored upper.
+    from regexp_matches(coalesce(p_body, ''), '(SS-[A-Za-z]{4}-[0-9]{4})', 'gi') m
   loop
     select j.id into v_id from public.jobs j where j.job_ref = v_ref;
     if v_id is not null and app.can_read_job(p_actor, v_id) then

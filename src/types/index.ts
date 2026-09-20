@@ -33,6 +33,7 @@ export type NavAccess =
   | 'commissioning'
   | 'resourcing'
   | 'communications'
+  | 'chat'
   | 'forms';
 
 export interface NavEntry {

@@ -86,6 +86,11 @@ export function canSee(
       // release-gated: the office must be able to work through captured drafts
       // and record their own sends while every function is still Disabled.
       return isOfficeClass(user) || has(user, ['VariationApprover']);
+    case 'chat':
+      // Everyone who works in the system talks to colleagues, installers and
+      // scaffolders included. ReadOnly is an observer account and is excluded,
+      // which is exactly what communications.chat.use encodes.
+      return permissions.has('communications.chat.use');
     case 'forms':
       // Hidden, not merely disabled, while Forms is switched off.
       return released.forms && permissions.has('forms.read');

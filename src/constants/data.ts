@@ -232,11 +232,18 @@ export const navGroups: NavGroup[] = [
     label: 'Communications',
     items: [
       {
-        title: 'Communications',
+        title: 'Email',
         url: '/dashboard/communications',
         icon: 'communications',
         shortcut: ['c', 'm'],
         access: 'communications'
+      },
+      {
+        title: 'Team chat',
+        url: '/dashboard/communications/chat',
+        icon: 'chat',
+        shortcut: ['c', 't'],
+        access: 'chat'
       }
     ]
   },

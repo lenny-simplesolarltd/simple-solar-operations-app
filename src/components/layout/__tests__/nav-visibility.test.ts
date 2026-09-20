@@ -149,6 +149,38 @@ describe('Communications', () => {
   });
 });
 
+describe('Team chat', () => {
+  const chatUrls = (permissions: string[]) =>
+    urls(['Installer'], permissions).filter((u) => u.includes('/chat'));
+
+  it('is offered to anyone holding communications.chat.use', () => {
+    expect(chatUrls(['communications.chat.use'])).toEqual([
+      '/dashboard/communications/chat'
+    ]);
+  });
+
+  // ReadOnly is an observer account and holds no chat permission.
+  it('is hidden without the permission, whatever the role', () => {
+    expect(chatUrls([])).toEqual([]);
+  });
+});
+
+describe('keyboard shortcuts', () => {
+  it('are unique, so one chord never means two screens', () => {
+    const seen = new Map<string, string>();
+    for (const group of navGroups)
+      for (const item of group.items) {
+        const chord = (item.shortcut ?? []).join('');
+        if (!chord) continue;
+        expect(
+          seen.has(chord),
+          `${chord}: ${seen.get(chord)} vs ${item.url}`
+        ).toBe(false);
+        seen.set(chord, item.url);
+      }
+  });
+});
+
 describe('Forms behind its release gate', () => {
   const formsUrls = (released: boolean, permissions: string[]) =>
     visibleNavGroups(navGroups, user(['Office']), new Set(permissions), {
