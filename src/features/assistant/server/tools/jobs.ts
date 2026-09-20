@@ -83,7 +83,7 @@ export const getJobTool: ReadTool<{ jobId: string }> = {
   name: 'get_job',
   summary: 'Read a job: customer, sale, system, scope and task counts',
   description:
-    'Read one job by id: customer name and location, workflow stage, sale details (agreed price, payment route, salesperson, quote reference), the sold system (kWp, panels), required scope, surveyor notes, and counts of open / blocked / overdue tasks. Does not return quote revisions, booking or timeline data - those are not available yet. For the stored files of a job (contracts, photos, commissioning records) use list_job_files.',
+    'Read one job by id: customer name and location, workflow stage, sale details (agreed price, payment route, salesperson, quote reference), the sold system (kWp, panels), required scope, surveyor notes, and counts of open / blocked / overdue tasks. Does not return quote revisions - those are not available yet. For what has happened on the job use get_job_timeline; for what is holding it up use get_job_blockers. For the stored files of a job (contracts, photos, commissioning records) use list_job_files.',
   domain: 'jobs',
   kind: 'read',
   status: 'available',
@@ -195,7 +195,7 @@ export const getJobTasksTool: ReadTool<{
   summary:
     "List a job's tasks with owner, due date, status and blocking reason",
   description:
-    "List the tasks on one job: code, title, status (Open, Waiting, InProgress, Blocked, ...), owner and backup, due date, and the recorded blocking reason if any. This is the only blocker information available today: task dependencies, issues and booking readiness cannot be checked yet, so describe results as 'tasks marked Blocked/Waiting', not as a complete readiness assessment.",
+    "List the tasks on one job: code, title, status (Open, Waiting, InProgress, Blocked, ...), owner and backup, due date, and the recorded blocking reason if any. This lists what each task's own record says. It is not a readiness assessment: for issues, work state and why an action is refused, use get_job_blockers.",
   domain: 'tasks',
   kind: 'read',
   status: 'available',

@@ -32,20 +32,6 @@ export const PLANNED_TOOLS: PlannedTool[] = [
     'BD-01 customer search read model (today customers are only reachable through find_job)'
   ),
   planned(
-    'get_job_timeline',
-    'read',
-    'jobs',
-    'Summarise everything that has happened on a job',
-    'BD-02 job timeline read model (audit_events is Admin-only; task_events has no staff RLS policy)'
-  ),
-  planned(
-    'get_job_blockers',
-    'read',
-    'jobs',
-    'Explain what is blocking a job or stopping it being booked',
-    'BD-03 job readiness/blockers read model (task_dependencies, issues, ReadyToBook rules)'
-  ),
-  planned(
     'get_current_quote',
     'read',
     'quotes',
@@ -79,21 +65,21 @@ export const PLANNED_TOOLS: PlannedTool[] = [
     'mutation',
     'tasks',
     'Mark a task complete',
-    'BD-04 task commands (complete_task with command_id + expected_version)'
+    'Not a backend gap: TASK_COMPLETE is deployed, but most task types ask for a file or extra fields that only the task screen can collect. A note-only variant is designed and not built yet; staff complete tasks on the task screen.'
   ),
   planned(
     'reopen_task',
     'mutation',
     'tasks',
     'Reopen a completed task',
-    'BD-04 task commands'
+    'Not a backend gap: TASK_REOPEN is deployed. Reopening undoes recorded work, so it stays on the task screen where the person sees what they are undoing.'
   ),
   planned(
     'attach_task_evidence',
     'mutation',
     'evidence',
     'Attach a file to a task for the staff member (reading stored files is available now)',
-    'BD-04 task commands + evidence storage'
+    'Stays in the app by design: a file is uploaded from the browser straight to storage and the person attests to it. The assistant cannot hold a file, and a path it supplied would be an unattested record.'
   ),
   planned(
     'create_quote_amendment',

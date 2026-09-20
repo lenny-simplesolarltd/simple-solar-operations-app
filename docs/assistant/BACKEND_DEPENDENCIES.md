@@ -15,29 +15,31 @@ idempotency; accept `p_expected_version` where a row is updated; raise business 
 - **Proposed interface:** `searchCustomers(query): {id, displayName, postcode, jobCount}[]` under RLS.
 - **Why:** `find_customer`. Today customers are only reachable through `find_job`.
 
-## BD-02 Job timeline read model
+## BD-02 Job timeline read model (CLOSED)
 
-- **Required capability:** an ordered, staff-readable history of a job.
-- **Proposed interface:** `getJobTimeline(jobId): {at, actorName, kind, summary, entityRef}[]`, as a view or
-  RPC with RLS matching `jobs_select`.
-- **Why:** `get_job_timeline` ("summarise everything that happened on this job"). `audit_events` is
-  Admin-only and `task_events` currently has no staff RLS policy, so the assistant cannot read either.
+The backend port supplies it: `public.execute_read` read type `AUDIT_HISTORY` returns audit, task and
+issue events for one job, with the actor resolved from the session and the job's own visibility rules
+applied. `get_job_timeline` is **available** and reads through `readR1()` like the job History tab.
 
-## BD-03 Job readiness / blockers
+## BD-03 Job readiness / blockers (CLOSED)
 
-- **Required capability:** the authoritative answer to "what stops this job moving to the next stage / being booked".
-- **Proposed interface:** `getJobBlockers(jobId): {code, label, blockingTaskId?, ownerName?, since?}[]`,
-  computed from `task_dependencies`, `issues` and the ReadyToBook rules in the database.
-- **Why:** `get_job_blockers`. Today the assistant can only report tasks whose status is Blocked/Waiting
-  and their recorded reason, and says so.
+The backend port supplies it: `execute_operations_read` read type `JOB_OPERATIONS` (open issues,
+work package state, the operational-completion gate and its reasons) together with `execute_read`
+`ACTION_AVAILABILITY` (each command's availability and the reason it is refused). `get_job_blockers`
+is **available** and reads through both.
 
-## BD-04 Task commands
+## BD-04 Task commands (CLOSED as a backend gap)
 
-- **Required capability:** complete / reopen a task; attach evidence.
-- **Proposed interface:** `complete_task(p_command_id, p_task_id, p_expected_version, p_note)`,
-  `reopen_task(...)`, `attach_task_evidence(...)`, returning the updated task.
-- **Why:** `complete_task`, `reopen_task`, `attach_task_evidence`. The Tasks page itself notes that
-  completing tasks arrives with the prebooking workflow.
+`TASK_COMPLETE`, `TASK_REOPEN`, `TASK_EVIDENCE_ATTACH` and `TASK_REASSIGN` are all deployed, take a
+`command_id` and an `expected_version`, and are authorised in the database. The corresponding tools
+stay unbuilt for product reasons, not backend ones, and `planned.ts` now says which:
+
+- `complete_task` - most task types ask for a file or extra fields that only the task screen can
+  collect; a note-only variant is designed and not built.
+- `reopen_task` - undoes recorded work; belongs where the person can see what they are undoing.
+- `attach_task_evidence` - a file is uploaded from the browser straight to storage and the person
+  attests to it. The assistant cannot hold a file, and a path it supplied would be an unattested
+  record. This one is permanently **app-only**, not planned.
 
 ## BD-05 Quote revisions (owned by the quote/document workstream)
 

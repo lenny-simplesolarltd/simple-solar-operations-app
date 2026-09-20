@@ -66,7 +66,9 @@ describe('the production registry', () => {
       'get_help_article',
       'get_help_for_route',
       'get_job',
+      'get_job_blockers',
       'get_job_tasks',
+      'get_job_timeline',
       'get_my_tasks',
       'get_presale_workflow',
       'get_related_help',
@@ -102,8 +104,7 @@ describe('the production registry', () => {
       'reopen_task',
       'create_quote_amendment',
       'compare_quote_revisions',
-      'generate_document_pack',
-      'get_job_timeline'
+      'generate_document_pack'
     ]) {
       const tool = registry.get(name);
       expect(tool?.status).toBe('planned');

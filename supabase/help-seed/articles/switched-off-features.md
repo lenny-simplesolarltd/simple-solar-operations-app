@@ -44,4 +44,4 @@ You can usually still open and read the screens. It is the actions that are refu
 
 ## Who can switch a feature on
 
-Admin and Manager staff can see which features are switched on, on **System health**. There is no button to change them in the app: an administrator arranges it as part of the rollout. See [Release controls](/help/release-controls).
+Admin and Manager staff switch features on and off themselves, on **Release control**. Each change asks for a reason and is recorded. Directors can see the same screen but cannot change anything. See [Release controls](/help/release-controls).
