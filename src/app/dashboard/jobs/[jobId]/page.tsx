@@ -125,16 +125,22 @@ export default async function JobPage({
             description={`${customer.first_name} ${customer.last_name} · ${customer.postcode} · sold ${formatDate(job.sold_at)}`}
           />
           <div className='flex flex-wrap items-center gap-2'>
-            <Badge>{stageLabel(job.workflow_stage)}</Badge>
-            {job.record_class === 'HistoricalImport' && (
-              // An imported record of a job that predates this system. Badged
-              // so it is never mistaken for an active installation.
+            {/* An imported record never passed through this system's
+                workflow. app.historical_import_apply stamps every one of them
+                OperationallyComplete so they stay out of the sweeps, which is
+                a bookkeeping device and not evidence that the job finished -
+                so showing it as a workflow stage would assert something the
+                source does not prove. Historical records show only what they
+                are. */}
+            {job.record_class === 'HistoricalImport' ? (
               <Badge
                 variant='secondary'
-                title='Imported from the historical Job Booking form. Read-only history; no active work.'
+                title='Imported from the historical Job Booking form. Read-only history; no active work, and no workflow stage in this system.'
               >
                 Historical record
               </Badge>
+            ) : (
+              <Badge>{stageLabel(job.workflow_stage)}</Badge>
             )}
             {isOfficeClass(user) &&
               BOOKING_STAGES.includes(job.workflow_stage) && (
