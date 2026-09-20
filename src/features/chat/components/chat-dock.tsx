@@ -153,6 +153,10 @@ export function ChatDock() {
           </p>
         )}
 
+        {/* Expand and minimise are desktop ideas. On a phone the panel is
+            already the whole screen, so there is nothing to expand to, and
+            collapsing to a floating bubble over a page you cannot see is not
+            worth a control. Back and close are enough. */}
         <button
           type='button'
           onClick={() =>
@@ -164,7 +168,7 @@ export function ChatDock() {
           }
           aria-label='Open full screen'
           title='Open full screen'
-          className='hover:bg-accent focus-visible:ring-ring rounded-md p-1 focus-visible:ring-2 focus-visible:outline-none'
+          className='hover:bg-accent focus-visible:ring-ring hidden rounded-md p-1 focus-visible:ring-2 focus-visible:outline-none sm:inline-flex'
         >
           <IconArrowsDiagonal className='size-4' />
         </button>
@@ -176,7 +180,7 @@ export function ChatDock() {
           }}
           aria-label='Minimise team chat'
           title='Minimise'
-          className='hover:bg-accent focus-visible:ring-ring rounded-md p-1 focus-visible:ring-2 focus-visible:outline-none'
+          className='hover:bg-accent focus-visible:ring-ring hidden rounded-md p-1 focus-visible:ring-2 focus-visible:outline-none sm:inline-flex'
         >
           <IconMinus className='size-4' />
         </button>

@@ -74,6 +74,8 @@ interface ChatState {
   draft: string;
   replyTo: ChatMessageRow | null;
   setDraft: (value: string) => void;
+  /** Record that "@" tagged a colleague or a task in the current draft. */
+  addTag: (kind: 'person' | 'task', id: string) => void;
   setReplyTo: (message: ChatMessageRow | null) => void;
   setSurface: (surface: ChatSurface) => void;
   /** The × control: put the floating launcher away entirely. */
@@ -125,6 +127,11 @@ export function ChatProvider({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [replyTargets, setReplyTargets] = useState<
     Record<string, ChatMessageRow | null>
+  >({});
+  // What "@" put in the message, per conversation. The body carries the words;
+  // these carry the meaning, and the server keeps only what the author may see.
+  const [tags, setTags] = useState<
+    Record<string, { people: string[]; tasks: string[] }>
   >({});
 
   // The subscription is created once. This is how its callback reads the
@@ -363,6 +370,20 @@ export function ChatProvider({
     setDrafts((prev) => ({ ...prev, [selectedRef.current as string]: value }));
   }, []);
 
+  const addTag = useCallback((kind: 'person' | 'task', id: string) => {
+    const conversationId = selectedRef.current;
+    if (!conversationId) return;
+    setTags((prev) => {
+      const current = prev[conversationId] ?? { people: [], tasks: [] };
+      const key = kind === 'person' ? 'people' : 'tasks';
+      if (current[key].includes(id)) return prev;
+      return {
+        ...prev,
+        [conversationId]: { ...current, [key]: [...current[key], id] }
+      };
+    });
+  }, []);
+
   const setReplyTo = useCallback((message: ChatMessageRow | null) => {
     if (!selectedRef.current) return;
     setReplyTargets((prev) => ({
@@ -378,11 +399,16 @@ export function ChatProvider({
     if (!text) return;
     const localId = newCommandId();
     const replyToId = replyTargets[conversationId]?.id ?? null;
+    const tagged = tags[conversationId] ?? { people: [], tasks: [] };
 
     // Optimistic: on screen before the round trip, and the box clears at once.
     setPending((prev) => [...prev, { localId, body: text, replyToId }]);
     setDrafts((prev) => ({ ...prev, [conversationId]: '' }));
     setReplyTargets((prev) => ({ ...prev, [conversationId]: null }));
+    setTags((prev) => ({
+      ...prev,
+      [conversationId]: { people: [], tasks: [] }
+    }));
 
     const result = await runCommand({
       command_id: localId,
@@ -390,7 +416,9 @@ export function ChatProvider({
       payload: {
         conversation_id: conversationId,
         body: text,
-        ...(replyToId ? { reply_to_id: replyToId } : {})
+        ...(replyToId ? { reply_to_id: replyToId } : {}),
+        ...(tagged.people.length ? { mention_person_ids: tagged.people } : {}),
+        ...(tagged.tasks.length ? { mention_task_ids: tagged.tasks } : {})
       }
     });
 
@@ -403,7 +431,7 @@ export function ChatProvider({
     }
     setPending((prev) => prev.filter((p) => p.localId !== localId));
     await loadThread(conversationId);
-  }, [drafts, replyTargets, loadThread]);
+  }, [drafts, replyTargets, tags, loadThread]);
 
   const react = useCallback(
     async (messageId: string, emoji: string, on: boolean) => {
@@ -512,6 +540,7 @@ export function ChatProvider({
       draft,
       replyTo,
       setDraft,
+      addTag,
       setReplyTo,
       setSurface,
       dismissLauncher,
@@ -540,6 +569,7 @@ export function ChatProvider({
       draft,
       replyTo,
       setDraft,
+      addTag,
       setReplyTo,
       setSurface,
       dismissLauncher,

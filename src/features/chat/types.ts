@@ -26,6 +26,15 @@ export interface ChatReaction {
   personId: string;
 }
 
+/** A task tagged in a message. Filtered to what the READER may see. */
+export interface ChatTaskTag {
+  taskId: string;
+  title: string;
+  templateCode: string | null;
+  status: string | null;
+  jobRef: string | null;
+}
+
 export interface ChatAttachment {
   evidenceId: string;
   name: string;
@@ -46,6 +55,7 @@ export interface ChatMessageRow {
   editedAt: string | null;
   reactions: ChatReaction[];
   attachments: ChatAttachment[];
+  tasks: ChatTaskTag[];
 }
 
 /**

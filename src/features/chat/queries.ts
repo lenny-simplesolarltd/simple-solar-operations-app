@@ -80,6 +80,13 @@ export async function listMessages(
         attachments: list(raw.attachments).map((a) => ({
           evidenceId: String(a.evidence_id),
           name: str(a.name) ?? 'File'
+        })),
+        tasks: list(raw.tasks).map((t) => ({
+          taskId: String(t.task_id),
+          title: str(t.title) ?? 'Task',
+          templateCode: str(t.template_code),
+          status: str(t.status),
+          jobRef: str(t.job_ref)
         }))
       }) satisfies ChatMessageRow
   );

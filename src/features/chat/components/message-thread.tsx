@@ -2,13 +2,23 @@
 
 import { Button } from '@/components/ui/button';
 import { EVIDENCE_ACCEPT } from '@/features/operations/evidence-rules';
+import Link from 'next/link';
+import {
+  activeMentionQuery,
+  applyMention,
+  moveHighlight
+} from '../mention-input';
+import type { MentionSuggestion } from '../server/mention-types';
 import {
   IconArrowBackUp,
+  IconBriefcase,
+  IconChecklist,
   IconPaperclip,
   IconSend,
+  IconUser,
   IconX
 } from '@tabler/icons-react';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar } from './avatar';
 import { useChat } from './chat-provider';
 import { shortTime, truncate } from './format';
@@ -35,10 +45,68 @@ export function MessageThread() {
     send,
     react,
     attach,
-    recoverPending
+    recoverPending,
+    addTag
   } = useChat();
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
+  const [highlight, setHighlight] = useState(0);
+  const [mention, setMention] = useState<{
+    start: number;
+    query: string;
+  } | null>(null);
+
+  // Ask the server what "@" should offer. Every source applies this person's
+  // own visibility, so the menu can only suggest what they could already find.
+  useEffect(() => {
+    if (!mention) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- closing the menu when the mention ends is the whole point of this effect
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const res = await fetch(
+        `/api/chat/mentions?q=${encodeURIComponent(mention.query)}`,
+        { cache: 'no-store' }
+      );
+      if (cancelled || !res.ok) return;
+      const data = (await res.json()) as { suggestions: MentionSuggestion[] };
+      setSuggestions(data.suggestions);
+      setHighlight(0);
+    }, 150);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [mention]);
+
+  const onDraftChange = (value: string, caret: number) => {
+    setDraft(value);
+    setMention(activeMentionQuery(value, caret));
+  };
+
+  const choose = useCallback(
+    (suggestion: MentionSuggestion) => {
+      if (!mention) return;
+      const caret = composer.current?.selectionStart ?? draft.length;
+      const next = applyMention(draft, caret, mention, suggestion.insert);
+      setDraft(next.text);
+      setMention(null);
+      setSuggestions([]);
+      // A job goes in as its reference, which links itself. A colleague or a
+      // task needs its id to travel beside the message.
+      if (suggestion.kind === 'person') addTag('person', suggestion.id);
+      if (suggestion.kind === 'task') addTag('task', suggestion.id);
+      requestAnimationFrame(() => {
+        composer.current?.focus();
+        composer.current?.setSelectionRange(next.caret, next.caret);
+      });
+    },
+    [mention, draft, setDraft, addTag]
+  );
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end' });
@@ -98,6 +166,30 @@ export function MessageThread() {
                           viewerPersonId
                         )}
                       />
+                    )}
+
+                    {m.tasks.length > 0 && (
+                      <ul className='mt-1 flex flex-wrap gap-2'>
+                        {m.tasks.map((t) => (
+                          <li key={t.taskId}>
+                            <Link
+                              href={`/dashboard/tasks/${t.taskId}`}
+                              className='hover:bg-accent inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs'
+                            >
+                              <IconChecklist className='size-3' />
+                              <span className='font-medium'>
+                                {t.templateCode ?? 'Task'}
+                              </span>
+                              {t.title}
+                              {t.jobRef && (
+                                <span className='text-muted-foreground'>
+                                  · {t.jobRef}
+                                </span>
+                              )}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
                     )}
 
                     {m.attachments.length > 0 && (
@@ -209,6 +301,50 @@ export function MessageThread() {
         </div>
       )}
 
+      {mention && suggestions.length > 0 && (
+        <ul
+          role='listbox'
+          aria-label='Mention suggestions'
+          className='bg-popover mx-2 max-h-56 overflow-y-auto rounded-md border shadow-md'
+        >
+          {suggestions.map((s, i) => (
+            <li key={`${s.kind}-${s.id}`}>
+              <button
+                type='button'
+                role='option'
+                aria-selected={i === highlight}
+                onMouseEnter={() => setHighlight(i)}
+                // Mouse down, not click: the textarea must not lose focus
+                // before the choice is applied.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  choose(s);
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
+                  i === highlight ? 'bg-accent' : ''
+                }`}
+              >
+                {s.kind === 'person' ? (
+                  <IconUser className='size-3.5 shrink-0' />
+                ) : s.kind === 'job' ? (
+                  <IconBriefcase className='size-3.5 shrink-0' />
+                ) : (
+                  <IconChecklist className='size-3.5 shrink-0' />
+                )}
+                <span className='min-w-0 flex-1'>
+                  <span className='block truncate'>{s.label}</span>
+                  {s.detail && (
+                    <span className='text-muted-foreground block truncate text-xs'>
+                      {s.detail}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <form
         className='flex items-end gap-2 border-t p-2'
         onSubmit={(e) => {
@@ -242,9 +378,46 @@ export function MessageThread() {
           <IconPaperclip />
         </Button>
         <textarea
+          ref={composer}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) =>
+            onDraftChange(e.target.value, e.target.selectionStart ?? 0)
+          }
+          onClick={(e) =>
+            setMention(
+              activeMentionQuery(draft, e.currentTarget.selectionStart ?? 0)
+            )
+          }
+          onBlur={() => setMention(null)}
           onKeyDown={(e) => {
+            const menuOpen = mention && suggestions.length > 0;
+            if (menuOpen) {
+              // While the menu is open it owns these keys, so Enter picks a
+              // suggestion rather than sending a half-typed mention.
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlight((h) =>
+                  moveHighlight(
+                    h,
+                    e.key === 'ArrowDown' ? 1 : -1,
+                    suggestions.length
+                  )
+                );
+                return;
+              }
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                choose(suggestions[highlight]);
+                return;
+              }
+              if (e.key === 'Escape') {
+                // Close the menu without closing the panel behind it.
+                e.preventDefault();
+                e.stopPropagation();
+                setMention(null);
+                return;
+              }
+            }
             // Enter sends; Shift+Enter is a new line.
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();

@@ -231,4 +231,47 @@ await refuses('tanya', C('CHAT_SEND', {
 await refuses('tanya', C('CHAT_SEND', { conversation_id: direct, body: '   ' }),
   'CHAT_REFUSED: a message needs something in it');
 
+// ---------------------------------------------------------------------------
+// 10. Tagging a task: the client says what it MEANT, the server decides
+// ---------------------------------------------------------------------------
+// A task Tanya owns, and one she does not.
+const mine = (await one(`insert into public.tasks (job_id, template_code, instance_key, task_group, title, owner_id, created_rule_version)
+  values ($1,'PRE01','chat-mine','Presale','Send deposit invoice',$2,1) returning id`, [job.id, people.tanya])).id;
+const theirs = (await one(`insert into public.tasks (job_id, template_code, instance_key, task_group, title, owner_id, created_rule_version)
+  values ($1,'INS01','chat-theirs','Install','Installer confirmation call',$2,1) returning id`, [job.id, people.inst_a])).id;
+
+// Tanya is Office, which holds task.read.all, so both are hers to tag.
+r = ok(await cmd('tanya', C('CHAT_SEND', {
+  conversation_id: direct, body: 'look at these', mention_task_ids: [mine, theirs]
+})), 'tag tasks');
+assert.deepEqual([...r.task_ids].sort(), [mine, theirs].sort(),
+  'an office actor may tag any task they can read');
+
+// An installer may read only their own. Tagging somebody else's must drop it
+// rather than refuse: tagging can never become a way to discover a task.
+await db.query(`insert into public.chat_members (conversation_id, person_id) values ($1,$2)
+  on conflict do nothing`, [direct, people.inst_a]);
+r = ok(await cmd('inst_a', C('CHAT_SEND', {
+  conversation_id: direct, body: 'and these', mention_task_ids: [mine, theirs]
+})), 'installer tags');
+assert.deepEqual(r.task_ids, [theirs],
+  'only the task the author may read survives');
+
+// Rubbish in the payload is ignored, not fatal.
+r = ok(await cmd('tanya', C('CHAT_SEND', {
+  conversation_id: direct, body: 'junk', mention_task_ids: ['not-a-uuid', id()]
+})), 'junk task ids');
+assert.deepEqual(r.task_ids, [], 'unknown and malformed ids are dropped');
+
+// The READER's visibility applies again on the way out.
+read = await opread('tanya', { read_type: 'CHAT_MESSAGES', conversation_id: direct });
+const tagged = read.data.messages.find(m => m.body === 'look at these');
+assert.equal(tagged.tasks.length, 2, 'Tanya sees both tagged tasks');
+assert.ok(tagged.tasks.every(t => t.job_ref === job.job_ref), 'each carries its job reference');
+
+read = await opread('inst_a', { read_type: 'CHAT_MESSAGES', conversation_id: direct });
+const seenByInstaller = read.data.messages.find(m => m.body === 'look at these');
+assert.deepEqual(seenByInstaller.tasks.map(t => t.task_id), [theirs],
+  'the installer sees only the task they may read, in somebody else\'s message');
+
 console.log('t_chat: ok');
