@@ -194,6 +194,32 @@ export interface JobsRead {
   jobs: JobRow[];
 }
 
+/**
+ * JOB_SEARCH (execute_read). Deliberately NOT narrowed to operational scope:
+ * it is the one read that still finds archived historical imports, so a job
+ * that predates this system stays findable by reference, previous reference,
+ * name or postcode. Visibility is app.can_read_job, exactly as elsewhere.
+ */
+export interface JobSearchRead {
+  query: string;
+  count: number;
+  results: JobSearchRow[];
+}
+
+export interface JobSearchRow {
+  id: string;
+  job_ref: string;
+  display_name: string | null;
+  customer_name: string;
+  postcode: string | null;
+  quote_reference: string | null;
+  address_line1: string | null;
+  town: string | null;
+  job_label: string;
+  workflow_stage: string;
+  record_class: string;
+}
+
 export interface OfficeDashboardRead {
   as_of: string;
   my_tasks: {

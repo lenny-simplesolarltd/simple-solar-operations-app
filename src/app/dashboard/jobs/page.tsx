@@ -4,13 +4,18 @@ import { Badge } from '@/components/ui/badge';
 import { Heading } from '@/components/ui/heading';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
 import { JobFilterBar } from '@/features/jobs/components/job-filter-bar';
+import { HistoricalResults } from '@/features/jobs/components/historical-results';
 import { JobList } from '@/features/jobs/components/job-list';
 import { formatDate } from '@/features/jobs/format';
 import { searchVisibleJobs } from '@/features/jobs/server/search';
 import { stageLabel } from '@/features/jobs/stages';
 import { getCurrentUser } from '@/lib/auth';
-import { WORKFLOW_STAGES, type JobsRead } from '@/lib/backend/models';
-import { readOps } from '@/lib/backend/read';
+import {
+  WORKFLOW_STAGES,
+  type JobSearchRead,
+  type JobsRead
+} from '@/lib/backend/models';
+import { readOps, readR1 } from '@/lib/backend/read';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -39,10 +44,25 @@ export default async function JobsPage({
     .split(',')
     .filter((s) => (WORKFLOW_STAGES as readonly string[]).includes(s));
 
-  const result = await readOps<JobsRead>('JOBS', {
-    q,
-    stage: stages.join(',')
-  });
+  // The operational list stays exactly as it was: JOBS is scoped to live work,
+  // so archived historical imports never appear in the working queue.
+  //
+  // JOB_SEARCH is the canonical read that is deliberately NOT scoped that way
+  // (see 20260920150000, section 7), so it is the only way to reach a job that
+  // predates this system. It is asked only when somebody actually searches, and
+  // its historical matches are shown separately. Searching the two reads side
+  // by side keeps the stage filters working and adds no second implementation
+  // of search in TypeScript.
+  const [result, historical] = await Promise.all([
+    readOps<JobsRead>('JOBS', { q, stage: stages.join(',') }),
+    q ? readR1<JobSearchRead>('JOB_SEARCH', { query: q }) : null
+  ]);
+  const historicalRows =
+    historical && historical.ok
+      ? (historical.data?.results ?? []).filter(
+          (r) => r.record_class === 'HistoricalImport'
+        )
+      : [];
 
   const context = (
     <AssistantPageContext
@@ -72,6 +92,7 @@ export default async function JobsPage({
               {stages.length > 0 && ` · ${stages.map(stageLabel).join(', ')}`}
             </p>
             <JobList jobs={result.data.jobs} />
+            <HistoricalResults jobs={historicalRows} />
           </>
         ) : result.error.kind === 'unavailable' ? (
           <LegacySearch q={q} />
