@@ -415,7 +415,7 @@ export function ChatClient({
                           r.emoji === emoji && r.personId === viewerPersonId
                       );
                     return (
-                      <li key={m.id} className='flex gap-2'>
+                      <li key={m.id} className='group flex gap-2'>
                         <Avatar name={m.authorName} size='sm' />
                         <div className='min-w-0 flex-1'>
                           <p className='text-muted-foreground text-xs'>
@@ -473,6 +473,10 @@ export function ChatClient({
                                 (r) => r.emoji === emoji
                               ).length;
                               if (m.deleted && count === 0) return null;
+                              // A reaction somebody left is information about
+                              // the message, so it stays. An empty one is an
+                              // affordance, and affordances appear on hover.
+                              const placed = count > 0;
                               return (
                                 <button
                                   key={emoji}
@@ -480,8 +484,12 @@ export function ChatClient({
                                   onClick={() =>
                                     react(m.id, emoji, !mineReaction(emoji))
                                   }
-                                  className={`rounded-full border px-2 py-0.5 text-xs ${
+                                  className={`rounded-full border px-2 py-0.5 text-xs transition-opacity ${
                                     mineReaction(emoji) ? 'bg-accent' : ''
+                                  } ${
+                                    placed
+                                      ? ''
+                                      : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100'
                                   }`}
                                   aria-label={`React ${emoji}`}
                                 >
@@ -494,7 +502,7 @@ export function ChatClient({
                               <button
                                 type='button'
                                 onClick={() => setReplyTo(m)}
-                                className='text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs'
+                                className='text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100'
                               >
                                 <IconArrowBackUp className='size-3' />
                                 Reply
