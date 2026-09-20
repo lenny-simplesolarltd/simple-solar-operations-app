@@ -1,0 +1,8 @@
+[
+  {
+    "page": 8,
+    "tokens": ["55","2","3","56","5","6","57","8","9","58","11","12","59","14","15",
+               "64","29","30","69","44","45","70","47","48","71","50","51","72","53","54"],
+    "why": "Page 8 carries a complete, occluded copy of page 7's 'if nothing changes' table: the same thirty no-solar tokens are drawn first and then covered, so the master shows only the with-solar figures (101-154). They are in the content stream, so the extractor finds them; drawn by the generator they land on top of the real values and each row shows two overlapping numbers. Verified against the master at 300dpi: row 1 shows only {{101}} {{102}} {{103}}, row 30 only {{152}} {{153}} {{154}}."
+  }
+]

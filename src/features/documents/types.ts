@@ -123,6 +123,8 @@ export interface ProjectionRow {
   billWithSolarAnnual: number;
   /** Saving in that year alone. */
   savingAnnual: number;
+  /** The same, per month - the ROI's savings table prints both. */
+  savingMonthly: number;
   /** Cumulative saving to the end of that year. */
   savingCumulative: number;
 }

@@ -103,6 +103,7 @@ export function buildProjection(input: ProjectionInputs): ProjectionRow[] {
       billWithSolarMonthly: money(billWithSolarAnnual / 12),
       billWithSolarAnnual: money(billWithSolarAnnual),
       savingAnnual: money(savingAnnual),
+      savingMonthly: money(savingAnnual / 12),
       savingCumulative: money(cumulative)
     });
   }

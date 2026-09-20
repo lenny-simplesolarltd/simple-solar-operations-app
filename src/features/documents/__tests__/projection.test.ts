@@ -129,3 +129,43 @@ describe('paybackYears', () => {
       expect(after.savingCumulative).toBeGreaterThanOrEqual(cost * 0.9);
   });
 });
+
+describe('the savings table’s columns', () => {
+  // ROI page 8 is headed "Monthly Savings / Yearly Savings / Accumulated
+  // Income". Bound to the with-solar BILLS instead, the first two columns
+  // printed 0.00 for every year of any system that generates more than the
+  // household uses - which is most of them.
+  const rows = buildProjection(base);
+
+  it('reports a monthly saving that is the yearly one over twelve', () => {
+    for (const r of rows) {
+      expect(r.savingMonthly).toBeCloseTo(r.savingAnnual / 12, 1);
+    }
+  });
+
+  it('is non-zero even when solar covers the whole bill', () => {
+    const oversized = buildProjection({
+      ...base,
+      annualGenerationKwh: 40000,
+      annualConsumptionKwh: 1000,
+      selfConsumptionPct: 100
+    });
+    // The with-solar bill is zero here; the SAVING plainly is not.
+    for (const r of oversized) {
+      expect(r.billWithSolarAnnual).toBe(0);
+      expect(r.savingAnnual).toBeGreaterThan(0);
+      expect(r.savingMonthly).toBeGreaterThan(0);
+    }
+  });
+
+  it('accumulates to the totals the report prints in its callouts', () => {
+    // Years 10, 20 and 30 are shown twice on the page - in the table and in an
+    // oval - so they have to be the same number.
+    const at = (year: number) => rows.find((r) => r.year === year)!;
+    expect(at(10).savingCumulative).toBeGreaterThan(at(5).savingCumulative);
+    expect(at(30).savingCumulative).toBeGreaterThan(at(20).savingCumulative);
+    let running = 0;
+    for (const r of rows.filter((x) => x.year <= 5)) running += r.savingAnnual;
+    expect(at(5).savingCumulative).toBeCloseTo(running, 1);
+  });
+});

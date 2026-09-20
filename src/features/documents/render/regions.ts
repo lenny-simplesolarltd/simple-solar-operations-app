@@ -45,6 +45,12 @@ export interface Region {
   freeX1: number;
   freeX0Abs: number;
   freeX1Abs: number;
+  /**
+   * The master draws this token and then covers it, so it is not part of the
+   * visible document. Recorded rather than dropped, because the extractor
+   * genuinely finds it and a future master could stop hiding it.
+   */
+  hidden?: boolean;
   align: 'left' | 'right';
   background: number[];
   background_uniform: boolean;

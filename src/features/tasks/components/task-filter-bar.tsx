@@ -6,6 +6,7 @@ import {
   SegmentedFilter,
   SelectFilter
 } from '@/features/operations/filter-controls';
+import { RefreshButton } from '@/features/operations/refresh-button';
 import { useUrlFilters } from '@/features/operations/use-url-filters';
 import { TASK_QUEUES } from '@/lib/backend/models';
 import { IconLoader2, IconX } from '@tabler/icons-react';
@@ -120,6 +121,9 @@ export function TaskFilterBar({
             <IconX /> Clear filters
           </Button>
         )}
+        {/* Always offered, unlike Clear filters: a list can be stale whether
+            or not it is filtered. */}
+        <RefreshButton className='sm:ml-auto' />
       </div>
     </div>
   );

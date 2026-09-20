@@ -384,6 +384,11 @@ export async function renderDocument(
     const { height } = page.getSize();
 
     for (const region of spec.regions) {
+      // A token the master draws and then covers is not part of the document.
+      // Everything this renderer draws is appended, so filling one would put
+      // it ON TOP of the value that replaced it - which is exactly what made
+      // every row of the ROI's savings table show two overlapping numbers.
+      if (region.hidden) continue;
       const found = lookup(region, input, bindings, unresolved, spec.page);
       if (!found) continue;
       const font = await embed(substituteFor(region.font));

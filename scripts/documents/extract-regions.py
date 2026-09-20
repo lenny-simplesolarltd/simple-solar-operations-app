@@ -259,6 +259,14 @@ def main():
     extras_path = master.parent / "extra-regions.json"
     extras = json.loads(extras_path.read_text()) if extras_path.exists() else []
 
+    # Tokens the master draws and then covers. They are real entries in the
+    # content stream, so they are found here like any other - but the master
+    # does not show them, and anything the generator draws is appended, which
+    # would make them visible on top of the values that replaced them.
+    hidden_path = master.parent / "hidden-regions.json"
+    hidden_spec = json.loads(hidden_path.read_text()) if hidden_path.exists() else []
+    hidden = {(h["page"], t) for h in hidden_spec for t in h["tokens"]}
+
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(
             ["pdftoppm", "-r", str(args.dpi), "-png", str(master), f"{tmp}/p"],
@@ -276,6 +284,8 @@ def main():
                 # added after inference rather than before it.
                 runs += literal_runs(page, [e for e in extras if e["page"] == i + 1])
                 free_space(page, runs)
+                for r in runs:
+                    r["hidden"] = (i + 1, r["name"]) in hidden
                 runs.sort(key=lambda r: (r["top"], r["x0"]))
                 if runs:
                     img = Image.open(rasters[i]).convert("RGB")

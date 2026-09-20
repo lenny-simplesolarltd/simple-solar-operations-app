@@ -25,6 +25,11 @@ interface RegionLike {
   size: number;
   freeX0: number;
   freeX1: number;
+  hidden?: boolean;
+  x0: number;
+  x1: number;
+  top: number;
+  bottom: number;
 }
 interface MapLike {
   pageCount: number;
@@ -140,5 +145,57 @@ describe('the numbered ROI projection tokens', () => {
       { n: 17, year: 25 },
       { n: 18, year: 30 }
     ]);
+  });
+});
+
+describe('regions the master draws but does not show', () => {
+  // The ROI's page 8 carries a complete, occluded copy of page 7's table: the
+  // same thirty no-solar tokens, drawn first and then covered. They are in the
+  // content stream, so the extractor finds them - and because everything the
+  // renderer draws is appended, filling one puts it ON TOP of the value that
+  // replaced it. That is exactly what made every row show two numbers.
+  const roiPages = (roiMap as MapLike).pages;
+  const page8 = roiPages.find((p) => p.page === 8)!;
+
+  it('marks the occluded duplicate on ROI page 8', () => {
+    const hidden = page8.regions.filter((r) => r.hidden);
+    expect(hidden).toHaveLength(30);
+  });
+
+  it('leaves exactly the with-solar figures to be drawn', () => {
+    const drawn = page8.regions
+      .filter((r) => !r.hidden)
+      .map((r) => Number(r.name));
+    expect(drawn).toHaveLength(30);
+    // 101-154 only: nine table rows of three, plus the three oval callouts.
+    expect(drawn.every((n) => n >= 101 && n <= 154)).toBe(true);
+  });
+
+  it('never leaves two drawn regions overlapping on a page', () => {
+    // The general guard. Two regions that occupy the same place cannot both be
+    // legible, so an overlap means either a hidden duplicate nobody noticed or
+    // a template map that has drifted from its master.
+    const overlaps: string[] = [];
+    for (const map of [quotationMap as MapLike, roiMap as MapLike]) {
+      for (const page of map.pages) {
+        const drawn = page.regions.filter((r) => !r.hidden);
+        for (let i = 0; i < drawn.length; i++) {
+          for (let j = i + 1; j < drawn.length; j++) {
+            const a = drawn[i];
+            const b = drawn[j];
+            const apart =
+              a.x1 <= b.x0 ||
+              b.x1 <= a.x0 ||
+              a.bottom <= b.top ||
+              b.bottom <= a.top;
+            if (!apart)
+              overlaps.push(
+                `p${page.page}: {{${a.name}}} overlaps {{${b.name}}}`
+              );
+          }
+        }
+      }
+    }
+    expect(overlaps).toEqual([]);
   });
 });

@@ -283,18 +283,24 @@ export const ROI_BINDINGS: readonly Binding[] = [
  * ordinals, not years: 1-15 are years 1-15, then 16 -> year 20, 17 -> year 25,
  * 18 -> year 30. Verified against every row present on pages 7, 8 and 14.
  *
+ * Page 7 is the "if nothing changes" table and page 8 the savings table, and
+ * their columns are NOT the same quantity. Page 8's own headers say what it
+ * wants: Monthly Savings, Yearly Savings, Accumulated Income - savings, not
+ * with-solar bills. Binding it to the bills printed 0.00 across both columns
+ * for any system that generates more than the household uses.
+ *
  *   pence per kW (no solar) : {{54 + n}}
  *   monthly bill (no solar) : {{3n - 1}}
  *   annual  bill (no solar) : {{3n}}
- *   with-solar triple       : {{3n + 98}}, {{3n + 99}}, {{3n + 100}}
- *                             = monthly, annual, cumulative saving
+ *   savings triple          : {{3n + 98}}, {{3n + 99}}, {{3n + 100}}
+ *                             = monthly saving, yearly saving, accumulated
  */
 export type ProjectionField =
   | 'pencePerKwh'
   | 'billNoSolarMonthly'
   | 'billNoSolarAnnual'
-  | 'billWithSolarMonthly'
-  | 'billWithSolarAnnual'
+  | 'savingMonthly'
+  | 'savingAnnual'
   | 'savingCumulative';
 
 export interface ProjectionBinding {
@@ -318,8 +324,8 @@ export function projectionBindings(): ProjectionBinding[] {
     out.push({ token: String(54 + n), n, field: 'pencePerKwh' });
     out.push({ token: String(3 * n - 1), n, field: 'billNoSolarMonthly' });
     out.push({ token: String(3 * n), n, field: 'billNoSolarAnnual' });
-    out.push({ token: String(3 * n + 98), n, field: 'billWithSolarMonthly' });
-    out.push({ token: String(3 * n + 99), n, field: 'billWithSolarAnnual' });
+    out.push({ token: String(3 * n + 98), n, field: 'savingMonthly' });
+    out.push({ token: String(3 * n + 99), n, field: 'savingAnnual' });
     out.push({ token: String(3 * n + 100), n, field: 'savingCumulative' });
   }
   return out;
