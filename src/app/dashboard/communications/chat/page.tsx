@@ -55,8 +55,9 @@ export default async function TeamChatPage() {
         {heading}
         <ChatClient
           viewerPersonId={user.id}
+          viewerName={user.fullName ?? 'You'}
           initialConversations={conversations.data}
-          jobRefs={jobRefs}
+          initialJobRefs={jobRefs}
         />
       </div>
     </PageContainer>

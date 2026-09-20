@@ -85,3 +85,29 @@ export async function listMessages(
   );
   return { ok: true, data: rows };
 }
+
+export interface ChatPerson {
+  personId: string;
+  displayName: string;
+  roles: string[];
+}
+
+/**
+ * Colleagues you may start a conversation with. Name and roles only — this
+ * read deliberately exposes no contact details, so finding Tanya to message
+ * her is not also a way to harvest the directory.
+ */
+export async function listChatPeople(
+  query?: string
+): Promise<ReadResult<ChatPerson[]>> {
+  const result = await readOps<Json>('CHAT_PEOPLE', { query });
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    data: list((result.data ?? {}).people).map((raw) => ({
+      personId: String(raw.person_id),
+      displayName: str(raw.display_name) ?? 'Someone',
+      roles: strings(raw.roles)
+    }))
+  };
+}

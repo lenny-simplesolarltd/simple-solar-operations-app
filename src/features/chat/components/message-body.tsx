@@ -8,15 +8,22 @@ import { linkifyMessage } from '../linkify';
 
 export function MessageBody({
   body,
-  jobRefs
+  jobRefs,
+  mentioned = false
 }: {
   body: string;
   /** Job references the SERVER resolved for this reader. Others stay plain. */
   jobRefs: Record<string, string>;
+  /** True when the SERVER put this reader in mentioned_person_ids. */
+  mentioned?: boolean;
 }) {
   const segments = linkifyMessage(body, new Set(Object.keys(jobRefs)));
   return (
-    <p className='text-sm break-words whitespace-pre-wrap'>
+    <p
+      className={`text-sm break-words whitespace-pre-wrap ${
+        mentioned ? 'bg-info-soft rounded-md px-2 py-1' : ''
+      }`}
+    >
       {segments.map((seg, i) => {
         if (seg.kind === 'job') {
           const jobId = jobRefs[seg.jobRef];

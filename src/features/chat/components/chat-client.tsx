@@ -2,9 +2,20 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { evidenceMimeType } from '@/features/operations/evidence-rules';
+import {
+  beginEvidenceUpload,
+  completeEvidenceUpload
+} from '@/features/operations/evidence-upload';
 import { runCommand } from '@/lib/backend/command';
 import { createClient } from '@/lib/supabase/client';
-import { IconSend } from '@tabler/icons-react';
+import {
+  IconArrowBackUp,
+  IconPaperclip,
+  IconSend,
+  IconX
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -12,45 +23,56 @@ import {
   type ChatConversationRow,
   type ChatMessageRow
 } from '../types';
+import { Avatar, newCommandId } from './avatar';
 import { MessageBody } from './message-body';
+import { NewConversation } from './new-conversation';
 
-// The chat surface. Three columns collapse to one on a phone: pick a
-// conversation, read it, reply.
+// The chat surface.
 //
-// Messages arrive two ways and both must converge on the same list:
-//   - you sent one, so the command returned and we refetch
-//   - somebody else sent one, so Realtime told us and we refetch
+// Messages arrive three ways and all three converge on the same list:
+//   - you sent one: it appears IMMEDIATELY as a pending row, then the refetch
+//     replaces it with the authoritative server row
+//   - somebody else sent one: Realtime nudges us and we refetch
+//   - you opened the conversation: we fetch
 //
-// The refetch goes through the normal read, which re-checks membership. The
-// Realtime event is only ever a NUDGE - we never render a row straight off the
-// socket, because the socket payload has not been through the read's
-// authorization or shaping.
+// A Realtime event is only ever a NUDGE. Nothing renders straight off the
+// socket, because that payload has not been through the read's authorization
+// or shaping. The read is the only thing that decides what you may see.
 
-const uuid = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random()}`;
+type Pending = {
+  localId: string;
+  body: string;
+  replyToId: string | null;
+  failed?: boolean;
+};
 
 export function ChatClient({
   viewerPersonId,
+  viewerName,
   initialConversations,
-  jobRefs
+  initialJobRefs
 }: {
   viewerPersonId: string;
+  viewerName: string;
   initialConversations: ChatConversationRow[];
-  /** SS-XXXX-0000 -> job id, for every reference the server resolved. */
-  jobRefs: Record<string, string>;
+  initialJobRefs: Record<string, string>;
 }) {
   const [conversations, setConversations] = useState(initialConversations);
   const [selected, setSelected] = useState<string | null>(
     initialConversations[0]?.id ?? null
   );
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
+  const [jobRefs, setJobRefs] = useState(initialJobRefs);
+  const [pending, setPending] = useState<Pending[]>([]);
   const [body, setBody] = useState('');
-  const [sending, setSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessageRow | null>(null);
+  const [filter, setFilter] = useState('');
+  const [attaching, setAttaching] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  const loadMessages = useCallback(async (conversationId: string) => {
+  const load = useCallback(async (conversationId: string) => {
     const res = await fetch(`/api/chat/${conversationId}`, {
       cache: 'no-store'
     });
@@ -58,22 +80,29 @@ export function ChatClient({
     const data = (await res.json()) as {
       messages: ChatMessageRow[];
       conversations: ChatConversationRow[];
+      jobRefs: Record<string, string>;
     };
     setMessages(data.messages);
     setConversations(data.conversations);
+    setJobRefs(data.jobRefs);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadMessages is async; the state lands in a later tick, after a fetch the rule cannot see
-    if (selected) void loadMessages(selected);
-  }, [selected, loadMessages]);
+    if (!selected) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load is async; the state lands after a fetch the rule cannot see
+    setLoaded(false);
+    setPending([]);
+    setReplyTo(null);
+    void load(selected);
+  }, [selected, load]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end' });
-  }, [messages]);
+  }, [messages, pending]);
 
-  // Live updates. RLS applies to the subscription too, so a client only ever
-  // receives rows for a conversation it is a member of.
+  // Live updates. RLS applies to the subscription, so a client only receives
+  // rows for a conversation it is a member of.
   useEffect(() => {
     if (!selected) return;
     const supabase = createClient();
@@ -87,192 +116,469 @@ export function ChatClient({
           table: 'chat_messages',
           filter: `conversation_id=eq.${selected}`
         },
-        () => void loadMessages(selected)
+        () => void load(selected)
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [selected, loadMessages]);
+  }, [selected, load]);
 
-  // Reading a conversation marks it read, which is what clears the badge.
+  // Opening a conversation is what marks it read.
   useEffect(() => {
-    if (!selected || messages.length === 0) return;
+    if (!selected || !loaded) return;
     void runCommand({
-      command_id: uuid(),
+      command_id: newCommandId(),
       command_type: 'CHAT_MARK_READ',
       payload: { conversation_id: selected }
-    }).then(() => {
+    }).then(() =>
       setConversations((prev) =>
         prev.map((c) => (c.id === selected ? { ...c, unread: 0 } : c))
-      );
-    });
-  }, [selected, messages.length]);
+      )
+    );
+  }, [selected, loaded, messages.length]);
 
   const send = async () => {
     const text = body.trim();
-    if (!text || !selected || sending) return;
-    setSending(true);
-    // Clear immediately: waiting for the round trip to empty the box makes a
-    // chat feel broken even when it is working.
+    if (!text || !selected) return;
+    const localId = newCommandId();
+    const replyToId = replyTo?.id ?? null;
+
+    // Optimistic: the message is on screen before the round trip. The input
+    // clears at once, because waiting for the server to empty it makes a chat
+    // feel broken even when it is working.
+    setPending((prev) => [...prev, { localId, body: text, replyToId }]);
     setBody('');
+    setReplyTo(null);
+
     const result = await runCommand({
-      command_id: uuid(),
+      command_id: localId,
       command_type: 'CHAT_SEND',
-      payload: { conversation_id: selected, body: text }
+      payload: {
+        conversation_id: selected,
+        body: text,
+        ...(replyToId ? { reply_to_id: replyToId } : {})
+      }
     });
-    setSending(false);
+
     if (!result.ok) {
+      // Keep it on screen, marked failed, with the text recoverable.
+      setPending((prev) =>
+        prev.map((p) => (p.localId === localId ? { ...p, failed: true } : p))
+      );
       toast.error(result.outcome.message);
-      setBody(text);
       return;
     }
-    await loadMessages(selected);
+    // The authoritative row replaces the optimistic one.
+    setPending((prev) => prev.filter((p) => p.localId !== localId));
+    await load(selected);
   };
 
   const react = async (messageId: string, emoji: string, on: boolean) => {
     const result = await runCommand({
-      command_id: uuid(),
+      command_id: newCommandId(),
       command_type: 'CHAT_REACT',
       payload: { message_id: messageId, emoji, on }
     });
     if (!result.ok) toast.error(result.outcome.message);
-    else if (selected) await loadMessages(selected);
+    else if (selected) await load(selected);
   };
 
-  if (conversations.length === 0)
-    return (
-      <div className='text-muted-foreground rounded-lg border border-dashed px-4 py-10 text-center text-sm'>
-        No conversations yet.
-      </div>
-    );
+  /**
+   * Attach a file: upload it through the canonical evidence path as a
+   * standalone document, then bind it to a message. No second storage system,
+   * and the binding is what makes it readable by the conversation.
+   */
+  const attach = async (file: File) => {
+    if (!selected) return;
+    setAttaching(true);
+    try {
+      const sent = await runCommand({
+        command_id: newCommandId(),
+        command_type: 'CHAT_SEND',
+        payload: { conversation_id: selected, body: file.name }
+      });
+      if (!sent.ok) {
+        toast.error(sent.outcome.message);
+        return;
+      }
+      const messageId = (sent.result as { message_id?: string }).message_id;
+      const ticket = await beginEvidenceUpload({
+        uploadId: newCommandId(),
+        context: { type: 'Library' },
+        file: { name: file.name, type: file.type, size: file.size }
+      });
+      if (!ticket.ok) {
+        toast.error(ticket.message);
+        return;
+      }
+      if (ticket.token) {
+        // The same two steps the file manager uses: bytes to the signed URL,
+        // then the server decides whether they actually arrived. An error here
+        // is not final - the answer may have been lost, not the upload.
+        await createClient()
+          .storage.from('evidence')
+          .uploadToSignedUrl(ticket.path, ticket.token, file, {
+            contentType: evidenceMimeType(file) ?? undefined
+          });
+        const done = await completeEvidenceUpload(ticket.evidenceId);
+        if (!done.ok) {
+          toast.error(done.message);
+          return;
+        }
+      }
+      const bound = await runCommand({
+        command_id: newCommandId(),
+        command_type: 'CHAT_ATTACH',
+        payload: { message_id: messageId, evidence_id: ticket.evidenceId }
+      });
+      if (!bound.ok) toast.error(bound.outcome.message);
+      await load(selected);
+    } finally {
+      setAttaching(false);
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  };
 
+  const shown = conversations.filter((c) => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      conversationName(c, viewerPersonId).toLowerCase().includes(q) ||
+      (c.lastMessage?.body ?? '').toLowerCase().includes(q) ||
+      c.members.some((m) => m.displayName.toLowerCase().includes(q))
+    );
+  });
   const current = conversations.find((c) => c.id === selected);
 
   return (
-    <div className='flex min-h-[28rem] flex-col gap-4 lg:flex-row'>
-      <ul className='divide-y rounded-lg border lg:w-72 lg:shrink-0'>
-        {conversations.map((c) => (
-          <li key={c.id}>
-            <button
-              type='button'
-              onClick={() => setSelected(c.id)}
-              className={`hover:bg-accent flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left ${
-                c.id === selected ? 'bg-accent' : ''
-              }`}
-            >
-              <span className='flex w-full items-center justify-between gap-2'>
-                <span className='truncate text-sm font-medium'>
-                  {conversationName(c, viewerPersonId)}
-                </span>
-                {c.unread > 0 && <Badge variant='info'>{c.unread}</Badge>}
-              </span>
-              {c.lastMessage && (
-                <span className='text-muted-foreground truncate text-xs'>
-                  {c.lastMessage.deleted
-                    ? 'Message deleted'
-                    : c.lastMessage.body}
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <div className='flex min-w-0 flex-1 flex-col rounded-lg border'>
-        <div className='border-b px-4 py-2 text-sm font-medium'>
-          {current ? conversationName(current, viewerPersonId) : 'Conversation'}
-        </div>
-
-        <div className='flex-1 overflow-y-auto px-4 py-3'>
-          {messages.length === 0 ? (
-            <p className='text-muted-foreground text-sm'>
-              Nothing here yet. Say something.
-            </p>
-          ) : (
-            <ul className='flex flex-col gap-3'>
-              {messages.map((m) => {
-                const mine = m.authorPersonId === viewerPersonId;
-                const myReaction = (emoji: string) =>
-                  m.reactions.some(
-                    (r) => r.emoji === emoji && r.personId === viewerPersonId
-                  );
-                return (
-                  <li key={m.id} className='flex flex-col gap-1'>
-                    <span className='text-muted-foreground text-xs'>
-                      {mine ? 'You' : m.authorName} ·{' '}
-                      {new Date(m.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                      {m.editedAt && ' · edited'}
-                    </span>
-                    {m.deleted ? (
-                      <p className='text-muted-foreground text-sm italic'>
-                        Message deleted
-                      </p>
-                    ) : (
-                      <MessageBody body={m.body ?? ''} jobRefs={jobRefs} />
-                    )}
-                    <span className='flex flex-wrap items-center gap-1'>
-                      {['👍', '✅', '👀'].map((emoji) => {
-                        const count = m.reactions.filter(
-                          (r) => r.emoji === emoji
-                        ).length;
-                        if (count === 0 && m.deleted) return null;
-                        return (
-                          <button
-                            key={emoji}
-                            type='button'
-                            onClick={() =>
-                              react(m.id, emoji, !myReaction(emoji))
-                            }
-                            className={`rounded-full border px-2 py-0.5 text-xs ${
-                              myReaction(emoji) ? 'bg-accent' : ''
-                            }`}
-                            aria-label={`React ${emoji}`}
-                          >
-                            {emoji}
-                            {count > 0 && ` ${count}`}
-                          </button>
-                        );
-                      })}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <div ref={bottom} />
-        </div>
-
-        <form
-          className='flex items-end gap-2 border-t p-2'
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
+    <div className='flex min-h-[32rem] flex-col gap-3 xl:flex-row'>
+      {/* Conversation list */}
+      <div className='flex flex-col gap-2 xl:w-72 xl:shrink-0'>
+        <Input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder='Search conversations'
+          aria-label='Search conversations'
+          className='h-9'
+        />
+        <NewConversation
+          onStarted={(id) => {
+            setSelected(id);
+            void load(id);
           }}
-        >
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter sends; Shift+Enter is a new line.
-              if (e.key === 'Enter' && !e.shiftKey) {
+        />
+
+        {conversations.length === 0 ? (
+          <div className='text-muted-foreground rounded-lg border border-dashed px-4 py-10 text-center text-sm'>
+            <p className='font-medium'>No conversations yet</p>
+            <p className='mt-1'>
+              Start one with a colleague — nothing here leaves the company.
+            </p>
+          </div>
+        ) : shown.length === 0 ? (
+          <div className='text-muted-foreground rounded-lg border border-dashed px-4 py-10 text-center text-sm'>
+            Nothing matching “{filter.trim()}”.
+          </div>
+        ) : (
+          <ul className='divide-y rounded-lg border'>
+            {shown.map((c) => {
+              const name = conversationName(c, viewerPersonId);
+              return (
+                <li key={c.id}>
+                  <button
+                    type='button'
+                    onClick={() => setSelected(c.id)}
+                    className={`hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left ${
+                      c.id === selected ? 'bg-accent' : ''
+                    }`}
+                  >
+                    <Avatar name={name} />
+                    <span className='min-w-0 flex-1'>
+                      <span className='flex items-center justify-between gap-2'>
+                        <span className='truncate text-sm font-medium'>
+                          {name}
+                        </span>
+                        {c.lastMessageAt && (
+                          <span className='text-muted-foreground shrink-0 text-[11px]'>
+                            {shortTime(c.lastMessageAt)}
+                          </span>
+                        )}
+                      </span>
+                      <span className='flex items-center justify-between gap-2'>
+                        <span className='text-muted-foreground truncate text-xs'>
+                          {c.lastMessage
+                            ? c.lastMessage.deleted
+                              ? 'Message deleted'
+                              : c.lastMessage.body
+                            : 'No messages yet'}
+                        </span>
+                        {c.unread > 0 && (
+                          <Badge variant='info'>{c.unread}</Badge>
+                        )}
+                      </span>
+                      {c.kind === 'Group' && (
+                        <span className='text-muted-foreground block truncate text-[11px]'>
+                          {c.members.map((m) => m.displayName).join(', ')}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Conversation */}
+      <div className='flex min-h-[28rem] min-w-0 flex-1 flex-col rounded-lg border'>
+        {!current ? (
+          <div className='text-muted-foreground flex flex-1 items-center justify-center p-8 text-center text-sm'>
+            Pick a conversation, or start a new one.
+          </div>
+        ) : (
+          <>
+            <div className='flex items-center gap-2 border-b px-4 py-2'>
+              <Avatar name={conversationName(current, viewerPersonId)} />
+              <div className='min-w-0'>
+                <p className='truncate text-sm font-medium'>
+                  {conversationName(current, viewerPersonId)}
+                </p>
+                <p className='text-muted-foreground truncate text-xs'>
+                  {current.members.map((m) => m.displayName).join(', ')}
+                </p>
+              </div>
+            </div>
+
+            <div className='flex-1 overflow-y-auto px-4 py-3'>
+              {messages.length === 0 && pending.length === 0 ? (
+                <div className='text-muted-foreground flex h-full flex-col items-center justify-center text-center text-sm'>
+                  <p className='font-medium'>No messages yet</p>
+                  <p className='mt-1'>Say something to get started.</p>
+                </div>
+              ) : (
+                <ul className='flex flex-col gap-3'>
+                  {messages.map((m) => {
+                    const mine = m.authorPersonId === viewerPersonId;
+                    const parent = m.replyToId
+                      ? messages.find((x) => x.id === m.replyToId)
+                      : null;
+                    const mineReaction = (emoji: string) =>
+                      m.reactions.some(
+                        (r) =>
+                          r.emoji === emoji && r.personId === viewerPersonId
+                      );
+                    return (
+                      <li key={m.id} className='flex gap-2'>
+                        <Avatar name={m.authorName} size='sm' />
+                        <div className='min-w-0 flex-1'>
+                          <p className='text-muted-foreground text-xs'>
+                            <span className='text-foreground font-medium'>
+                              {mine ? 'You' : m.authorName}
+                            </span>{' '}
+                            · {shortTime(m.createdAt)}
+                            {m.editedAt && ' · edited'}
+                          </p>
+
+                          {parent && (
+                            <p className='text-muted-foreground border-muted mt-1 border-l-2 pl-2 text-xs'>
+                              Replying to {parent.authorName}:{' '}
+                              {parent.deleted
+                                ? 'deleted message'
+                                : truncate(parent.body ?? '', 80)}
+                            </p>
+                          )}
+
+                          {m.deleted ? (
+                            <p className='text-muted-foreground text-sm italic'>
+                              Message deleted
+                            </p>
+                          ) : (
+                            <MessageBody
+                              body={m.body ?? ''}
+                              jobRefs={jobRefs}
+                              mentioned={m.mentionedPersonIds.includes(
+                                viewerPersonId
+                              )}
+                            />
+                          )}
+
+                          {m.attachments.length > 0 && (
+                            <ul className='mt-1 flex flex-wrap gap-2'>
+                              {m.attachments.map((a) => (
+                                <li key={a.evidenceId}>
+                                  <a
+                                    href={`/api/evidence/${a.evidenceId}`}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    className='hover:bg-accent inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs'
+                                  >
+                                    <IconPaperclip className='size-3' />
+                                    {a.name}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          <div className='mt-1 flex flex-wrap items-center gap-1'>
+                            {['👍', '✅', '👀'].map((emoji) => {
+                              const count = m.reactions.filter(
+                                (r) => r.emoji === emoji
+                              ).length;
+                              if (m.deleted && count === 0) return null;
+                              return (
+                                <button
+                                  key={emoji}
+                                  type='button'
+                                  onClick={() =>
+                                    react(m.id, emoji, !mineReaction(emoji))
+                                  }
+                                  className={`rounded-full border px-2 py-0.5 text-xs ${
+                                    mineReaction(emoji) ? 'bg-accent' : ''
+                                  }`}
+                                  aria-label={`React ${emoji}`}
+                                >
+                                  {emoji}
+                                  {count > 0 && ` ${count}`}
+                                </button>
+                              );
+                            })}
+                            {!m.deleted && (
+                              <button
+                                type='button'
+                                onClick={() => setReplyTo(m)}
+                                className='text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs'
+                              >
+                                <IconArrowBackUp className='size-3' />
+                                Reply
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+
+                  {/* Optimistic rows: on screen before the server has spoken. */}
+                  {pending.map((p) => (
+                    <li key={p.localId} className='flex gap-2 opacity-70'>
+                      <Avatar name={viewerName} size='sm' />
+                      <div className='min-w-0 flex-1'>
+                        <p className='text-muted-foreground text-xs'>
+                          <span className='text-foreground font-medium'>
+                            You
+                          </span>{' '}
+                          · {p.failed ? 'not sent' : 'sending…'}
+                        </p>
+                        <p className='text-sm break-words whitespace-pre-wrap'>
+                          {p.body}
+                        </p>
+                        {p.failed && (
+                          <button
+                            type='button'
+                            className='text-destructive text-xs underline'
+                            onClick={() => {
+                              setBody(p.body);
+                              setPending((prev) =>
+                                prev.filter((x) => x.localId !== p.localId)
+                              );
+                            }}
+                          >
+                            Put it back in the box
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div ref={bottom} />
+            </div>
+
+            {replyTo && (
+              <div className='text-muted-foreground flex items-center justify-between gap-2 border-t px-4 py-1 text-xs'>
+                <span className='truncate'>
+                  Replying to {replyTo.authorName}:{' '}
+                  {truncate(replyTo.body ?? '', 60)}
+                </span>
+                <button
+                  type='button'
+                  onClick={() => setReplyTo(null)}
+                  aria-label='Cancel reply'
+                >
+                  <IconX className='size-3.5' />
+                </button>
+              </div>
+            )}
+
+            <form
+              className='flex items-end gap-2 border-t p-2'
+              onSubmit={(e) => {
                 e.preventDefault();
                 void send();
-              }
-            }}
-            rows={2}
-            placeholder='Message'
-            className='focus-visible:ring-ring min-h-10 flex-1 resize-none rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none'
-          />
-          <Button type='submit' size='sm' disabled={!body.trim() || sending}>
-            <IconSend />
-            Send
-          </Button>
-        </form>
+              }}
+            >
+              <input
+                ref={fileInput}
+                type='file'
+                className='hidden'
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void attach(file);
+                }}
+              />
+              <Button
+                type='button'
+                size='sm'
+                variant='outline'
+                disabled={attaching}
+                onClick={() => fileInput.current?.click()}
+                aria-label='Attach a file'
+              >
+                <IconPaperclip />
+              </Button>
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter sends; Shift+Enter is a new line.
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+                rows={2}
+                placeholder={
+                  attaching
+                    ? 'Attaching…'
+                    : 'Message (Shift+Enter for a new line)'
+                }
+                aria-label='Message'
+                className='focus-visible:ring-ring min-h-10 flex-1 resize-none rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none'
+              />
+              <Button type='submit' size='sm' disabled={!body.trim()}>
+                <IconSend />
+                Send
+              </Button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
+}
+
+function shortTime(at: string): string {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
 }
