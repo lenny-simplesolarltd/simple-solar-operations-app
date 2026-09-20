@@ -22,14 +22,14 @@
 
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 import { fixtureKitchenSink } from '../../src/features/presale/designer/calc/__tests__/fixtures';
 import { computePricing } from '../../src/features/presale/designer/calc/pricing';
 import { snapshotFromPricing } from '../../src/features/presale/designer/calc/summary';
+import { renderDocument } from '../../src/features/documents/render/render';
 import {
   runDocumentWorker,
   type RpcClient
@@ -111,7 +111,10 @@ async function main() {
   const { setup } = (await import(
     '../../tests/pglite/fixtures.mjs'
   )) as Fixtures;
-  const root = await mkdtemp(path.join(tmpdir(), 'ss-documents-'));
+  // Kept in the repo's gitignored tmp/ so the PDFs this run produced are easy
+  // to open and inspect afterwards.
+  const root = path.join(process.cwd(), 'tmp', 'acceptance');
+  await mkdir(root, { recursive: true });
   const f = await setup();
   const { db, one, all, cmd, as } = f;
 
@@ -368,14 +371,20 @@ async function main() {
   );
   assert.notEqual(r2.storage_path, r1.storage_path, 'R2 is a different object');
   assert.notEqual(r2.id, r1.id, 'R2 is a different revision');
-  // R1 and R2 hash the same here, and that is the point: nothing about the
-  // snapshot changed, and the renderer is a pure function of the snapshot. Two
-  // revisions, two stored objects, identical bytes - determinism, not a bug.
-  if (r1.content_sha256 === r2.content_sha256) {
-    detail(
-      'R1 and R2 are byte-identical: same snapshot, deterministic renderer'
-    );
-  }
+  // The property the whole revision model rests on: R1's STORED SNAPSHOT
+  // re-renders to R1's bytes. Not "looks the same" - the same sha256. That is
+  // what keeps the recorded hash meaningful a year from now, after the
+  // catalogue and the price of electricity have both moved.
+  const replay = await renderDocument(r1.input_snapshot);
+  const replayHash = createHash('sha256').update(replay.bytes).digest('hex');
+  assert.equal(
+    replayHash,
+    r1.content_sha256,
+    'R1 re-rendered from its stored snapshot is not byte-identical'
+  );
+  detail(
+    `R1 re-rendered from its stored snapshot: ${replayHash.slice(0, 16)}… identical`
+  );
 
   const stillR1 = await one(`select * from public.communications where id=$1`, [
     communicationId
@@ -421,7 +430,9 @@ async function main() {
   console.log(
     `    whose bytes hash to ${hashes.QuotationContract.slice(0, 32)}.`
   );
-  console.log(`\n    Samples kept in ${root}`);
+  console.log(
+    `\n    PDFs from this run: ${path.relative(process.cwd(), root)}/`
+  );
   console.log('\nAcceptance passed.');
 }
 

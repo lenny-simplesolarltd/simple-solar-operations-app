@@ -415,6 +415,15 @@ export async function renderDocument(
   pdf.setProducer('Simple Solar Operations');
   pdf.setCreator('Simple Solar Operations');
 
+  // Both timestamps come from the SNAPSHOT, never from the clock. Left to
+  // pdf-lib they default to the moment of saving, which would make the same
+  // snapshot render to different bytes every time - and "deterministic from a
+  // stored snapshot" is the property the whole revision model rests on. With
+  // them pinned, re-rendering revision 1 in a year reproduces revision 1.
+  const generatedAt = new Date(input.provenance.generatedAt);
+  pdf.setCreationDate(generatedAt);
+  pdf.setModificationDate(generatedAt);
+
   const bytes = await pdf.save({ useObjectStreams: false });
 
   return {

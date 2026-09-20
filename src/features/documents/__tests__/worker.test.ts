@@ -235,3 +235,81 @@ describe('runDocumentWorker', () => {
     expect(report.releasedStalled).toBe(3);
   });
 });
+
+describe('determinism', () => {
+  // The revision model rests on this: a stored snapshot re-renders to the same
+  // bytes, so the hash recorded against a revision stays true, and Preview,
+  // Download and an email attachment can be the same artifact rather than
+  // three renders that merely agree.
+  it('renders the same snapshot to identical bytes', async () => {
+    const { createHash } = await import('node:crypto');
+    const { readFile } = await import('node:fs/promises');
+    const path = await import('node:path');
+    const { resolveDocument } = await import('../resolve');
+    const { renderDocument } = await import('../render/render');
+    const { TEMPLATE_DIRS } = await import('../render/regions');
+    const { fixtureKitchenSink } = await import(
+      '../../presale/designer/calc/__tests__/fixtures'
+    );
+
+    const design = fixtureKitchenSink();
+    design.performance = {
+      ...design.performance,
+      annualConsumptionKwh: 4200,
+      tariffPence: 27.49,
+      segRatePence: 12,
+      selfConsumptionPct: 70
+    };
+    design.slopes = design.slopes.map((s) => ({
+      ...s,
+      radiance: s.radiance || 950
+    }));
+
+    const master = await readFile(
+      path.join(TEMPLATE_DIRS.QuotationContract, 'master.pdf')
+    );
+    const sha = createHash('sha256').update(master).digest('hex');
+
+    const source = {
+      job: { id: 'j', reference: 'SS-WDDG-5412', isHistoricalImport: false },
+      customer: {
+        firstName: 'Jane',
+        lastName: 'Okonkwo',
+        addressLine1: '14 Meadow Rise',
+        addressLine2: null,
+        town: 'Plymouth',
+        postcode: 'PL4 6AB',
+        email: 'jane@example.com',
+        phone: '07700 900123'
+      },
+      salesperson: {
+        displayName: 'Tom Reed',
+        email: 'tom@example.com',
+        phone: null
+      },
+      presale: {
+        id: 'p',
+        submittedAt: '2026-09-20T09:00:00.000Z',
+        design,
+        designSchemaVersion: 1,
+        catalogueVersion: 'artifact-v0.12-2026-09-16',
+        systemKwp: 10.71,
+        netPanels: 21,
+        agreedPricePence: 3_055_340
+      },
+      settings: { electricityInflationPct: 5, segInflates: false },
+      generatedAt: new Date('2026-09-20T10:30:00.000Z'),
+      generatedByPersonId: null
+    };
+
+    const { input } = resolveDocument('QuotationContract', source, sha);
+    const a = await renderDocument(input);
+    // A second render, deliberately a moment later.
+    await new Promise((r) => setTimeout(r, 15));
+    const b = await renderDocument(input);
+
+    const hash = (bytes: Uint8Array) =>
+      createHash('sha256').update(bytes).digest('hex');
+    expect(hash(a.bytes)).toBe(hash(b.bytes));
+  }, 30_000);
+});
