@@ -141,6 +141,62 @@ describe('tool gating', () => {
     expect(read.execute.mock.calls.length).toBeLessThanOrEqual(6);
     expect(out.ofType('turn_end')[0].stopReason).toBe('step_limit');
   });
+
+  it('still answers when it runs out of steps', async () => {
+    // Five lookups and then an apology is the worst outcome available: the
+    // material is already in context, so the last word has to be an answer.
+    const read = fakeReadTool();
+    const call = (i: number) => ({
+      toolCalls: [
+        { id: `c${i}`, name: 'test_lookup', args: { query: 'smith' } }
+      ]
+    });
+    const { provider, requests } = scriptedProvider([
+      ...Array.from({ length: 6 }, (_, i) => call(i)),
+      { text: 'A job appears in the planner once it is booked.' }
+    ]);
+    const { out, promise } = run({
+      provider,
+      registry: new ToolRegistry().register(read.tool)
+    });
+    await promise;
+
+    const said = out
+      .ofType('text_delta')
+      .map((e) => e.text)
+      .join('');
+    expect(said).toContain('appears in the planner');
+    expect(said).not.toMatch(/stopped here because this took more steps/i);
+    expect(out.ofType('turn_end')[0].stopReason).toBe('step_limit');
+
+    // The closing call offers no tools, so the only thing left to do is answer.
+    const last = requests.at(-1)!;
+    expect(last.tools).toEqual([]);
+    expect(JSON.stringify(last.messages.at(-1))).toMatch(/no more lookups/i);
+  });
+
+  it('says so plainly if even the closing answer comes back empty', async () => {
+    const read = fakeReadTool();
+    const call = (i: number) => ({
+      toolCalls: [
+        { id: `c${i}`, name: 'test_lookup', args: { query: 'smith' } }
+      ]
+    });
+    const { provider } = scriptedProvider([
+      ...Array.from({ length: 6 }, (_, i) => call(i)),
+      { text: '' }
+    ]);
+    const { out, promise } = run({
+      provider,
+      registry: new ToolRegistry().register(read.tool)
+    });
+    await promise;
+    const said = out
+      .ofType('text_delta')
+      .map((e) => e.text)
+      .join('');
+    expect(said).toMatch(/could not put an answer together/i);
+  });
 });
 
 describe('identity and context', () => {

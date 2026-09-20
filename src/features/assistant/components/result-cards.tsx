@@ -19,22 +19,60 @@ import { FormCardBody, FormLinkRow } from './form-cards';
 function CardShell({
   title,
   meta,
-  children
+  children,
+  collapsible = false,
+  preview
 }: {
   title: string;
   meta?: string;
   children: React.ReactNode;
+  /**
+   * Reference material - what was consulted on the way to an answer - folds
+   * away so it cannot push the answer off the screen. Anything the person
+   * asked for stays open.
+   */
+  collapsible?: boolean;
+  /** One line naming what is inside, shown while it is folded. */
+  preview?: string;
 }) {
-  return (
-    <div className='bg-background overflow-hidden rounded-lg border'>
-      <div className='flex items-baseline justify-between gap-3 border-b px-3 py-2'>
-        <h3 className='min-w-0 truncate text-xs font-semibold'>{title}</h3>
-        {meta && (
-          <span className='text-muted-foreground shrink-0 text-xs'>{meta}</span>
-        )}
+  const header = (
+    <>
+      <h3 className='min-w-0 truncate text-xs font-semibold'>{title}</h3>
+      {meta && (
+        <span className='text-muted-foreground shrink-0 text-xs'>{meta}</span>
+      )}
+    </>
+  );
+  if (!collapsible) {
+    return (
+      <div className='bg-background overflow-hidden rounded-lg border'>
+        <div className='flex items-baseline justify-between gap-3 border-b px-3 py-2'>
+          {header}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+    );
+  }
+  // <details> rather than state: it is keyboard and screen-reader behaviour
+  // for free, and it survives re-renders while a turn is still streaming.
+  return (
+    <details className='bg-background group/card overflow-hidden rounded-lg border'>
+      <summary className='flex cursor-pointer list-none items-baseline justify-between gap-3 px-3 py-2 marker:hidden hover:bg-muted/50'>
+        <span className='flex min-w-0 items-baseline gap-1.5'>
+          <IconChevronRight
+            className='size-3 shrink-0 self-center transition-transform group-open/card:rotate-90'
+            aria-hidden
+          />
+          {header}
+        </span>
+      </summary>
+      {preview && (
+        <p className='text-muted-foreground truncate px-3 pb-2 text-xs group-open/card:hidden'>
+          {preview}
+        </p>
+      )}
+      <div className='border-t'>{children}</div>
+    </details>
   );
 }
 
@@ -361,6 +399,8 @@ export function ResultCard({
       return (
         <CardShell
           title={card.title}
+          collapsible
+          preview={card.articles.map((a) => a.title).join(' · ')}
           meta={
             card.articles.length
               ? count(card.articles.length, 'guide')
@@ -390,7 +430,11 @@ export function ResultCard({
 
     case 'help_article':
       return (
-        <CardShell title='Help Center guide'>
+        <CardShell
+          title='Help Center guide'
+          collapsible
+          preview={card.article.title}
+        >
           <ul className='divide-y'>
             <HelpRow article={card.article} onNavigate={onNavigate} />
           </ul>

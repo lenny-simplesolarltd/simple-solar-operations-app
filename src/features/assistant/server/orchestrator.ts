@@ -230,10 +230,44 @@ export async function runAssistantTurn(
       turnMessages.push({ role: 'tool', results });
 
       if (step + 1 >= MAX_STEPS) {
-        const text =
-          'I’ve stopped here because this took more steps than I allow for one request. Ask me to continue, or narrow the question.';
-        emit({ type: 'text_delta', text });
-        turnMessages.push({ role: 'assistant', text, toolCalls: [] });
+        // Out of steps, but not out of material: everything the tools returned
+        // is already in context. Ask once more with no tools offered, so the
+        // only thing left to do is answer. Giving back nothing after five
+        // lookups is the worst outcome available, and it was the old one.
+        let closing = '';
+        const final = await provider.generate(
+          {
+            system,
+            messages: [
+              ...input.transcript,
+              ...turnMessages,
+              {
+                role: 'user',
+                text: 'Answer now, from what you have already found. No more lookups. If some of it is still unknown, say what you do know and name what is missing.'
+              }
+            ],
+            tools: []
+          },
+          {
+            signal,
+            onTextDelta: (text) => {
+              closing += text;
+              emit({ type: 'text_delta', text });
+            }
+          }
+        );
+        servedBy = final.servedBy ?? servedBy;
+        if (final.usage?.inputTokens) input.onUsage?.(final.usage.inputTokens);
+        if (!closing && final.text) {
+          closing = final.text;
+          emit({ type: 'text_delta', text: closing });
+        }
+        if (!closing.trim()) {
+          closing =
+            'I looked into that but could not put an answer together. Ask me again, or narrow the question.';
+          emit({ type: 'text_delta', text: closing });
+        }
+        turnMessages.push({ role: 'assistant', text: closing, toolCalls: [] });
         stopReason = 'step_limit';
         break;
       }
