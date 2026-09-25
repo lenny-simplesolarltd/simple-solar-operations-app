@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { SignaturePad } from './signature-pad';
 import { IconLoader2 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -417,6 +418,28 @@ function FieldView({
             This question can only be answered in the app.
           </p>
         )}
+        {appendix}
+        {errorText}
+      </div>
+    );
+  }
+
+  // Drawn, not typed and not uploaded. It needs no authenticated actor, which
+  // is what lets a recipient link carry one.
+  if (field.type === 'signature') {
+    return (
+      <div className='flex flex-col gap-2'>
+        <label htmlFor={id} className='text-sm font-medium'>
+          {label}
+        </label>
+        {help}
+        <SignaturePad
+          value={text}
+          onChange={onChange}
+          inputId={id}
+          describedBy={describedBy}
+          invalid={!!error}
+        />
         {appendix}
         {errorText}
       </div>

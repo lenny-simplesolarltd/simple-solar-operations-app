@@ -20,6 +20,7 @@ import type {
   InvitationSummary
 } from '@/features/forms/types';
 import { LINK_STATUS_LABEL, RECIPIENT_LABEL } from '@/features/forms/types';
+import { getFormAccess } from '@/features/forms/server/access';
 import { z } from 'zod';
 import type { FormCardData, FormLinkCardData } from '../../protocol';
 import type {
@@ -939,11 +940,158 @@ export const setFormStatusTool: MutationTool<{
   }
 };
 
+/**
+ * Who may COMPLETE a form, read and set.
+ *
+ * The screen gained this before the assistant did, so "who can fill this in?"
+ * was a question SimpleBot could not answer and "put it in front of the
+ * installers" was a change it could not make. Both go through the same
+ * FORM_ACCESS read and FORM_ACCESS_SET command the editor uses, so every rule
+ * holds: Workflow mode is refused unless a workflow genuinely owns the form,
+ * Roles mode needs at least one role, an unknown role code is refused, and a
+ * ReadOnly account is never a completing role.
+ */
+export const getFormAccessTool: ReadTool<{ form_id: string }> = {
+  name: 'get_form_access',
+  summary: 'Read who may complete a form',
+  description:
+    'Who may complete a form: by invitation link only, by named roles, or decided by the workflow that owns it. Returns the current mode, the roles chosen, and every role that could be chosen. Use it before changing access, and to answer "who can fill this in?".',
+  domain: 'forms',
+  kind: 'read',
+  status: 'available',
+  inputSchema: z.strictObject({ form_id: uuid }),
+  authorization: { permissions: ['forms.read'], enforcedBy: ENFORCED },
+  async execute({ form_id }) {
+    const access = await getFormAccess(form_id);
+    if (!access) return fail('FORMS_NOT_FOUND');
+    return {
+      ok: true,
+      data: {
+        form_id,
+        mode: access.mode,
+        who_can_complete:
+          access.mode === 'Workflow'
+            ? `${access.workflowName ?? 'A workflow'} decides: the people it has assigned`
+            : access.mode === 'Roles'
+              ? access.roles
+              : 'Only people sent a recipient link',
+        roles: access.roles,
+        roles_available: access.allRoles,
+        // Not a choice a manager can make: it is a fact about whether another
+        // domain points at this form, and the command refuses it otherwise.
+        workflow_owned: access.workflowOwned,
+        workflow_name: access.workflowName
+      }
+    };
+  }
+};
+
+const ACCESS_MODES = ['Invitation', 'Roles'] as const;
+
+export const setFormAccessTool: MutationTool<{
+  form_id: string;
+  mode: (typeof ACCESS_MODES)[number];
+  role_codes?: string[];
+}> = {
+  name: 'set_form_access',
+  summary: 'Change who may complete a form',
+  description:
+    'Prepare a change to who may complete a form: either only people sent a recipient link, or everyone holding the roles you name (the form then appears under "To complete" for them). Workflow-owned forms cannot be changed here - the programme that owns the form decides. Name roles exactly as roles_available lists them.',
+  domain: 'forms',
+  kind: 'mutation',
+  status: 'available',
+  inputSchema: z.strictObject({
+    form_id: uuid,
+    mode: z.enum(ACCESS_MODES),
+    role_codes: z
+      .array(z.string().min(1).max(40))
+      .max(20)
+      .optional()
+      .describe('Required for Roles mode; ignored otherwise')
+  }),
+  authorization: { permissions: ['forms.edit'], enforcedBy: ENFORCED },
+  async prepare({ form_id, mode, role_codes }) {
+    const [form, access] = await Promise.all([
+      forms.getForm(form_id),
+      getFormAccess(form_id)
+    ]);
+    if (!form || !access) return refuse('FORMS_NOT_FOUND');
+    if (access.workflowOwned) return refuse('FORMS_ACCESS_NOT_WORKFLOW_OWNED');
+
+    const roles = mode === 'Roles' ? (role_codes ?? []) : [];
+    if (mode === 'Roles' && roles.length === 0)
+      return refuse('FORMS_ACCESS_ROLES_REQUIRED');
+    // Caught here so the person is told WHICH role was not recognised; the
+    // command refuses an unknown code either way.
+    const unknown = roles.filter((r) => !access.allRoles.includes(r));
+    if (unknown.length > 0)
+      return {
+        ok: false as const,
+        code: 'FORMS_ACCESS_ROLE_UNKNOWN',
+        message: `Not a role in this system: ${unknown.join(', ')}. Choose from ${access.allRoles.join(', ')}.`
+      };
+
+    const describe = (m: string, r: string[]) =>
+      m === 'Roles' ? r.join(', ') : 'Only people sent a link';
+    return {
+      ok: true as const,
+      preview: {
+        title: `Change who can complete "${form.title}"`,
+        summary:
+          mode === 'Roles'
+            ? 'It appears under "To complete" for everyone holding these roles, once the form is published.'
+            : "It disappears from everyone's list in the app. Only recipient links reach it.",
+        changes: [
+          {
+            label: 'Who can complete it',
+            from: describe(access.mode, access.roles),
+            to: describe(mode, roles)
+          }
+        ],
+        warnings:
+          form.status !== 'published' && mode === 'Roles'
+            ? ["A form appears on someone's list only once it is published."]
+            : [],
+        confirmLabel: 'Save access',
+        // Who may complete a form is not part of the draft being edited, so a
+        // saved question should not make this refuse.
+        expectedVersion: null
+      }
+    };
+  },
+  async execute({ form_id, mode, role_codes }, ctx) {
+    const saved = await forms.setFormAccess(
+      {
+        formId: form_id,
+        mode,
+        roleCodes: mode === 'Roles' ? (role_codes ?? []) : []
+      },
+      null,
+      ctx.commandId
+    );
+    if (!saved.ok) return fail(saved.code, saved.message);
+    const access = await getFormAccess(form_id);
+    return {
+      ok: true,
+      data: {
+        form_id,
+        mode: access?.mode ?? mode,
+        roles: access?.roles ?? [],
+        who_can_complete:
+          (access?.mode ?? mode) === 'Roles'
+            ? (access?.roles ?? [])
+            : 'Only people sent a recipient link'
+      }
+    };
+  }
+};
+
 export const FORMS_READ_TOOLS = [
   listFormsTool,
   getFormTool,
   listFormResponsesTool,
-  getFormResponseTool
+  getFormResponseTool,
+  getFormAccessTool
 ];
 export const FORMS_MUTATION_TOOLS = [
   createFormTool,
@@ -952,10 +1100,13 @@ export const FORMS_MUTATION_TOOLS = [
   saveFormAsTemplateTool,
   createFormLinkTool,
   revokeFormLinkTool,
-  setFormStatusTool
+  setFormStatusTool,
+  setFormAccessTool
 ];
 
 export const FORMS_TOOL_LABELS: Record<string, string> = {
+  get_form_access: 'Reading who can complete the form',
+  set_form_access: 'Preparing the access change',
   list_forms: 'Reading forms',
   get_form: 'Reading the form',
   list_form_responses: 'Reading form links',

@@ -1,7 +1,9 @@
+import { SignatureImage } from './signature-pad';
 import {
   isInputType,
   type FormDefinition,
-  type FormField
+  type FormField,
+  isSignaturePath
 } from '../definition';
 
 /** Human-readable answer, interpreted with the revision's own field (never today's draft). */
@@ -76,6 +78,29 @@ export function ResponseAnswers({
       );
     }
     if (!isInputType(field.type)) return null;
+
+    // A signature is a drawing, so it is shown as one. Path data read back as
+    // text would be a wall of coordinates and would not be a signature at all.
+    if (field.type === 'signature') {
+      const drawn = answers[field.id];
+      const valid = typeof drawn === 'string' && isSignaturePath(drawn);
+      return (
+        <dl key={field.id} className='flex flex-col gap-1'>
+          <dt className='text-muted-foreground text-sm'>
+            <span className='tabular-nums'>{numbers.get(field.id)}.</span>{' '}
+            {field.label}
+          </dt>
+          <dd className='text-sm'>
+            {valid ? (
+              <SignatureImage value={drawn as string} className='max-w-sm' />
+            ) : (
+              <span className='text-muted-foreground italic'>Not signed</span>
+            )}
+          </dd>
+        </dl>
+      );
+    }
+
     const text = formatAnswer(field, answers[field.id]);
     return (
       <dl key={field.id} className='flex flex-col gap-1'>

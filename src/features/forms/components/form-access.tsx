@@ -1,10 +1,17 @@
 'use client';
 
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger
+} from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import { IconLoader2 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import type { RoleMember, RoleMembers } from '@/features/people/server/queries';
 import type { AccessMode, FormAccess } from '../server/access';
 import { setFormAccessAction } from '../server/actions';
 
@@ -59,14 +66,120 @@ const MODES: {
   }
 ];
 
+/** "Anne Pike" -> "AP", "Ben" -> "B". Initials, not a guess at a first name. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (
+    parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')
+  ).toUpperCase();
+}
+
+/** How many faces fit before the overflow count is more useful than another one. */
+const FACES = 4;
+
+/** The names behind the faces. Exported so it can be read in a test. */
+export function RoleMemberList({
+  label,
+  members
+}: {
+  label: string;
+  members: RoleMember[];
+}) {
+  return (
+    <>
+      <p className='text-muted-foreground border-b px-3 py-2 text-xs font-medium'>
+        {label}
+      </p>
+      <ul className='max-h-56 overflow-y-auto py-1'>
+        {members.map((person) => (
+          <li key={person.id} className='px-3 py-1.5'>
+            <span className='block truncate text-sm'>{person.name}</span>
+            {person.email && (
+              <span className='text-muted-foreground block truncate text-xs'>
+                {person.email}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * Who actually holds this role.
+ *
+ * A manager choosing "Installer" is choosing nine people, and the checkbox on
+ * its own does not say who. The faces answer that at a glance; the full list,
+ * with addresses, is one hover or one keyboard focus away, because at nine
+ * names "who is in this?" is a real question and initials are not an answer.
+ *
+ * It renders nothing at all when the directory came back empty - a field worker
+ * cannot read it under RLS - rather than showing a confident "0 people", which
+ * would be a claim about the team rather than about what they can see.
+ */
+export const roleMemberLabel = (role: string, count: number) =>
+  `${count} ${count === 1 ? 'person holds' : 'people hold'} the ${role} role`;
+
+function RoleMemberGroup({
+  role,
+  members
+}: {
+  role: string;
+  members: RoleMember[];
+}) {
+  if (members.length === 0) return null;
+  const shown = members.slice(0, FACES);
+  const overflow = members.length - shown.length;
+  const label = roleMemberLabel(role, members.length);
+
+  return (
+    <HoverCard openDelay={120} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          type='button'
+          aria-label={label}
+          // A button so it is reachable by keyboard and by tap, not hover only.
+          // It changes nothing: the checkbox beside it is what chooses the role.
+          onClick={(e) => e.preventDefault()}
+          className='focus-visible:ring-ring -mr-1 flex shrink-0 items-center rounded-full pr-1 outline-none focus-visible:ring-2'
+        >
+          {shown.map((person) => (
+            <Avatar
+              key={person.id}
+              className='ring-background -ml-1 size-7 ring-2 first:ml-0'
+            >
+              <AvatarFallback className='bg-secondary text-secondary-foreground border-border/60 border text-[10px] font-semibold'>
+                {initials(person.name)}
+              </AvatarFallback>
+            </Avatar>
+          ))}
+          {overflow > 0 && (
+            <span className='bg-secondary text-secondary-foreground ring-background border-border/60 -ml-1 flex size-7 items-center justify-center rounded-full border text-[10px] font-semibold ring-2'>
+              +{overflow}
+            </span>
+          )}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align='end' className='w-64 p-0'>
+        <RoleMemberList label={label} members={members} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
 export function FormAccess({
   formId,
   access,
-  canEdit
+  canEdit,
+  roleMembers = {}
 }: {
   formId: string;
   access: FormAccess;
   canEdit: boolean;
+  /** Who holds each role, as far as this person may see. */
+  roleMembers?: RoleMembers;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<AccessMode>(access.mode);
@@ -193,12 +306,19 @@ export function FormAccess({
                       disabled={!canEdit || busy}
                       onChange={() => toggle(role)}
                     />
-                    {ROLE_LABEL[role] ?? role}
+                    <span className='min-w-0 flex-1 truncate'>
+                      {ROLE_LABEL[role] ?? role}
+                    </span>
+                    <RoleMemberGroup
+                      role={ROLE_LABEL[role] ?? role}
+                      members={roleMembers[role] ?? []}
+                    />
                   </label>
                 ))}
               </div>
               <p className='text-muted-foreground text-xs'>
                 Read-only accounts are not listed: they cannot submit anything.
+                Hover a role to see who holds it.
               </p>
             </fieldset>
           )}

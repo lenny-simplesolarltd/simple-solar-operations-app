@@ -6,6 +6,7 @@ import { FormAccess } from '@/features/forms/components/form-access';
 import { FormBuilder } from '@/features/forms/components/form-builder';
 import { ShareLinks } from '@/features/forms/components/share-links';
 import { getFormAccess } from '@/features/forms/server/access';
+import { listRoleMembers } from '@/features/people/server/queries';
 import { getForm, listInvitations } from '@/features/forms/server/service';
 import { getPermissions } from '@/features/presale/server/queries';
 import { getCurrentUser } from '@/lib/auth';
@@ -37,6 +38,10 @@ export default async function FormPage({
     form.kind === 'form' ? await listInvitations({ formId: form.id }) : [];
   // Templates are never completed by anybody: a form is made from one first.
   const access = form.kind === 'form' ? await getFormAccess(form.id) : null;
+  // Who holds each role, so choosing an audience shows the people in it. Read
+  // under this person's own RLS, so it is empty for anyone who may not see the
+  // directory and the section simply appears without faces.
+  const roleMembers = access ? await listRoleMembers() : {};
 
   return (
     <PageContainer>
@@ -70,6 +75,7 @@ export default async function FormPage({
           <FormAccess
             formId={form.id}
             access={access}
+            roleMembers={roleMembers}
             canEdit={
               permissions.has('forms.edit') && form.status !== 'archived'
             }

@@ -26,7 +26,12 @@ export const INPUT_TYPES = [
   // Staff-only: both need an authenticated actor, so a recipient link cannot
   // carry them (the database refuses one - FORMS_NOT_LINKABLE).
   'photo',
-  'entity'
+  'entity',
+  // NOT staff-only, deliberately. A signature is the answer itself rather than
+  // an uploaded file, so it needs no actor to own it and a recipient link can
+  // carry one - which is the whole point, because the person signing is usually
+  // the customer.
+  'signature'
 ] as const;
 export const LAYOUT_TYPES = ['section', 'info'] as const;
 export const FIELD_TYPES = [...INPUT_TYPES, ...LAYOUT_TYPES] as const;
@@ -60,6 +65,29 @@ export const ENTITY_KIND_LABEL: Record<EntityKind, string> = {
 
 /** Files one photo question may carry when it does not say. */
 export const PHOTO_DEFAULT_MAX = 10;
+
+/**
+ * The box a signature is drawn in, and the longest path accepted.
+ *
+ * Every signature is captured in these coordinates whatever the size of the
+ * screen it was drawn on, so the stored value is self-describing: it re-renders
+ * at any width without storing the canvas it came from. Mirrors
+ * app.forms_signature_max_length().
+ */
+export const SIGNATURE_BOX = { width: 600, height: 200 } as const;
+export const SIGNATURE_MAX_LENGTH = 20000;
+
+/**
+ * Whether this is path data we are willing to put in an SVG `d` attribute.
+ *
+ * The same allow-list the database enforces. It is the only thing standing
+ * between a value somebody posted and markup, so it permits move, line and
+ * curve commands, digits and separators, and nothing else.
+ */
+export const isSignaturePath = (value: string) =>
+  /^[Mm]/.test(value) &&
+  /^[MLCQmlcq0-9 .,-]+$/.test(value) &&
+  value.length <= SIGNATURE_MAX_LENGTH;
 
 export const hasStaffOnlyField = (definition: FormDefinition) =>
   definition.fields.some((f) => STAFF_ONLY_TYPES.includes(f.type));
@@ -111,6 +139,11 @@ export const FIELD_TYPE_INFO: Record<
   entity: {
     label: 'Record lookup',
     hint: 'Search and pick a record',
+    group: 'Other'
+  },
+  signature: {
+    label: 'Signature',
+    hint: 'Sign with a finger or mouse',
     group: 'Other'
   },
   section: {
@@ -390,6 +423,10 @@ export function checkAnswers(
             `Enter a number from ${f.min ?? '…'} to ${f.max ?? '…'}`;
         break;
       }
+      case 'signature':
+        if (typeof v !== 'string' || !isSignaturePath(v))
+          errors[f.id] = 'Please sign in the box';
+        break;
       case 'yes_no':
       case 'confirmation':
         if (typeof v !== 'boolean') errors[f.id] = 'Choose an answer';

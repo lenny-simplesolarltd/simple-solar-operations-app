@@ -64,6 +64,7 @@ describe('the production registry', () => {
       'find_job',
       'get_customer_contact',
       'get_form',
+      'get_form_access',
       'get_form_response',
       'get_help_article',
       'get_help_for_route',
@@ -119,6 +120,7 @@ describe('the production registry', () => {
       'revise_quote',
       'revoke_form_link',
       'save_form_as_template',
+      'set_form_access',
       'set_form_status',
       'set_lead_source',
       'update_customer_contact'
@@ -192,8 +194,15 @@ describe('the production registry', () => {
   });
 
   it('has no tool that accepts an identity or arbitrary query', () => {
-    const forbidden =
-      /actor|person_?id|submitted_?by|role|permission|sql|query_text/i;
+    const identity =
+      /actor|person_?id|submitted_?by|permission|sql|query_text/i;
+    // "role" is banned too, because a tool that accepts one could be letting
+    // the model claim the actor's authority. One tool names roles as DATA
+    // rather than as a claim: set_form_access configures which roles a form
+    // appears for, exactly as the editor's checkboxes do. It is listed here by
+    // name so a new tool with a role field still fails this test, and so the
+    // exception has to be argued for rather than inherited.
+    const rolesAreConfiguration = new Set(['set_form_access']);
     for (const tool of registry.all()) {
       if (tool.status !== 'available') continue;
       const schema = JSON.stringify(
@@ -201,8 +210,20 @@ describe('the production registry', () => {
           tool.inputSchema as { toJSONSchema?: () => unknown }
         ).toJSONSchema?.() ?? {}
       );
-      expect(schema).not.toMatch(forbidden);
+      // Every tool, without exception: nothing may accept an identity.
+      expect(schema, tool.name).not.toMatch(identity);
+      if (!rolesAreConfiguration.has(tool.name))
+        expect(schema, tool.name).not.toMatch(/role/i);
     }
+    // And the exception really is configuration: it decides who a FORM is for,
+    // never who the caller is. Authority stays with ctx.actor and the command.
+    const exception = registry.get('set_form_access');
+    expect(exception?.status).toBe('available');
+    expect(
+      exception && 'authorization' in exception
+        ? exception.authorization.permissions
+        : []
+    ).toContain('forms.edit');
   });
 });
 
