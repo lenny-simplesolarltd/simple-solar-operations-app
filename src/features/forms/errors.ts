@@ -28,6 +28,10 @@ const MESSAGES: Record<string, string> = {
   FORMS_TEMPLATE_NOT_SENDABLE:
     'Templates cannot be sent. Create a form from it first.',
   FORMS_NOT_PUBLISHED: 'Publish the form before creating a link.',
+  FORMS_NOT_LINKABLE:
+    'This form has photo or lookup questions, which need a signed-in person. It can be completed in the app, but not sent as a recipient link.',
+  FORMS_REVISION_NOT_FOUND:
+    'The version of this form being answered no longer exists. Reload the page and try again.',
   FORMS_CUSTOMER_NEEDS_JOB: 'Choose the job whose customer this is for.',
   FORMS_SURVEYOR_NOT_FOUND: 'Choose an active surveyor.',
   FORMS_RECIPIENT_LABEL_REQUIRED: 'Say who this link is for.',

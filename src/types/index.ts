@@ -34,7 +34,9 @@ export type NavAccess =
   | 'resourcing'
   | 'communications'
   | 'chat'
-  | 'forms';
+  | 'forms'
+  | 'programmes'
+  | 'programmeField';
 
 export interface NavEntry {
   title: string;

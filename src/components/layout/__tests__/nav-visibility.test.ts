@@ -184,7 +184,8 @@ describe('keyboard shortcuts', () => {
 describe('Forms behind its release gate', () => {
   const formsUrls = (released: boolean, permissions: string[]) =>
     visibleNavGroups(navGroups, user(['Office']), new Set(permissions), {
-      forms: released
+      forms: released,
+      programmes: false
     })
       .flatMap((g) => g.items.map((i) => i.url))
       .filter((u) => u.startsWith('/dashboard/forms'));

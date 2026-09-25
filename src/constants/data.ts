@@ -51,6 +51,13 @@ export const navGroups: NavGroup[] = [
         access: 'any'
       },
       {
+        title: 'My programme visits',
+        url: '/dashboard/operations/programmes',
+        icon: 'activity',
+        shortcut: ['p', 'v'],
+        access: 'programmeField'
+      },
+      {
         title: 'Operations',
         url: '/dashboard/operations',
         icon: 'activity',
@@ -82,6 +89,13 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Operations',
     items: [
+      {
+        title: 'Programmes',
+        url: '/dashboard/operations/programmes',
+        icon: 'activity',
+        shortcut: ['p', 'r'],
+        access: 'programmes'
+      },
       {
         title: 'Booking',
         url: '/dashboard/booking',

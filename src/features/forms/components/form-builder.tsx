@@ -30,8 +30,11 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CHOICE_TYPES,
+  ENTITY_KIND_LABEL,
+  ENTITY_KINDS,
   FIELD_TYPE_INFO,
   FIELD_TYPES,
+  PHOTO_DEFAULT_MAX,
   defaultField,
   definitionProblem,
   duplicateField,
@@ -768,6 +771,50 @@ function FieldSettings({
             />
           </div>
         )}
+        {field.type === 'entity' && (
+          <div className='flex flex-col gap-1.5'>
+            <Label htmlFor='field-entity'>Look up</Label>
+            <select
+              id='field-entity'
+              value={field.entity ?? ENTITY_KINDS[0]}
+              onChange={(e) =>
+                onChange({
+                  entity: e.target.value as (typeof ENTITY_KINDS)[number]
+                })
+              }
+              className='border-input bg-background h-9 rounded-md border px-3 text-sm'
+            >
+              {ENTITY_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {ENTITY_KIND_LABEL[k]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {field.type === 'photo' && (
+          <div className='flex flex-col gap-1.5'>
+            <Label htmlFor='field-max'>Most files allowed</Label>
+            <select
+              id='field-max'
+              value={field.max ?? 4}
+              onChange={(e) => onChange({ max: Number(e.target.value) })}
+              className='border-input bg-background h-9 rounded-md border px-3 text-sm'
+            >
+              {Array.from({ length: PHOTO_DEFAULT_MAX }, (_, i) => i + 1).map(
+                (n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                )
+              )}
+            </select>
+            <p className='text-muted-foreground text-xs'>
+              Photos and PDFs, up to 25 MB each. Turn on “Required” to insist on
+              at least one.
+            </p>
+          </div>
+        )}
         {(field.type === 'number' ||
           field.type === 'currency' ||
           field.type === 'scale') && (
@@ -887,6 +934,9 @@ function ConditionValue({
       : [
           { value: 'equals', label: 'is' },
           { value: 'not_equals', label: 'is not' },
+          // Several answers, one rule: the alternative is the same follow-up
+          // question repeated once per answer.
+          { value: 'in', label: 'is one of' },
           { value: 'answered', label: 'is answered' }
         ];
   const values =
@@ -898,6 +948,7 @@ function ConditionValue({
       : (source.options?.map((o) => ({ value: o.id, label: o.label })) ?? null);
   const toValue = (raw: string) =>
     source.type === 'yes_no' ? raw === 'true' : raw;
+  const chosen = (condition.values ?? []).map(String);
 
   return (
     <div className='flex flex-col gap-2'>
@@ -909,12 +960,26 @@ function ConditionValue({
           onChange(
             op === 'answered'
               ? { field: condition.field, op }
-              : {
-                  field: condition.field,
-                  op,
-                  value:
-                    condition.value ?? (values ? toValue(values[0].value) : '')
-                }
+              : op === 'in'
+                ? {
+                    field: condition.field,
+                    op,
+                    values:
+                      condition.values ??
+                      (condition.value !== undefined
+                        ? [condition.value]
+                        : values
+                          ? [toValue(values[0].value)]
+                          : [''])
+                  }
+                : {
+                    field: condition.field,
+                    op,
+                    value:
+                      condition.value ??
+                      condition.values?.[0] ??
+                      (values ? toValue(values[0].value) : '')
+                  }
           );
         }}
         className='border-input bg-background h-9 rounded-md border px-3 text-sm'
@@ -925,7 +990,52 @@ function ConditionValue({
           </option>
         ))}
       </select>
+      {condition.op === 'in' ? (
+        values ? (
+          <fieldset className='flex flex-col gap-1.5'>
+            <legend className='text-muted-foreground mb-1 text-xs'>
+              Any one of these
+            </legend>
+            {values.map((v) => (
+              <label
+                key={v.value}
+                className='flex min-h-9 cursor-pointer items-center gap-2 text-sm'
+              >
+                <input
+                  type='checkbox'
+                  className='accent-foreground size-4'
+                  checked={chosen.includes(v.value)}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...chosen, v.value]
+                      : chosen.filter((x) => x !== v.value);
+                    // Never leave it empty: an empty list is not a valid rule.
+                    if (!next.length) return;
+                    onChange({ ...condition, values: next.map(toValue) });
+                  }}
+                />
+                {v.label}
+              </label>
+            ))}
+          </fieldset>
+        ) : (
+          <Input
+            aria-label='Condition values, comma separated'
+            value={chosen.join(', ')}
+            onChange={(e) =>
+              onChange({
+                ...condition,
+                values: e.target.value
+                  .split(',')
+                  .map((x) => x.trim())
+                  .filter(Boolean)
+              })
+            }
+          />
+        )
+      ) : null}
       {condition.op !== 'answered' &&
+        condition.op !== 'in' &&
         (values ? (
           <select
             aria-label='Condition value'

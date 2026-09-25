@@ -22,7 +22,11 @@ export const INPUT_TYPES = [
   'dropdown',
   'scale',
   'address',
-  'confirmation'
+  'confirmation',
+  // Staff-only: both need an authenticated actor, so a recipient link cannot
+  // carry them (the database refuses one - FORMS_NOT_LINKABLE).
+  'photo',
+  'entity'
 ] as const;
 export const LAYOUT_TYPES = ['section', 'info'] as const;
 export const FIELD_TYPES = [...INPUT_TYPES, ...LAYOUT_TYPES] as const;
@@ -35,7 +39,30 @@ export const CHOICE_TYPES: readonly FieldType[] = [
   'multiple_choice',
   'dropdown'
 ];
-const BOUNDED_TYPES: readonly FieldType[] = ['number', 'currency', 'scale'];
+const BOUNDED_TYPES: readonly FieldType[] = [
+  'number',
+  'currency',
+  'scale',
+  // `max` only: "at least one" is what `required` already means.
+  'photo'
+];
+
+/** Types a recipient with no account cannot answer. Mirrors app.forms_staff_only_types(). */
+export const STAFF_ONLY_TYPES: readonly FieldType[] = ['photo', 'entity'];
+
+/** What an `entity` question may look up. Mirrors app.forms_entity_kinds(). */
+export const ENTITY_KINDS = ['programme_property'] as const;
+export type EntityKind = (typeof ENTITY_KINDS)[number];
+
+export const ENTITY_KIND_LABEL: Record<EntityKind, string> = {
+  programme_property: 'Programme property'
+};
+
+/** Files one photo question may carry when it does not say. */
+export const PHOTO_DEFAULT_MAX = 10;
+
+export const hasStaffOnlyField = (definition: FormDefinition) =>
+  definition.fields.some((f) => STAFF_ONLY_TYPES.includes(f.type));
 
 export const FIELD_TYPE_INFO: Record<
   FieldType,
@@ -76,6 +103,16 @@ export const FIELD_TYPE_INFO: Record<
     hint: 'A tick box to agree',
     group: 'Other'
   },
+  photo: {
+    label: 'Photo or file',
+    hint: 'Take or attach photos',
+    group: 'Other'
+  },
+  entity: {
+    label: 'Record lookup',
+    hint: 'Search and pick a record',
+    group: 'Other'
+  },
   section: {
     label: 'Section heading',
     hint: 'Groups the questions below',
@@ -92,6 +129,7 @@ export const isInputType = (type: string): type is InputType =>
   (INPUT_TYPES as readonly string[]).includes(type);
 
 const ID = /^[a-z][a-z0-9_]{0,39}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OPTION_ID = /^[a-z0-9][a-z0-9_]{0,39}$/;
 
 export const optionSchema = z.strictObject({
@@ -99,10 +137,15 @@ export const optionSchema = z.strictObject({
   label: z.string().trim().min(1).max(200)
 });
 
+const CONDITION_VALUE = z.union([z.string(), z.boolean(), z.number()]);
+
 export const conditionSchema = z.strictObject({
   field: z.string().regex(ID),
-  op: z.enum(['equals', 'not_equals', 'includes', 'answered']),
-  value: z.union([z.string(), z.boolean(), z.number()]).optional()
+  // 'in': true when the earlier answer is any one of `values`. Two outcomes that
+  // share their follow-up questions need one condition, not duplicated fields.
+  op: z.enum(['equals', 'not_equals', 'includes', 'answered', 'in']),
+  value: CONDITION_VALUE.optional(),
+  values: z.array(CONDITION_VALUE).min(1).max(50).optional()
 });
 
 export const fieldSchema = z.strictObject({
@@ -115,7 +158,8 @@ export const fieldSchema = z.strictObject({
   options: z.array(optionSchema).min(1).max(50).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
-  condition: conditionSchema.optional()
+  condition: conditionSchema.optional(),
+  entity: z.enum(ENTITY_KINDS).optional()
 });
 
 export type FormOption = z.infer<typeof optionSchema>;
@@ -157,12 +201,27 @@ export function definitionProblem(
       new Set(f.options!.map((o) => o.id)).size !== f.options!.length
     )
       return bad('Two options share an id');
+    if (f.type === 'entity') {
+      if (!f.entity) return bad('Choose what this question looks up');
+    } else if (f.entity) {
+      return bad('Only a lookup question names an entity');
+    }
     if (
       (f.min !== undefined || f.max !== undefined) &&
       !BOUNDED_TYPES.includes(f.type)
     )
-      return bad('Only number, currency and scale questions have limits');
-    if (f.min !== undefined && f.max !== undefined && f.min >= f.max)
+      return bad(
+        'Only number, currency, scale and photo questions have limits'
+      );
+    if (f.type === 'photo') {
+      if (f.min !== undefined)
+        return bad('A photo question has a maximum only');
+      if (
+        f.max !== undefined &&
+        (!Number.isInteger(f.max) || f.max < 1 || f.max > PHOTO_DEFAULT_MAX)
+      )
+        return bad(`A photo question allows 1-${PHOTO_DEFAULT_MAX} files`);
+    } else if (f.min !== undefined && f.max !== undefined && f.min >= f.max)
       return bad('The minimum must be less than the maximum');
     if (f.type === 'scale') {
       if (
@@ -178,18 +237,30 @@ export function definitionProblem(
     if ((f.type === 'section' || f.type === 'info') && f.required)
       return bad('A heading or text block cannot be required');
     if (f.condition) {
-      const source = inputs.find((i) => i.id === f.condition!.field);
+      const { field, op, value, values } = f.condition;
+      const source = inputs.find((i) => i.id === field);
       if (!source) return bad('A condition must refer to an earlier question');
-      if (f.condition.op !== 'answered' && f.condition.value === undefined)
-        return bad('The condition needs a value');
-      if (f.condition.op === 'includes' && source.type !== 'multiple_choice')
+      if (op === 'in') {
+        if (value !== undefined)
+          return bad('"Is one of" takes a list of values');
+        if (!values?.length) return bad('"Is one of" needs at least one value');
+        if (new Set(values.map(String)).size !== values.length)
+          return bad('A condition value is repeated');
+        if (source.type === 'multiple_choice')
+          return bad('"Is one of" does not apply to multiple choice');
+      } else {
+        if (values !== undefined)
+          return bad('Only "is one of" takes a list of values');
+        if (op !== 'answered' && value === undefined)
+          return bad('The condition needs a value');
+      }
+      if (op === 'includes' && source.type !== 'multiple_choice')
         return bad('"Includes" only applies to multiple choice');
-      if (
-        CHOICE_TYPES.includes(source.type) &&
-        f.condition.op !== 'answered' &&
-        !source.options?.some((o) => o.id === f.condition!.value)
-      )
-        return bad('The condition refers to an option that does not exist');
+      if (CHOICE_TYPES.includes(source.type) && op !== 'answered') {
+        const wanted = op === 'in' ? values! : [value];
+        if (wanted.some((v) => !source.options?.some((o) => o.id === v)))
+          return bad('The condition refers to an option that does not exist');
+      }
     }
     if (isInputType(f.type)) inputs.push(f);
   }
@@ -232,6 +303,7 @@ export function visibleFieldIds(
     if (f.condition) {
       const src = kept[f.condition.field];
       const { op, value } = f.condition;
+      const { values } = f.condition;
       show =
         op === 'answered'
           ? !isBlank(src)
@@ -240,7 +312,12 @@ export function visibleFieldIds(
             : op === 'not_equals'
               ? src !== undefined &&
                 JSON.stringify(src) !== JSON.stringify(value)
-              : Array.isArray(src) && src.includes(String(value));
+              : op === 'in'
+                ? src !== undefined &&
+                  (values ?? []).some(
+                    (v) => JSON.stringify(src) === JSON.stringify(v)
+                  )
+                : Array.isArray(src) && src.includes(String(value));
     }
     if (!show) continue;
     visible.add(f.id);
@@ -329,6 +406,24 @@ export function checkAnswers(
         )
           errors[f.id] = 'Choose from the options';
         break;
+      // A list of canonical evidence ids. Shape only: whether these are files
+      // this person may attach to this record is the consuming command's
+      // question, and it is asked again there.
+      case 'photo': {
+        const list = Array.isArray(v) ? v : null;
+        if (!list || list.some((x) => !UUID.test(x)))
+          errors[f.id] = 'Add the photos again';
+        else if (list.length > (f.max ?? PHOTO_DEFAULT_MAX))
+          errors[f.id] =
+            `Add at most ${f.max ?? PHOTO_DEFAULT_MAX} ${(f.max ?? PHOTO_DEFAULT_MAX) === 1 ? 'file' : 'files'}`;
+        else if (new Set(list).size !== list.length)
+          errors[f.id] = 'The same file was added twice';
+        break;
+      }
+      case 'entity':
+        if (typeof v !== 'string' || !UUID.test(v))
+          errors[f.id] = 'Choose a record';
+        break;
       case 'address': {
         const a = (v ?? {}) as Record<string, string>;
         if (f.required && (isBlank(a.line1) || isBlank(a.postcode)))
@@ -382,6 +477,8 @@ export function defaultField(
   if (CHOICE_TYPES.includes(type))
     field.options = optionsFromLabels(['Option 1', 'Option 2']);
   if (type === 'scale') Object.assign(field, { min: 1, max: 10 });
+  if (type === 'photo') field.max = 4;
+  if (type === 'entity') field.entity = ENTITY_KINDS[0];
   return field;
 }
 
@@ -412,6 +509,12 @@ export function updateField(
         delete next.min;
         delete next.max;
       }
+      if (next.type === 'photo') {
+        delete next.min;
+        if (next.max === undefined) next.max = 4;
+      }
+      if (next.type !== 'entity') delete next.entity;
+      else if (!next.entity) next.entity = ENTITY_KINDS[0];
       if (
         next.type === 'scale' &&
         (next.min === undefined || next.max === undefined)
@@ -543,7 +646,8 @@ export const fieldInputSchema = z.strictObject({
   options: z.array(z.string().trim().min(1).max(200)).min(1).max(50).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
-  condition: conditionSchema.optional()
+  condition: conditionSchema.optional(),
+  entity: z.enum(ENTITY_KINDS).optional()
 });
 export type FieldInput = z.infer<typeof fieldInputSchema>;
 
@@ -589,9 +693,10 @@ export function fieldFromInput(
     field.required = input.required;
   if (input.options && CHOICE_TYPES.includes(input.type))
     field.options = optionsFromLabels(input.options);
-  if (input.min !== undefined) field.min = input.min;
+  if (input.min !== undefined && input.type !== 'photo') field.min = input.min;
   if (input.max !== undefined) field.max = input.max;
   if (input.condition) field.condition = input.condition;
+  if (input.entity && input.type === 'entity') field.entity = input.entity;
   return field;
 }
 

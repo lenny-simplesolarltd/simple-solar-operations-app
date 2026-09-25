@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { IconLoader2 } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   checkAnswers,
   isInputType,
@@ -16,6 +16,25 @@ import {
   type FormField
 } from '../definition';
 
+/**
+ * The controls for the two field types that need an authenticated actor, and
+ * so cannot be part of the recipient-link renderer: a photo question needs
+ * somewhere to upload to, a lookup question needs something to search.
+ *
+ * They are injected rather than built in, so Forms stays free of any knowledge
+ * of what is being recorded. A caller that does not supply one gets a visible
+ * refusal rather than a question that silently accepts nothing.
+ */
+export interface FieldControlProps<T> {
+  field: FormField;
+  value: T;
+  onChange(value: T | undefined): void;
+  /** Wire these to the control so the label, help and error stay connected. */
+  inputId: string;
+  describedBy?: string;
+  invalid: boolean;
+}
+
 export interface FormRendererProps {
   title: string;
   description?: string | null;
@@ -25,6 +44,33 @@ export interface FormRendererProps {
   onSubmit?: (
     answers: Record<string, AnswerValue>
   ) => Promise<{ ok: true } | { ok: false; message: string; field?: string }>;
+  /** Renders a 'photo' question. Its value is a list of evidence ids. */
+  photoControl?: (props: FieldControlProps<string[]>) => React.ReactNode;
+  /** Renders an 'entity' question. Its value is one record id. */
+  lookupControl?: (
+    props: FieldControlProps<string | undefined>
+  ) => React.ReactNode;
+  /**
+   * When set, answers are kept in this browser under this key and restored on
+   * reload, so a field worker who loses signal, locks the phone or follows a
+   * camera prompt does not lose what they have typed. Cleared once the form is
+   * accepted. Never a substitute for the server's record.
+   */
+  draftKey?: string;
+  /** Extra content above the submit button (e.g. a summary of what will be sent). */
+  footer?: React.ReactNode;
+}
+
+/** Answers kept in this browser only. Failures are ignored: a draft is a convenience. */
+function readDraft(key: string): Answers | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Answers) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -36,12 +82,54 @@ export function FormRenderer({
   description,
   definition,
   mode,
-  onSubmit
+  onSubmit,
+  photoControl,
+  lookupControl,
+  draftKey,
+  footer
 }: FormRendererProps) {
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [state, setState] = useState<'idle' | 'sending' | 'previewed'>('idle');
+  const [restored, setRestored] = useState(false);
+  // Restored once, after mount: localStorage does not exist on the server, and
+  // reading it during render would make the first paint differ from the HTML.
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (!draftKey || loaded.current) return;
+    loaded.current = true;
+    const draft = readDraft(draftKey);
+    if (draft && Object.keys(draft).length) {
+      // Deliberately a mount-time setState in an effect, and it cannot be a lazy
+      // initialiser: localStorage does not exist while this renders on the
+      // server, so reading it there would make the first client render disagree
+      // with the HTML. One extra render on mount is the correct trade for not
+      // losing a field worker's unsent answers.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+      setAnswers(draft);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+      setRestored(true);
+    }
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftKey || !loaded.current) return;
+    try {
+      if (Object.keys(answers).length)
+        window.localStorage.setItem(draftKey, JSON.stringify(answers));
+      else window.localStorage.removeItem(draftKey);
+    } catch {
+      // A full or blocked store must not stop someone recording a visit.
+    }
+  }, [draftKey, answers]);
+  const clearDraft = useCallback(() => {
+    if (!draftKey) return;
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      /* nothing to clear */
+    }
+  }, [draftKey]);
   const visible = useMemo(
     () => visibleFieldIds(definition, answers),
     [definition, answers]
@@ -77,6 +165,10 @@ export function FormRenderer({
     setState('sending');
     const result = await onSubmit(checked.clean);
     setState('idle');
+    if (result.ok) {
+      clearDraft();
+      return;
+    }
     if (!result.ok) {
       setFormError(result.message);
       if (result.field)
@@ -121,10 +213,21 @@ export function FormRenderer({
             value={answers[field.id]}
             error={errors[field.id]}
             onChange={(v) => set(field.id, v)}
+            photoControl={photoControl}
+            lookupControl={lookupControl}
           />
         );
       })}
 
+      {restored && state === 'idle' && (
+        <p
+          role='status'
+          className='bg-info-soft text-info rounded-lg px-3 py-2 text-sm'
+        >
+          Your unsent answers were restored on this device.
+        </p>
+      )}
+      {footer}
       {formError && (
         <p
           role='alert'
@@ -163,13 +266,17 @@ function FieldView({
   number,
   value,
   error,
-  onChange
+  onChange,
+  photoControl,
+  lookupControl
 }: {
   field: FormField;
   number: number | null;
   value: AnswerValue | undefined;
   error?: string;
   onChange(value: AnswerValue | undefined): void;
+  photoControl?: FormRendererProps['photoControl'];
+  lookupControl?: FormRendererProps['lookupControl'];
 }) {
   const id = `field-${field.id}`;
   const helpId = field.help ? `${id}-help` : undefined;
@@ -238,6 +345,41 @@ function FieldView({
     'aria-required': field.required || undefined
   };
   const text = typeof value === 'string' ? value : '';
+
+  // The two types that need an authenticated actor. A caller that did not
+  // supply the control says so out loud rather than showing a dead question.
+  if (field.type === 'photo' || field.type === 'entity') {
+    const render = field.type === 'photo' ? photoControl : lookupControl;
+    const common = { field, inputId: id, describedBy, invalid: !!error };
+    return (
+      <div className='flex flex-col gap-2'>
+        <label htmlFor={id} className='text-sm font-medium'>
+          {label}
+        </label>
+        {help}
+        {render ? (
+          field.type === 'photo' ? (
+            photoControl!({
+              ...common,
+              value: Array.isArray(value) ? (value as string[]) : [],
+              onChange: (v) => onChange(v && v.length ? v : undefined)
+            })
+          ) : (
+            lookupControl!({
+              ...common,
+              value: typeof value === 'string' ? value : undefined,
+              onChange: (v) => onChange(v)
+            })
+          )
+        ) : (
+          <p className='bg-muted/60 text-muted-foreground rounded-lg px-3 py-2 text-sm'>
+            This question can only be answered in the app.
+          </p>
+        )}
+        {errorText}
+      </div>
+    );
+  }
 
   const grouped = [
     'yes_no',

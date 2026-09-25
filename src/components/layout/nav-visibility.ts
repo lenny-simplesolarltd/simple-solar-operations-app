@@ -20,13 +20,14 @@ const has = (user: AppUser, roles: RoleCode[]) =>
 /** Modules behind a release gate (release_modes), as the server read them. */
 export interface Released {
   forms: boolean;
+  programmes: boolean;
 }
 
 export function canSee(
   access: NavAccess,
   user: AppUser,
   permissions: Set<string>,
-  released: Released = { forms: false }
+  released: Released = { forms: false, programmes: false }
 ): boolean {
   switch (access) {
     case 'any':
@@ -94,6 +95,17 @@ export function canSee(
     case 'forms':
       // Hidden, not merely disabled, while Forms is switched off.
       return released.forms && permissions.has('forms.read');
+    case 'programmes':
+      // The office view: reporting, review and the board.
+      return (
+        released.programmes &&
+        (permissions.has('programme.read.all') ||
+          permissions.has('programme.review') ||
+          permissions.has('programme.manage'))
+      );
+    case 'programmeField':
+      // The field worker's own entry: their properties and their visits.
+      return released.programmes && permissions.has('programme.visit.submit');
   }
 }
 
@@ -101,7 +113,7 @@ export function visibleNavGroups(
   groups: NavGroup[],
   user: AppUser,
   permissions: Set<string>,
-  released: Released = { forms: false }
+  released: Released = { forms: false, programmes: false }
 ): VisibleNavGroup[] {
   return groups
     .map((g) => ({

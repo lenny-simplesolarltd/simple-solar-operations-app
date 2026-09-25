@@ -226,12 +226,45 @@ describe('a Surveyor sells a Standard job', () => {
       (acc, e) => ({ ...acc, [e.entity_type]: (acc[e.entity_type] ?? 0) + 1 }),
       {}
     );
-    assert.deepEqual(byType, { customers: 1, jobs: 1, presales: 1, tasks: 4 });
+    // Since document generation (20260920280000), recording a sale also queues
+    // the customer documents: app.document_queue_on_presale is an AFTER INSERT
+    // trigger on presales that enqueues exactly one revision per configured
+    // document type, in the sale's own transaction. So they are audited under
+    // the same command and the same person as everything else the sale created.
+    assert.deepEqual(byType, {
+      customers: 1,
+      jobs: 1,
+      presales: 1,
+      tasks: 4,
+      document_revisions: 2
+    });
     assert.ok(events.every((e) => e.action === 'INSERT'));
     assert.ok(events.every((e) => e.initiating_person_id === rickRow.id));
     assert.ok(
       events.every((e) => e.executing_service === 'command:SOLD_INTAKE')
     );
+  });
+
+  // Asserted as the named set with their per-row invariants, not as a bare
+  // count, so the two events above cannot pass for the wrong reason. The set is
+  // app.document_types(), which is not client-readable, so it is named here; if
+  // a third type is configured, this fails and says so.
+  test('the sale queues exactly one Queued revision per document type', async () => {
+    const { data: revisions } = await service
+      .from('document_revisions')
+      .select('document_type, revision_number, status, source, evidence_id')
+      .eq('job_id', result.job_id);
+    assert.deepEqual(
+      revisions.map((r) => r.document_type).sort(),
+      ['QuotationContract', 'ROI'],
+      'app.document_types() - update this list if a type is added'
+    );
+    for (const r of revisions) {
+      assert.equal(r.revision_number, 1, 'the first revision of each');
+      assert.equal(r.status, 'Queued', 'queued by the sale, rendered later');
+      assert.equal(r.source, 'system', 'the sale asked, not a person');
+      assert.equal(r.evidence_id, null, 'nothing is claimed before rendering');
+    }
   });
 
   test('a duplicate submit returns the same result and creates nothing', async () => {

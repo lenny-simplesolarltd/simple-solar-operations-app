@@ -215,7 +215,8 @@ describe('9-10. navigation follows the previewed person', () => {
   });
   const titles = (user: AppUser, permissions: string[] = []) =>
     visibleNavGroups(navGroups, user, new Set(permissions), {
-      forms: true
+      forms: true,
+      programmes: false
     }).flatMap((g) => g.items.map((i) => i.title));
 
   it('9. an Office preview gets the Office menu, an Installer the Installer one', () => {
@@ -254,10 +255,16 @@ describe('9-10. navigation follows the previewed person', () => {
   it('release gating still applies to the previewed person', () => {
     const office = asUser(['Office']);
     expect(
-      canSee('forms', office, new Set(['forms.read']), { forms: false })
+      canSee('forms', office, new Set(['forms.read']), {
+        forms: false,
+        programmes: false
+      })
     ).toBe(false);
     expect(
-      canSee('forms', office, new Set(['forms.read']), { forms: true })
+      canSee('forms', office, new Set(['forms.read']), {
+        forms: true,
+        programmes: false
+      })
     ).toBe(true);
   });
 });

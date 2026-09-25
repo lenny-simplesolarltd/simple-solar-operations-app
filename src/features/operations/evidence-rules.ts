@@ -27,10 +27,14 @@ export const EVIDENCE_ACCEPT = [
  * so the storage path) from it - never from anything the browser names.
  * 'Library' is the one context with no domain object behind it: a company
  * document belongs to no job, and the file.library.manage permission is the
- * whole authorization.
+ * whole authorization. 'ProgrammeVisit' belongs to no job either: the server
+ * derives the programme from the visit, and the visit must be this person's own.
  */
 export type EvidenceContext =
-  | { type: 'Task' | 'WorkPackage' | 'Delivery' | 'Job'; id: string }
+  | {
+      type: 'Task' | 'WorkPackage' | 'Delivery' | 'Job' | 'ProgrammeVisit';
+      id: string;
+    }
   | { type: 'Library'; id?: undefined };
 
 export const EVIDENCE_UUID =

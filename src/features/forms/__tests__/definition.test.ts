@@ -8,6 +8,7 @@ import {
   duplicateField,
   EMPTY_DEFINITION,
   finaliseIds,
+  hasStaffOnlyField,
   moveField,
   newFieldId,
   removeField,
@@ -229,5 +230,293 @@ describe('readable ids on save', () => {
     ]);
     expect(out.fields[1].condition?.field).toBe('do_you_have_a_battery');
     expect(definitionProblem(out)).toBeNull();
+  });
+});
+
+// -- The capabilities a staff-completed field workflow needs -----------------------
+//
+// Each of these mirrors a rule app.forms_validate_definition /
+// app.forms_validate_answers enforces in the database. The database is the
+// authority; these assert that the builder, the preview and SimpleBot agree with
+// it, so a form cannot look valid here and be refused there.
+
+const UUID_A = '11111111-1111-4111-8111-111111111111';
+const UUID_B = '22222222-2222-4222-8222-222222222222';
+
+/** The shape of the PCH installer form: outcome first, then what applies. */
+const visit: FormDefinition = {
+  fields: [
+    {
+      id: 'property',
+      type: 'entity',
+      entity: 'programme_property',
+      label: 'Property',
+      required: true
+    },
+    {
+      id: 'outcome',
+      type: 'single_choice',
+      label: 'What happened?',
+      required: true,
+      options: [
+        { id: 'not_home', label: 'Tenant not home' },
+        { id: 'sim_ok', label: 'SIM changed - portal working' },
+        { id: 'sim_bad', label: 'SIM changed - portal not working' },
+        { id: 'dead', label: 'Meter dead' }
+      ]
+    },
+    {
+      id: 'calling_card',
+      type: 'photo',
+      label: 'Calling card photo',
+      required: true,
+      max: 2,
+      condition: { field: 'outcome', op: 'equals', value: 'not_home' }
+    },
+    {
+      id: 'sim_serial',
+      type: 'short_text',
+      label: 'SIM serial',
+      required: true,
+      condition: { field: 'outcome', op: 'in', values: ['sim_ok', 'sim_bad'] }
+    },
+    {
+      id: 'csq',
+      type: 'number',
+      label: 'CSQ',
+      required: true,
+      min: 0,
+      max: 31,
+      condition: { field: 'outcome', op: 'in', values: ['sim_ok', 'sim_bad'] }
+    }
+  ]
+};
+
+describe('photo questions', () => {
+  it('accepts a list of evidence ids within the limit', () => {
+    const { errors, clean } = checkAnswers(visit, {
+      property: UUID_A,
+      outcome: 'not_home',
+      calling_card: [UUID_B]
+    });
+    expect(errors).toEqual({});
+    expect(clean.calling_card).toEqual([UUID_B]);
+  });
+
+  it('refuses something that is not an evidence id', () => {
+    const { errors } = checkAnswers(visit, {
+      property: UUID_A,
+      outcome: 'not_home',
+      calling_card: ['not-an-id']
+    });
+    expect(errors.calling_card).toBeTruthy();
+  });
+
+  it('refuses more files than the question allows, and the same file twice', () => {
+    const tooMany = checkAnswers(visit, {
+      property: UUID_A,
+      outcome: 'not_home',
+      calling_card: [UUID_A, UUID_B, '33333333-3333-4333-8333-333333333333']
+    });
+    expect(tooMany.errors.calling_card).toMatch(/at most 2/);
+    const twice = checkAnswers(visit, {
+      property: UUID_A,
+      outcome: 'not_home',
+      calling_card: [UUID_A, UUID_A]
+    });
+    expect(twice.errors.calling_card).toMatch(/twice/);
+  });
+
+  it('is required when it is required and visible', () => {
+    const { errors } = checkAnswers(visit, {
+      property: UUID_A,
+      outcome: 'not_home'
+    });
+    expect(errors.calling_card).toBeTruthy();
+  });
+
+  it('has a maximum but no minimum', () => {
+    expect(
+      definitionProblem({
+        fields: [{ id: 'p', type: 'photo', label: 'P', min: 1, max: 2 }]
+      })?.problem
+    ).toMatch(/maximum only/);
+    expect(
+      definitionProblem({
+        fields: [{ id: 'p', type: 'photo', label: 'P', max: 99 }]
+      })?.problem
+    ).toMatch(/1-10 files/);
+    expect(
+      definitionProblem({
+        fields: [{ id: 'p', type: 'photo', label: 'P', max: 3 }]
+      })
+    ).toBeNull();
+  });
+
+  it('gets a sensible default, and loses its limit when the type changes', () => {
+    const made = defaultField('photo', 'Meter photo', EMPTY_DEFINITION);
+    expect(made.max).toBe(4);
+    const changed = updateField(addField(EMPTY_DEFINITION, made), made.id, {
+      type: 'short_text'
+    });
+    expect(changed.fields[0].max).toBeUndefined();
+  });
+});
+
+describe('entity (lookup) questions', () => {
+  it('accepts one id and refuses anything else', () => {
+    expect(
+      checkAnswers(visit, {
+        property: UUID_A,
+        outcome: 'not_home',
+        calling_card: [UUID_B]
+      }).errors.property
+    ).toBeUndefined();
+    expect(
+      checkAnswers(visit, { property: 'nope', outcome: 'dead' }).errors.property
+    ).toBeTruthy();
+  });
+
+  it('must name what it looks up, and only a lookup may', () => {
+    expect(
+      definitionProblem({
+        fields: [{ id: 'p', type: 'entity', label: 'P' }]
+      })?.problem
+    ).toMatch(/what this question looks up/);
+    expect(
+      definitionProblem({
+        fields: [
+          {
+            id: 'p',
+            type: 'short_text',
+            label: 'P',
+            entity: 'programme_property'
+          }
+        ]
+      })?.problem
+    ).toMatch(/Only a lookup/);
+  });
+
+  it('gets a kind by default, and loses it when the type changes', () => {
+    const made = defaultField('entity', 'Property', EMPTY_DEFINITION);
+    expect(made.entity).toBe('programme_property');
+    const changed = updateField(addField(EMPTY_DEFINITION, made), made.id, {
+      type: 'short_text'
+    });
+    expect(changed.fields[0].entity).toBeUndefined();
+  });
+});
+
+describe('the "in" condition', () => {
+  it('shows a field for any of its values and hides it for the others', () => {
+    const shown = (outcome: string) =>
+      visibleFieldIds(visit, { property: UUID_A, outcome });
+    expect(shown('sim_ok').has('sim_serial')).toBe(true);
+    expect(shown('sim_bad').has('sim_serial')).toBe(true);
+    expect(shown('not_home').has('sim_serial')).toBe(false);
+    expect(shown('dead').has('sim_serial')).toBe(false);
+    // ...and the follow-ups that do not apply are not required either.
+    expect(
+      checkAnswers(visit, { property: UUID_A, outcome: 'dead' }).errors
+    ).toEqual({});
+  });
+
+  it('makes its fields required only when they are shown', () => {
+    const { errors } = checkAnswers(visit, {
+      property: UUID_A,
+      outcome: 'sim_ok'
+    });
+    expect(errors.sim_serial).toBeTruthy();
+    expect(errors.csq).toBeTruthy();
+    expect(errors.calling_card).toBeUndefined();
+  });
+
+  it('needs values, not a value', () => {
+    const bad = definitionProblem({
+      fields: [
+        {
+          id: 'a',
+          type: 'yes_no',
+          label: 'A'
+        },
+        {
+          id: 'b',
+          type: 'short_text',
+          label: 'B',
+          condition: { field: 'a', op: 'in', value: true }
+        }
+      ]
+    });
+    expect(bad?.problem).toMatch(/takes a list/);
+  });
+
+  it('refuses an option that does not exist, and a repeated value', () => {
+    const withCondition = (values: string[]) =>
+      definitionProblem({
+        fields: [
+          visit.fields[1],
+          {
+            id: 'b',
+            type: 'short_text',
+            label: 'B',
+            condition: { field: 'outcome', op: 'in', values }
+          }
+        ]
+      });
+    expect(withCondition(['made_up'])?.problem).toMatch(/does not exist/);
+    expect(withCondition(['sim_ok', 'sim_ok'])?.problem).toMatch(/repeated/);
+    expect(withCondition(['sim_ok', 'sim_bad'])).toBeNull();
+  });
+
+  it('does not apply to multiple choice, which has "includes"', () => {
+    const bad = definitionProblem({
+      fields: [
+        {
+          id: 'a',
+          type: 'multiple_choice',
+          label: 'A',
+          options: [{ id: 'x', label: 'X' }]
+        },
+        {
+          id: 'b',
+          type: 'short_text',
+          label: 'B',
+          condition: { field: 'a', op: 'in', values: ['x'] }
+        }
+      ]
+    });
+    expect(bad?.problem).toMatch(/does not apply to multiple choice/);
+  });
+
+  it('survives an operator change in the builder', () => {
+    const applied = applyOperations(
+      {
+        title: 'T',
+        description: null,
+        definition: { fields: [visit.fields[0], visit.fields[1]] }
+      },
+      [
+        {
+          op: 'add_field',
+          field: {
+            type: 'short_text',
+            label: 'Why',
+            condition: { field: 'outcome', op: 'in', values: ['sim_ok'] }
+          }
+        }
+      ]
+    );
+    expect(applied.ok).toBe(true);
+  });
+});
+
+describe('the whole visit definition', () => {
+  it('is valid', () => {
+    expect(definitionProblem(visit)).toBeNull();
+  });
+
+  it('is recognised as needing a signed-in person', () => {
+    expect(hasStaffOnlyField(visit)).toBe(true);
+    expect(hasStaffOnlyField(feedback)).toBe(false);
   });
 });

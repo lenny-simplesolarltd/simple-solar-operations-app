@@ -29,7 +29,12 @@ const READ_RPCS = new Set([
   'cancellation_preview',
   // Help Center: published articles this person may read (never drafts).
   'help_published_articles',
-  'help_health'
+  'help_health',
+  // Programmes: whether the module is on, and the visit form's questions. Both
+  // are reads; recording a visit is a command, which preview cannot reach.
+  'programmes_enabled',
+  'programme_visit_form',
+  'programme_signal_class'
 ]);
 
 /**

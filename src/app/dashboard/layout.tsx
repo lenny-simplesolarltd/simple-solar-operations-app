@@ -1,6 +1,7 @@
 import { formsEnabled } from '@/features/forms/server/service';
 import { DashboardLayoutClient } from '@/components/layout/dashboard-layout-client';
 import { visibleNavGroups } from '@/components/layout/nav-visibility';
+import { programmesEnabled } from '@/features/programmes/server/queries';
 import { navGroups } from '@/constants/data';
 import { getPermissions } from '@/features/presale/server/queries';
 import { getPreviewTargets } from '@/features/dev-preview/queries';
@@ -32,7 +33,8 @@ export default async function DashboardLayout({
   // and Cmd-K offer exactly what the server will allow (it still re-checks).
   const permissions = await getPermissions(user);
   const nav = visibleNavGroups(navGroups, user, permissions, {
-    forms: await formsEnabled()
+    forms: await formsEnabled(),
+    programmes: await programmesEnabled()
   });
 
   return (
