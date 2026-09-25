@@ -51,18 +51,14 @@ export const navGroups: NavGroup[] = [
         access: 'any'
       },
       {
-        title: 'My programme visits',
-        url: '/dashboard/operations/programmes',
-        icon: 'activity',
-        shortcut: ['p', 'v'],
-        access: 'programmeField'
-      },
-      {
-        title: 'Operations',
+        title: 'Bulk task operations',
         url: '/dashboard/operations',
         icon: 'activity',
         shortcut: ['o', 'p'],
-        // Bulk operations are office work; the BATCHES read refuses everyone else.
+        // Bulk operations are office work; the BATCHES read refuses everyone
+        // else. It used to be called "Operations", which also named the group
+        // holding Programmes - so the obvious click landed on the task centre
+        // instead of the programme board.
         access: 'office'
       }
     ]
@@ -87,7 +83,7 @@ export const navGroups: NavGroup[] = [
     ]
   },
   {
-    label: 'Operations',
+    label: 'Programmes',
     items: [
       {
         title: 'Programmes',
@@ -96,6 +92,20 @@ export const navGroups: NavGroup[] = [
         shortcut: ['p', 'r'],
         access: 'programmes'
       },
+      {
+        // The same route, a genuinely different experience: field staff get
+        // their properties and their own visits, not the board or the queue.
+        title: 'My programme visits',
+        url: '/dashboard/operations/programmes',
+        icon: 'activity',
+        shortcut: ['p', 'v'],
+        access: 'programmeFieldOnly'
+      }
+    ]
+  },
+  {
+    label: 'Operations',
+    items: [
       {
         title: 'Booking',
         url: '/dashboard/booking',

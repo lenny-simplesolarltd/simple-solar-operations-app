@@ -6,6 +6,7 @@ import {
   programmePath
 } from '@/features/programmes/components/shell';
 import { VisitFilterBar } from '@/features/programmes/components/visit-filters';
+import { VisitPager } from '@/features/programmes/components/visit-pager';
 import { VisitsTable } from '@/features/programmes/components/visits-table';
 import {
   currentAccess,
@@ -43,8 +44,9 @@ export default async function VisitsPage({
   if (!programme) notFound();
   if (!session.access.read) redirect('/dashboard');
 
-  const filters = filtersFromParams(await searchParams);
-  const [visits, installers] = await Promise.all([
+  const query = await searchParams;
+  const filters = filtersFromParams(query);
+  const [page, installers] = await Promise.all([
     listVisits(programmeId, filters),
     session.access.readAll ? listInstallers(programmeId) : []
   ]);
@@ -67,7 +69,11 @@ export default async function VisitsPage({
         }
       >
         <VisitFilterBar installers={installers} />
-        <VisitsTable visits={visits} basePath={programmePath(programmeId)} />
+        <VisitsTable
+          visits={page.visits}
+          basePath={programmePath(programmeId)}
+        />
+        <VisitPager page={page} params={query} />
       </ProgrammeShell>
     </PageContainer>
   );

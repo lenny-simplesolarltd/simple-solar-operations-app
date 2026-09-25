@@ -11,18 +11,33 @@ import type {
   VisitOutcome
 } from './types';
 
+/**
+ * What the INSTALLER observed. Deliberately not what the portal says.
+ *
+ * These used to read "SIM changed - portal working" / "portal not working",
+ * which describes a check the installer cannot make: they can see whether the
+ * meter appears to be running, they cannot see the PCH portal. Wording it as a
+ * portal result invited everyone downstream to treat a field observation as
+ * portal verification, which is the exact confusion that lets a property be
+ * called finished while its meter is dark.
+ *
+ * The stored values are unchanged: `SimChangedPortalWorking` and
+ * `SimChangedPortalNotWorking` are still the canonical outcomes, still mapped
+ * from the form's own option ids. Only the words a person reads have changed.
+ * Portal verification remains a separate, office-only fact - see PORTAL_LABEL.
+ */
 export const OUTCOME_LABEL: Record<VisitOutcome, string> = {
   TenantNotHome: 'Tenant not home',
-  SimChangedPortalWorking: 'SIM changed — portal working',
-  SimChangedPortalNotWorking: 'SIM changed — portal not working',
+  SimChangedPortalWorking: 'SIM changed — meter appears working',
+  SimChangedPortalNotWorking: 'SIM changed — meter not working',
   MeterDead: 'Meter dead'
 };
 
 /** Short forms, for table cells and board cards. */
 export const OUTCOME_SHORT: Record<VisitOutcome, string> = {
   TenantNotHome: 'No access',
-  SimChangedPortalWorking: 'SIM changed',
-  SimChangedPortalNotWorking: 'SIM changed (portal off)',
+  SimChangedPortalWorking: 'SIM changed — appears working',
+  SimChangedPortalNotWorking: 'SIM changed — not working',
   MeterDead: 'Meter dead'
 };
 
@@ -43,6 +58,10 @@ export const DISPOSITION_HINT: Record<Disposition, string> = {
     'Confirmed live and reporting in the PCH portal. Nothing further to do.'
 };
 
+/**
+ * What the OFFICE confirmed in the PCH portal. The only thing that can finish a
+ * property, and never something the installer records.
+ */
 export const PORTAL_LABEL: Record<PortalVerification, string> = {
   ConfirmedLive: 'Confirmed live/reporting',
   NotLive: 'Not live/reporting',
@@ -71,7 +90,7 @@ export const REVIEW_REASON_LABEL: Record<string, string> = {
   MeterDead: 'The installer reported a dead meter',
   NoAccess: 'Nobody in',
   InstallerReportsPortalNotWorking:
-    'The installer reported the portal not working',
+    'The installer reported the meter not working after the SIM change',
   PortalVerificationRequired:
     'The office must confirm the meter is live in the PCH portal'
 };

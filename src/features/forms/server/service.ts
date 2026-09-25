@@ -652,6 +652,57 @@ export function revokeInvitation(
   );
 }
 
+/**
+ * Configures who may complete a form. There is no permission check here: the
+ * command requires forms.edit, and refuses Workflow mode unless a workflow
+ * actually owns the form, so a manager cannot produce a form nobody can reach.
+ */
+export function setFormAccess(
+  input: { formId: string; mode: string; roleCodes: string[] },
+  expectedVersion: number | null,
+  commandId: string
+) {
+  return command<{ form_id: string; access_mode: string; roles: string[] }>(
+    'FORM_ACCESS_SET',
+    {
+      form_id: input.formId,
+      access_mode: input.mode,
+      role_codes: input.roleCodes
+    },
+    { commandId, expectedVersion }
+  );
+}
+
+/**
+ * A staff member's own answers to a Roles-mode form.
+ *
+ * Nothing about entitlement is decided here. app.cmd_form_complete asks
+ * app.form_completion_route again, against the form as it is at that moment, so
+ * a role removed while the form sat open on a phone refuses the submission -
+ * and a Workflow-owned form is refused outright, because its programme decides
+ * which property was visited and what the answers mean.
+ */
+export function completeForm(
+  input: {
+    formId: string;
+    revisionId: string;
+    submissionId: string;
+    answers: Record<string, unknown>;
+  },
+  commandId: string
+) {
+  return command<{ submission_id: string; revision_id: string }>(
+    'FORM_COMPLETE',
+    {
+      form_id: input.formId,
+      revision_id: input.revisionId,
+      submission_id: input.submissionId,
+      answers: input.answers
+    },
+    { commandId }
+  );
+}
+
 // -- Pickers for the link dialog (read under RLS) ------------------------------------
 
 export async function searchJobs(

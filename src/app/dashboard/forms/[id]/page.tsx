@@ -2,8 +2,10 @@ import { formsEnabled } from '@/features/forms/server/service';
 import { FormsNotEnabled } from '@/features/forms/components/forms-not-enabled';
 import PageContainer from '@/components/layout/page-container';
 import { AssistantPageContext } from '@/features/assistant/components/page-context';
+import { FormAccess } from '@/features/forms/components/form-access';
 import { FormBuilder } from '@/features/forms/components/form-builder';
 import { ShareLinks } from '@/features/forms/components/share-links';
+import { getFormAccess } from '@/features/forms/server/access';
 import { getForm, listInvitations } from '@/features/forms/server/service';
 import { getPermissions } from '@/features/presale/server/queries';
 import { getCurrentUser } from '@/lib/auth';
@@ -33,6 +35,8 @@ export default async function FormPage({
   if (!form) notFound();
   const links =
     form.kind === 'form' ? await listInvitations({ formId: form.id }) : [];
+  // Templates are never completed by anybody: a form is made from one first.
+  const access = form.kind === 'form' ? await getFormAccess(form.id) : null;
 
   return (
     <PageContainer>
@@ -62,6 +66,15 @@ export default async function FormPage({
             templates: permissions.has('forms.templates.manage')
           }}
         />
+        {access && (
+          <FormAccess
+            formId={form.id}
+            access={access}
+            canEdit={
+              permissions.has('forms.edit') && form.status !== 'archived'
+            }
+          />
+        )}
         {form.kind === 'form' && (
           <ShareLinks
             formId={form.id}

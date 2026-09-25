@@ -3,6 +3,8 @@ import {
   ByDayPanel,
   ByInstallerPanel,
   CsqPanel,
+  DeliveryPanel,
+  NeedsActionPanel,
   PortalPanel,
   ProgressPanel,
   StatGrid
@@ -13,7 +15,8 @@ import {
 } from '@/features/programmes/components/export-button';
 import {
   ProgrammeShell,
-  ProgrammesNotEnabled
+  ProgrammesNotEnabled,
+  programmePath
 } from '@/features/programmes/components/shell';
 import { VisitFilterBar } from '@/features/programmes/components/visit-filters';
 import {
@@ -79,7 +82,23 @@ export default async function ProgrammeOverviewPage({
           </p>
         ) : (
           <div className='flex flex-col gap-4'>
-            <VisitFilterBar installers={installers} />
+            {data.total_properties > 0 && (
+              <VisitFilterBar installers={installers} showSearch={false} />
+            )}
+            <DeliveryPanel
+              data={data}
+              importHref={
+                session.access.manage
+                  ? `${programmePath(programmeId)}/import`
+                  : null
+              }
+            />
+            {data.total_properties > 0 && (
+              <NeedsActionPanel
+                data={data}
+                basePath={programmePath(programmeId)}
+              />
+            )}
             <ProgressPanel data={data} />
             <StatGrid data={data} />
             <div className='grid gap-4 lg:grid-cols-2'>

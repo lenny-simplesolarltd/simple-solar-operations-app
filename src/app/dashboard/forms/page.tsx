@@ -20,6 +20,8 @@ import {
   type InvitationSummary
 } from '@/features/forms/types';
 import { ListFilters } from '@/features/operations/list-filters';
+import { MyFormsList } from '@/features/forms/components/my-forms-list';
+import { listMyForms } from '@/features/forms/server/my-forms';
 import { getPermissions } from '@/features/presale/server/queries';
 import { getCurrentUser } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
@@ -35,7 +37,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) =>
   ((Array.isArray(v) ? v[0] : v) ?? '').trim();
 
+// "Complete" is first because it is the only view every role can use. The
+// three after it are Forms ADMINISTRATION and appear only for managers.
 const VIEWS = [
+  { value: 'complete', label: 'To complete' },
   { value: 'forms', label: 'Forms' },
   { value: 'templates', label: 'Templates' },
   { value: 'responses', label: 'Responses' }
@@ -51,15 +56,21 @@ export default async function FormsPage({
   if (!user) redirect('/auth/sign-in');
   if (!(await formsEnabled())) return <FormsNotEnabled />;
   const permissions = await getPermissions(user);
-  if (!permissions.has('forms.read')) redirect('/dashboard');
+  // No forms.read is no longer a dead end: it means this person manages no
+  // forms, not that they have no business here. They get the completion view.
+  const canManage = permissions.has('forms.read');
 
   const params = await searchParams;
-  const view: View = VIEWS.some((v) => v.value === first(params.view))
-    ? (first(params.view) as View)
-    : 'forms';
+  const requested = first(params.view);
+  const view: View = !canManage
+    ? 'complete'
+    : VIEWS.some((v) => v.value === requested)
+      ? (requested as View)
+      : 'forms';
   const archived = first(params.show) === 'archived';
 
-  const templates = await listForms({ kind: 'template' });
+  const templates = canManage ? await listForms({ kind: 'template' }) : [];
+  const myForms = await listMyForms();
 
   return (
     <PageContainer>
@@ -68,7 +79,11 @@ export default async function FormsPage({
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <Heading
             title='Forms'
-            description='Build forms and templates, send secure links to customers and surveyors, and read their responses.'
+            description={
+              canManage
+                ? 'Forms you are asked to complete, and the forms you manage: build them, send secure links, and read the responses.'
+                : 'Forms you are asked to complete.'
+            }
           />
           {view === 'forms' && permissions.has('forms.create') && (
             <NewFormDialog
@@ -82,7 +97,17 @@ export default async function FormsPage({
             )}
         </div>
 
-        {view === 'responses' ? (
+        {view === 'complete' ? (
+          <>
+            {canManage && (
+              <ListFilters
+                defaults={{ view: 'forms', show: 'current' }}
+                tabs={{ key: 'view', label: 'Forms view', options: [...VIEWS] }}
+              />
+            )}
+            <MyFormsList forms={myForms} />
+          </>
+        ) : view === 'responses' ? (
           <Responses
             params={params}
             canReadResponses={permissions.has('forms.responses.read')}

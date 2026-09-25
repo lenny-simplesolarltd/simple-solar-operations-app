@@ -8,7 +8,14 @@ import {
 } from '@/features/operations/evidence-rules';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { IconCamera, IconLoader2, IconTrash } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconCamera,
+  IconCheck,
+  IconLoader2,
+  IconRefresh,
+  IconTrash
+} from '@tabler/icons-react';
 import { useId, useRef, useState } from 'react';
 import {
   beginVisitPhotoAction,
@@ -30,6 +37,20 @@ import { evidenceCategory } from '../labels';
  * decided here: the server checks that each id is a registration of this visit,
  * by this person, of the expected kind.
  */
+/**
+ * One file on its way up. It is kept, with the File itself, until it either
+ * lands or is given up on: a doorstep upload fails often enough that "it
+ * failed" has to be visible per photograph, and retrying has to re-send the
+ * same bytes rather than ask the person to open the camera again.
+ */
+interface PendingUpload {
+  key: string;
+  file: File;
+  name: string;
+  state: 'uploading' | 'failed';
+  message?: string;
+}
+
 export function VisitPhotoField({
   field,
   value,
@@ -46,13 +67,70 @@ export function VisitPhotoField({
   category: string;
   disabled?: boolean;
 }) {
-  const [busy, setBusy] = useState(0);
+  const [pending, setPending] = useState<PendingUpload[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const picker = useRef<HTMLInputElement>(null);
   const max = field.max ?? 4;
-  const full = value.length >= max;
+  const uploading = pending.filter((p) => p.state === 'uploading').length;
+  const failed = pending.filter((p) => p.state === 'failed').length;
+  // An upload still in flight has already claimed its place, so the count that
+  // decides whether there is room includes it.
+  const full = value.length + uploading >= max;
   const helpId = useId();
+
+  const markFailed = (key: string, message: string) =>
+    setPending((list) =>
+      list.map((p) => (p.key === key ? { ...p, state: 'failed', message } : p))
+    );
+
+  /**
+   * Register, send the bytes, confirm. `current` is passed in rather than read
+   * from `value`, because several of these run at once and each needs the list
+   * as it stands when it finishes, not as it was when it started.
+   */
+  async function send(file: File, key: string, current: string[]) {
+    try {
+      const uploadId = crypto.randomUUID();
+      const begun = await beginVisitPhotoAction({
+        uploadId,
+        visitId: visitId!,
+        category,
+        file: { name: file.name, type: file.type, size: file.size }
+      });
+      if (!begun.ok) {
+        markFailed(key, begun.message);
+        return current;
+      }
+      if (begun.token) {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const sent = await supabase.storage
+          .from('evidence')
+          .uploadToSignedUrl(begun.path, begun.token, file, {
+            contentType: file.type || undefined
+          });
+        if (sent.error) {
+          markFailed(key, 'The photo did not reach us.');
+          return current;
+        }
+        const done = await completeVisitPhotoAction(begun.evidenceId);
+        if (!done.ok) {
+          markFailed(key, done.message);
+          return current;
+        }
+      }
+      setNames((n) => ({ ...n, [begun.evidenceId]: file.name }));
+      setPending((list) => list.filter((p) => p.key !== key));
+      const next = [...current, begun.evidenceId].slice(0, max);
+      onChange(next);
+      return next;
+    } catch {
+      // A lost connection mid-upload throws rather than returning a refusal.
+      markFailed(key, 'The photo did not reach us.');
+      return current;
+    }
+  }
 
   async function add(files: FileList | null) {
     if (!files?.length || !visitId) return;
@@ -60,12 +138,14 @@ export function VisitPhotoField({
     // Accumulated locally: several files can finish while this loop runs, and
     // `value` is the list from the render that started it.
     let added = [...value];
-    const room = max - added.length;
-    const chosen = Array.from(files).slice(0, room);
-    if (files.length > room)
+    const room = max - (added.length + uploading);
+    const chosen = Array.from(files).slice(0, Math.max(room, 0));
+    if (files.length > chosen.length) {
+      const left = files.length - chosen.length;
       setProblem(
-        `Only ${max} ${max === 1 ? 'file' : 'files'} can be added here, so ${files.length - room} ${files.length - room === 1 ? 'was' : 'were'} left out.`
+        `Only ${max} ${max === 1 ? 'file' : 'files'} can be added here, so ${left} ${left === 1 ? 'was' : 'were'} left out.`
       );
+    }
 
     for (const file of chosen) {
       const early = evidenceFileProblem(file);
@@ -73,45 +153,25 @@ export function VisitPhotoField({
         setProblem(early);
         continue;
       }
-      setBusy((n) => n + 1);
-      try {
-        const uploadId = crypto.randomUUID();
-        const begun = await beginVisitPhotoAction({
-          uploadId,
-          visitId,
-          category,
-          file: { name: file.name, type: file.type, size: file.size }
-        });
-        if (!begun.ok) {
-          setProblem(begun.message);
-          continue;
-        }
-        if (begun.token) {
-          const { createClient } = await import('@/lib/supabase/client');
-          const supabase = createClient();
-          const sent = await supabase.storage
-            .from('evidence')
-            .uploadToSignedUrl(begun.path, begun.token, file, {
-              contentType: file.type || undefined
-            });
-          if (sent.error) {
-            setProblem('That photo did not upload. Try again.');
-            continue;
-          }
-          const done = await completeVisitPhotoAction(begun.evidenceId);
-          if (!done.ok) {
-            setProblem(done.message);
-            continue;
-          }
-        }
-        setNames((n) => ({ ...n, [begun.evidenceId]: file.name }));
-        added = [...added, begun.evidenceId].slice(0, max);
-        onChange(added);
-      } finally {
-        setBusy((n) => n - 1);
-      }
+      const key = crypto.randomUUID();
+      setPending((list) => [
+        ...list,
+        { key, file, name: file.name, state: 'uploading' }
+      ]);
+      added = await send(file, key, added);
     }
     if (picker.current) picker.current.value = '';
+  }
+
+  async function retry(item: PendingUpload, current: string[]) {
+    setPending((list) =>
+      list.map((p) =>
+        p.key === item.key
+          ? { ...p, state: 'uploading', message: undefined }
+          : p
+      )
+    );
+    await send(item.file, item.key, current);
   }
 
   return (
@@ -147,6 +207,10 @@ export function VisitPhotoField({
                 alt={names[id] ?? `${evidenceCategory(category)} photo`}
                 className='aspect-square w-full object-cover'
               />
+              <span className='bg-success text-background absolute bottom-1 left-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium'>
+                <IconCheck aria-hidden className='size-3' />
+                Saved
+              </span>
               <Button
                 type='button'
                 size='icon'
@@ -162,6 +226,75 @@ export function VisitPhotoField({
         </ul>
       )}
 
+      {pending.length > 0 && (
+        <ul className='flex flex-col gap-2' aria-live='polite'>
+          {pending.map((item) => (
+            <li
+              key={item.key}
+              className={cn(
+                'flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm',
+                item.state === 'failed' &&
+                  'border-destructive/50 bg-destructive-soft'
+              )}
+            >
+              <div className='flex items-start gap-2'>
+                {item.state === 'uploading' ? (
+                  <IconLoader2
+                    aria-hidden
+                    className='text-muted-foreground mt-0.5 size-4 shrink-0 animate-spin'
+                  />
+                ) : (
+                  <IconAlertTriangle
+                    aria-hidden
+                    className='text-destructive mt-0.5 size-4 shrink-0'
+                  />
+                )}
+                <div className='min-w-0 flex-1'>
+                  <p className='truncate font-medium'>{item.name}</p>
+                  <p
+                    className={cn(
+                      'text-xs',
+                      item.state === 'failed'
+                        ? 'text-destructive'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    {item.state === 'uploading'
+                      ? 'Uploading…'
+                      : `Not saved. ${item.message ?? 'It did not upload.'}`}
+                  </p>
+                </div>
+              </div>
+              {item.state === 'failed' && (
+                <div className='flex gap-2'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    className='h-11 flex-1'
+                    onClick={() => void retry(item, value)}
+                  >
+                    <IconRefresh aria-hidden className='size-4' />
+                    Try again
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    className='h-11'
+                    onClick={() =>
+                      setPending((list) =>
+                        list.filter((p) => p.key !== item.key)
+                      )
+                    }
+                  >
+                    Discard
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <Button
         type='button'
         variant='outline'
@@ -170,25 +303,28 @@ export function VisitPhotoField({
           'h-12 w-full justify-center',
           invalid && 'border-destructive'
         )}
-        disabled={disabled || !visitId || full || busy > 0}
+        disabled={disabled || !visitId || full || uploading > 0}
         onClick={() => picker.current?.click()}
       >
-        {busy > 0 ? (
+        {uploading > 0 ? (
           <IconLoader2 aria-hidden className='animate-spin' />
         ) : (
           <IconCamera aria-hidden />
         )}
-        {busy > 0
-          ? `Uploading ${busy} ${busy === 1 ? 'photo' : 'photos'}…`
+        {uploading > 0
+          ? `Uploading ${uploading} ${uploading === 1 ? 'photo' : 'photos'}…`
           : value.length
             ? 'Add another photo'
             : 'Take or choose a photo'}
       </Button>
 
       <p id={helpId} className='text-muted-foreground text-xs'>
-        {full
-          ? `${max} of ${max} added.`
-          : `${value.length} of ${max} added. Photos are saved as soon as you take them, so they are not lost if you lose signal.`}
+        {`${value.length} of ${max} saved. `}
+        {failed > 0
+          ? `${failed} did not upload and ${failed === 1 ? 'is' : 'are'} not saved yet.`
+          : full
+            ? 'Photos are saved as soon as you take them.'
+            : 'Photos are saved as soon as you take them, so they are not lost if you lose signal.'}
       </p>
       {problem && (
         <p role='alert' className='text-destructive text-sm font-medium'>

@@ -1,4 +1,5 @@
 import { formsEnabled } from '@/features/forms/server/service';
+import { hasCompletableForms } from '@/features/forms/server/my-forms';
 import { DashboardLayoutClient } from '@/components/layout/dashboard-layout-client';
 import { visibleNavGroups } from '@/components/layout/nav-visibility';
 import { programmesEnabled } from '@/features/programmes/server/queries';
@@ -34,7 +35,10 @@ export default async function DashboardLayout({
   const permissions = await getPermissions(user);
   const nav = visibleNavGroups(navGroups, user, permissions, {
     forms: await formsEnabled(),
-    programmes: await programmesEnabled()
+    programmes: await programmesEnabled(),
+    // Whether this person has anything to fill in, so the Forms area is
+    // offered to field staff who manage nothing.
+    canFillForms: await hasCompletableForms()
   });
 
   return (

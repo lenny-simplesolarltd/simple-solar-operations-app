@@ -1,5 +1,6 @@
 import PageContainer from '@/components/layout/page-container';
 import {
+  PROGRAMMES_PATH,
   ProgrammesNotEnabled,
   programmePath
 } from '@/features/programmes/components/shell';
@@ -104,6 +105,7 @@ export default async function RecordVisitPage({
             fieldMap={form.fieldMap}
             property={property}
             doneHref={`${base}/properties?show=outstanding`}
+            exitHref={PROGRAMMES_PATH}
           />
         )}
       </div>

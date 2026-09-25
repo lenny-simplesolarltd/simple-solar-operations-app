@@ -128,6 +128,7 @@ type ProgrammeVisitRow = {
   reviewed_at: Timestamp | null;
   visit_date: string | null;
   submitted_at: Timestamp | null;
+  search_text: string | null;
   synthetic: boolean;
   created_at: Timestamp;
   created_by: Uuid | null;

@@ -14,7 +14,9 @@ import type {
   ProgrammeVisit,
   SignalConfig,
   VisitEvidence,
-  VisitFilters
+  VisitFilters,
+  VisitListQuery,
+  VisitPage
 } from '../types';
 
 /**
@@ -36,7 +38,7 @@ const VISIT_COLUMNS = `
   meter_serial_matches, signal_classification, portal_check_required, review_reasons,
   recommended_disposition, review_status, disposition, portal_verification, action_note,
   reviewed_by, reviewed_at, visit_date, submitted_at, form_revision_id, submission_id, version,
-  property:programme_properties!programme_visits_property_id_fkey (
+  property:programme_properties!programme_visits_property_id_fkey!inner (
     external_ref, address_line1, town, postcode, expected_meter_serial
   ),
   installer:people!programme_visits_installer_id_fkey ( display_name ),
@@ -343,20 +345,34 @@ export async function getProperty(
   return data ? toProperty(data as unknown as PropertyRow) : null;
 }
 
-export interface VisitQuery extends VisitFilters {
+export interface VisitQuery extends VisitListQuery {
   /** Drafts are on no board and in no list unless asked for. */
   includeDrafts?: boolean;
-  limit?: number;
+  /** The review queue is worked oldest first; everything else is newest first. */
+  order?: 'newest' | 'oldest';
 }
 
+/**
+ * A page of visits, with the TRUE total behind it.
+ *
+ * The previous version took the first 500 rows and returned them as if they
+ * were everything: at 1,400 properties and 150-200 visits a day, a board could
+ * quietly omit most of the programme and the page would say "500 visits" with
+ * complete confidence. Every filter is now applied in the database, including
+ * the property ones (hence the !inner join above), so the count that comes
+ * back describes the same set as the rows.
+ */
 export async function listVisits(
   programmeId: string,
   filters: VisitQuery = {}
-): Promise<ProgrammeVisit[]> {
+): Promise<VisitPage> {
   const supabase = await programmeDb();
+  const limit = Math.min(Math.max(filters.limit ?? 100, 1), 500);
+  const offset = Math.max(filters.offset ?? 0, 0);
+
   let query = supabase
     .from('programme_visits')
-    .select(VISIT_COLUMNS)
+    .select(VISIT_COLUMNS, { count: 'exact' })
     .eq('programme_id', programmeId);
 
   if (!filters.includeDrafts) query = query.neq('review_status', 'Draft');
@@ -373,23 +389,56 @@ export async function listVisits(
   if (filters.portal_verification)
     query = query.eq('portal_verification', filters.portal_verification);
 
-  const { data, error } = await query
-    .order('submitted_at', { ascending: false, nullsFirst: false })
-    .limit(Math.min(Math.max(filters.limit ?? 500, 1), 5000));
+  // Postcode area: a prefix on the property's normalised postcode, in the
+  // database rather than on the rows that happened to come back.
+  const area = (filters.postcode ?? '').replace(/\s/g, '').toUpperCase();
+  if (area) query = query.like('property.postcode_norm', `${area}%`);
+
+  // One search box across the things Office actually knows: an address, a
+  // postcode, a PCH property id, a meter serial, a SIM serial. They live on two
+  // tables, and a PostgREST logic tree cannot span an embedded resource, so the
+  // searchable text is maintained on the visit by trigger - see
+  // 20260925110000_programme_visit_search.sql. One filter, so it composes with
+  // every other filter and the count still describes the rows.
+  const text = (filters.query ?? '').trim().toLowerCase();
+  if (text) {
+    // Wildcards typed into the box are not wildcards, and runs of whitespace
+    // collapse because the stored text is single-spaced.
+    const safe = text
+      .replace(/[%_\\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (safe) query = query.ilike('search_text', `%${safe}%`);
+  }
+
+  const oldestFirst = filters.order === 'oldest';
+  const { data, error, count } = await query
+    .order('submitted_at', { ascending: oldestFirst, nullsFirst: false })
+    .range(offset, offset + limit - 1);
   if (error) throw new Error(`visits: ${error.message}`);
 
-  const visits = (data as unknown as VisitRow[]).map(toVisit);
-  // Postcode is a property attribute, so it is filtered here rather than
-  // pushed into a join the client cannot express.
-  const area = (filters.postcode ?? '').replace(/\s/g, '').toUpperCase();
-  return area
-    ? visits.filter((v) =>
-        (v.property.postcode ?? '')
-          .replace(/\s/g, '')
-          .toUpperCase()
-          .startsWith(area)
-      )
-    : visits;
+  return {
+    visits: (data as unknown as VisitRow[]).map(toVisit),
+    total: count ?? 0,
+    offset,
+    limit
+  };
+}
+
+/** Every visit matching the filters, for exports. Paged so nothing is lost. */
+export async function listAllVisits(
+  programmeId: string,
+  filters: VisitQuery = {},
+  cap = 10000
+): Promise<ProgrammeVisit[]> {
+  const out: ProgrammeVisit[] = [];
+  const limit = 500;
+  for (let offset = 0; offset < cap; offset += limit) {
+    const page = await listVisits(programmeId, { ...filters, limit, offset });
+    out.push(...page.visits);
+    if (out.length >= page.total || page.visits.length === 0) break;
+  }
+  return out;
 }
 
 export async function getVisit(
@@ -497,17 +546,52 @@ export async function listInstallers(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * The filter keys app.programme_visit_filter will accept.
+ *
+ * It refuses an unrecognised key outright, and the refusal arrives as a plain
+ * P0001 that reads exactly like "you may not see this" - which is how the
+ * overview came to say "You do not have access to this programme's reporting" to
+ * somebody who had every permission, purely because the URL layer had started
+ * carrying a page number. Paging and free-text search belong to the row queries,
+ * not to the aggregate reads, so they are dropped here rather than relied upon
+ * never to be passed.
+ */
+const READ_FILTER_KEYS = [
+  'from',
+  'to',
+  'installer_id',
+  'outcome',
+  'disposition',
+  'review_status',
+  'signal_classification',
+  'portal_verification',
+  'postcode'
+] as const;
+
+export function readFilters(
+  filters: VisitListQuery | VisitFilters
+): VisitFilters {
+  const out: Record<string, unknown> = {};
+  for (const key of READ_FILTER_KEYS) {
+    const value = (filters as Record<string, unknown>)[key];
+    if (value !== undefined && value !== null && value !== '') out[key] = value;
+  }
+  return out as VisitFilters;
+}
+
 async function operationsRead<T>(
   readType: string,
   payload: Record<string, unknown>,
-  filters?: VisitFilters
+  filters?: VisitListQuery | VisitFilters
 ): Promise<T | null> {
   const supabase = await programmeDb();
+  const safe = filters ? readFilters(filters) : {};
   const { data, error } = await supabase.rpc('execute_operations_read', {
     p_request: {
       read_type: readType,
       payload,
-      ...(filters && Object.keys(filters).length ? { filters } : {})
+      ...(Object.keys(safe).length ? { filters: safe } : {})
     }
   });
   if (error) {
@@ -518,7 +602,10 @@ async function operationsRead<T>(
   return (data as { data: T } | null)?.data ?? null;
 }
 
-export const getDashboard = (programmeId: string, filters?: VisitFilters) =>
+export const getDashboard = (
+  programmeId: string,
+  filters?: VisitListQuery | VisitFilters
+) =>
   operationsRead<ProgrammeDashboard>(
     'PROGRAMME_DASHBOARD',
     { programme_id: programmeId },

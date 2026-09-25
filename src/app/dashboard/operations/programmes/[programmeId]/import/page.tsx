@@ -52,7 +52,7 @@ export default async function ImportPage({
       <ProgrammeShell
         programme={programme}
         access={session.access}
-        current='/import'
+        current='/properties'
         description='Bring in the property list. Nothing is imported until you have seen exactly what will happen.'
       >
         <ImportWizard

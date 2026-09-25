@@ -49,14 +49,23 @@ export function PropertyLookupField({
   const [problem, setProblem] = useState<string | null>(null);
   const listId = useId();
 
+  // A property handed down by the server has to become the ANSWER, not just the
+  // card on the screen.
+  //
+  // `chosen` starts as `initial`, so a condition of "initial differs from
+  // chosen" was false on the very first render and onChange never ran: arriving
+  // from the property list showed the right property, started the draft against
+  // it, and then refused the submission with "This question is required" against
+  // a question the installer could see was already answered. Comparing the
+  // reported VALUE as well is what makes the first render count.
   useEffect(() => {
-    if (initial && initial.id !== chosen?.id) {
-      setChosen(initial);
-      onChange(initial.id);
-    }
-    // Only when the server hands down a different property.
+    if (!initial) return;
+    if (initial.id !== chosen?.id) setChosen(initial);
+    if (value !== initial.id) onChange(initial.id);
+    // Only when the server hands down a different property, or the answer has
+    // not caught up with it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial?.id]);
+  }, [initial?.id, value]);
 
   useEffect(() => {
     if (chosen || debounced.trim().length < 2) {
@@ -86,11 +95,16 @@ export function PropertyLookupField({
 
   if (chosen)
     return (
+      // The confirmation card. Recording a visit against the wrong property is
+      // the one mistake on this screen that nobody notices until the client
+      // does, so the three things that identify the property - the address, the
+      // client's own reference and the serial they expect to find - are stated
+      // together, large enough to read at arm's length.
       <div
         className={cn(
-          'rounded-lg border p-3',
+          'rounded-xl border-2 p-3',
           invalid && 'border-destructive',
-          !invalid && 'border-success/40 bg-success-soft/40'
+          !invalid && 'border-success/50 bg-success-soft/40'
         )}
       >
         <div className='flex items-start gap-2'>
@@ -99,27 +113,39 @@ export function PropertyLookupField({
             className='text-success mt-0.5 size-5 shrink-0'
           />
           <div className='min-w-0 flex-1'>
-            <p className='font-semibold'>{chosen.addressLine1}</p>
-            <p className='text-muted-foreground text-sm'>
+            <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+              Recording against
+            </p>
+            <p className='text-lg leading-tight font-semibold break-words'>
+              {chosen.addressLine1}
+            </p>
+            {chosen.addressLine2 && (
+              <p className='text-sm break-words'>{chosen.addressLine2}</p>
+            )}
+            <p className='text-muted-foreground text-sm break-words'>
               {[chosen.town, chosen.postcode].filter(Boolean).join(', ')}
             </p>
-            <dl className='mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs'>
-              <dt className='text-muted-foreground'>Property ID</dt>
-              <dd className='font-medium tabular-nums'>{chosen.externalRef}</dd>
-              {chosen.expectedMeterSerial && (
-                <>
-                  <dt className='text-muted-foreground'>Expected meter</dt>
-                  <dd className='font-medium'>{chosen.expectedMeterSerial}</dd>
-                </>
-              )}
-            </dl>
-            {chosen.notes && (
-              <p className='text-muted-foreground mt-2 text-xs'>
-                {chosen.notes}
-              </p>
-            )}
           </div>
         </div>
+        <dl className='mt-3 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 border-t pt-3 text-sm'>
+          <dt className='text-muted-foreground'>PCH property ID</dt>
+          <dd className='font-semibold break-all tabular-nums'>
+            {chosen.externalRef}
+          </dd>
+          <dt className='text-muted-foreground'>Expected meter</dt>
+          <dd className='font-semibold break-all'>
+            {chosen.expectedMeterSerial ?? (
+              <span className='text-muted-foreground font-normal'>
+                Not recorded
+              </span>
+            )}
+          </dd>
+        </dl>
+        {chosen.notes && (
+          <p className='text-muted-foreground mt-2 text-xs break-words'>
+            {chosen.notes}
+          </p>
+        )}
         {!locked && (
           <button
             type='button'
@@ -130,13 +156,17 @@ export function PropertyLookupField({
             }}
             className='text-muted-foreground hover:text-foreground mt-2 min-h-11 text-sm underline'
           >
-            Change property
+            Wrong property? Change it
           </button>
         )}
         {locked && (
-          <p className='text-muted-foreground mt-2 text-xs'>
-            This visit was started for this property. To record a different one,
-            start a new visit.
+          // There is no command that moves a draft visit to another property,
+          // so this says what to do instead rather than offering a control that
+          // would have to be refused.
+          <p className='text-muted-foreground mt-3 text-xs'>
+            This visit was started for this property. If it is the wrong one, go
+            back to the property list and start a visit at the right one; this
+            draft is on no board and in no count until it is submitted.
           </p>
         )}
       </div>

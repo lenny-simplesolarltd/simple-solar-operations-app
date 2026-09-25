@@ -59,6 +59,30 @@ export interface FormRendererProps {
   draftKey?: string;
   /** Extra content above the submit button (e.g. a summary of what will be sent). */
   footer?: React.ReactNode;
+  /**
+   * Extra content for one question, rendered directly beneath its control and
+   * above its error. Used by the visit form to put the expected meter serial
+   * beside the question that asks for the actual one; Forms itself knows
+   * nothing about what is being checked.
+   */
+  fieldAppendix?: (
+    field: FormField,
+    value: AnswerValue | undefined
+  ) => React.ReactNode;
+  /**
+   * The keypad a phone should show for a numeric question, by field id. The
+   * default stays 'decimal' for every number question, because a quantity may
+   * have a fractional part; a caller that knows a particular question is whole
+   * numbers only (a signal strength, a count) asks for 'numeric'.
+   */
+  numberInputModes?: Record<string, 'numeric' | 'decimal'>;
+  /**
+   * Anchors the submit button to the bottom of a small screen. For a long form
+   * filled in one-handed, where scrolling back to find Submit is the awkward
+   * part. It is the same, single submit control - not a second one - so there
+   * is no second way to send the form.
+   */
+  stickySubmit?: boolean;
 }
 
 /** Answers kept in this browser only. Failures are ignored: a draft is a convenience. */
@@ -86,7 +110,10 @@ export function FormRenderer({
   photoControl,
   lookupControl,
   draftKey,
-  footer
+  footer,
+  fieldAppendix,
+  numberInputModes,
+  stickySubmit
 }: FormRendererProps) {
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -215,6 +242,8 @@ export function FormRenderer({
             onChange={(v) => set(field.id, v)}
             photoControl={photoControl}
             lookupControl={lookupControl}
+            appendix={fieldAppendix?.(field, answers[field.id])}
+            numberInputMode={numberInputModes?.[field.id]}
           />
         );
       })}
@@ -244,12 +273,20 @@ export function FormRenderer({
           Preview only: these answers are valid, and nothing was sent.
         </p>
       )}
-      <div>
+      <div
+        className={cn(
+          stickySubmit &&
+            // Sticky, not fixed: it keeps its place in the flow, so at the
+            // bottom of the form it sits below the last question instead of
+            // covering it. The inset keeps it clear of a home indicator.
+            'bg-background sticky bottom-0 z-10 border-t pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:static sm:border-0 sm:p-0'
+        )}
+      >
         <Button
           type='submit'
           size='lg'
           disabled={state === 'sending'}
-          className='w-full sm:w-auto'
+          className={cn('w-full sm:w-auto', stickySubmit && 'h-12')}
         >
           {state === 'sending' && (
             <IconLoader2 aria-hidden className='animate-spin' />
@@ -268,7 +305,9 @@ function FieldView({
   error,
   onChange,
   photoControl,
-  lookupControl
+  lookupControl,
+  appendix,
+  numberInputMode
 }: {
   field: FormField;
   number: number | null;
@@ -277,6 +316,8 @@ function FieldView({
   onChange(value: AnswerValue | undefined): void;
   photoControl?: FormRendererProps['photoControl'];
   lookupControl?: FormRendererProps['lookupControl'];
+  appendix?: React.ReactNode;
+  numberInputMode?: 'numeric' | 'decimal';
 }) {
   const id = `field-${field.id}`;
   const helpId = field.help ? `${id}-help` : undefined;
@@ -376,6 +417,7 @@ function FieldView({
             This question can only be answered in the app.
           </p>
         )}
+        {appendix}
         {errorText}
       </div>
     );
@@ -489,6 +531,7 @@ function FieldView({
             I confirm
           </label>
         )}
+        {appendix}
         {errorText}
       </fieldset>
     );
@@ -537,7 +580,7 @@ function FieldView({
           <Input
             id={id}
             type='number'
-            inputMode='decimal'
+            inputMode={numberInputMode ?? 'decimal'}
             step={field.type === 'currency' ? '0.01' : 'any'}
             min={field.min}
             max={field.max}
@@ -583,6 +626,7 @@ function FieldView({
           {...common}
         />
       )}
+      {appendix}
       {errorText}
     </div>
   );

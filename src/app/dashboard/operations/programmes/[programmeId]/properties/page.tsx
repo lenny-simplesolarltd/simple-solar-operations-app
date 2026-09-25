@@ -62,6 +62,13 @@ export default async function PropertiesPage({
     properties.map((p) => p.id)
   );
   const base = programmePath(programmeId);
+  // "No properties" and "no properties matching this search" are different
+  // problems with different next actions, and the empty state used to conflate
+  // them - a search that found nothing told you to import the property list.
+  const anyProperties =
+    properties.length > 0
+      ? true
+      : (await searchProperties(programmeId, { limit: 1 })).length > 0;
 
   return (
     <PageContainer>
@@ -70,50 +77,83 @@ export default async function PropertiesPage({
         access={session.access}
         current='/properties'
         description='Search by address, postcode, property ID or meter serial.'
+        actions={
+          session.access.manage ? (
+            <Link
+              href={`${base}/import`}
+              className='bg-primary text-primary-foreground hover:bg-primary/90 inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium'
+            >
+              Import properties
+            </Link>
+          ) : null
+        }
       >
-        <form
-          className='flex flex-wrap items-end gap-3'
-          action={`${base}/properties`}
-        >
-          <label
-            className='flex flex-1 flex-col gap-1'
-            style={{ minWidth: '16rem' }}
+        {anyProperties && (
+          <form
+            className='flex flex-wrap items-end gap-3'
+            action={`${base}/properties`}
           >
-            <span className='text-muted-foreground text-xs font-medium'>
+            <label
+              className='flex flex-1 flex-col gap-1'
+              style={{ minWidth: '16rem' }}
+            >
+              <span className='text-muted-foreground text-xs font-medium'>
+                Search
+              </span>
+              <Input
+                name='q'
+                type='search'
+                defaultValue={query}
+                placeholder='Address, postcode, property ID or meter serial'
+                className='h-11'
+              />
+            </label>
+            <label className='flex min-h-11 items-center gap-2 text-sm'>
+              <input
+                type='checkbox'
+                name='show'
+                value='outstanding'
+                defaultChecked={outstanding}
+                className='accent-foreground size-4'
+              />
+              Not yet visited only
+            </label>
+            <button
+              type='submit'
+              className='bg-primary text-primary-foreground h-11 rounded-md px-4 text-sm font-medium'
+            >
               Search
-            </span>
-            <Input
-              name='q'
-              type='search'
-              defaultValue={query}
-              placeholder='Address, postcode, property ID or meter serial'
-              className='h-11'
-            />
-          </label>
-          <label className='flex min-h-11 items-center gap-2 text-sm'>
-            <input
-              type='checkbox'
-              name='show'
-              value='outstanding'
-              defaultChecked={outstanding}
-              className='accent-foreground size-4'
-            />
-            Not yet visited only
-          </label>
-          <button
-            type='submit'
-            className='bg-primary text-primary-foreground h-11 rounded-md px-4 text-sm font-medium'
-          >
-            Search
-          </button>
-        </form>
+            </button>
+          </form>
+        )}
 
         {properties.length === 0 ? (
-          <p className='text-muted-foreground py-8 text-sm'>
-            {query
-              ? `No property matches “${query}”.`
-              : 'This programme has no properties yet. Import the property list to get started.'}
-          </p>
+          !anyProperties ? (
+            <div className='bg-muted/40 flex flex-col items-start gap-2 rounded-lg border border-dashed p-6'>
+              <p className='text-base font-semibold'>No properties imported</p>
+              <p className='text-muted-foreground max-w-prose text-sm'>
+                Upload PCH&rsquo;s property list to create the programme
+                properties. Until then there is nothing to visit, review or
+                report on.
+              </p>
+              {session.access.manage ? (
+                <Link
+                  href={`${base}/import`}
+                  className='bg-primary text-primary-foreground hover:bg-primary/90 mt-1 inline-flex min-h-11 items-center rounded-md px-4 text-sm font-medium'
+                >
+                  Import property list
+                </Link>
+              ) : (
+                <p className='text-muted-foreground text-sm'>
+                  Importing is done by an administrator.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className='text-muted-foreground py-8 text-sm'>
+              No property matches &ldquo;{query}&rdquo;.
+            </p>
+          )
         ) : (
           <div className='overflow-x-auto rounded-lg border'>
             <table className='w-full text-sm'>

@@ -85,10 +85,10 @@ export const operationsPageContextSchema = z.strictObject({
   view: shortText(60).optional()
 });
 
-/** The Forms area; `view` is Forms / Templates / Responses. */
+/** The Forms area; `view` is the completion list, or one of the admin views. */
 export const formsPageContextSchema = z.strictObject({
   kind: z.literal('forms'),
-  view: z.enum(['forms', 'templates', 'responses'])
+  view: z.enum(['complete', 'forms', 'templates', 'responses'])
 });
 
 /** One form or template open in the builder. A hint: tools re-read it by id. */
@@ -164,6 +164,7 @@ export function describeContext(page: AssistantPageContext): {
       return {
         label: 'Forms',
         detail: {
+          complete: 'Forms to complete',
           forms: 'Forms',
           templates: 'Templates',
           responses: 'Responses'

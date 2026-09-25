@@ -7,7 +7,9 @@ import {
 import { ReviewPanel } from '@/features/programmes/components/review-panel';
 import {
   currentAccess,
+  getDashboard,
   getProgramme,
+  getVisit,
   listVisits,
   programmesEnabled,
   visitEvidence
@@ -23,6 +25,9 @@ export const metadata: Metadata = {
 
 const one = (v: string | string[] | undefined) =>
   ((Array.isArray(v) ? v[0] : v) ?? '').trim();
+
+/** The queue list shows this many; the count above it is the real depth. */
+const QUEUE_PAGE = 100;
 
 /**
  * The office review queue: every submission waiting to be checked, oldest first,
@@ -50,15 +55,33 @@ export default async function ReviewPage({
   if (!programme) notFound();
   if (!session.access.review && !session.access.readAll) redirect('/dashboard');
 
-  const queue = await listVisits(programmeId, {
-    review_status: 'AwaitingReview'
+  // Oldest first, because the queue is worked from the front, and only a
+  // page of it: `waiting` is the true depth of the queue even when the list
+  // below shows the first hundred.
+  const page = await listVisits(programmeId, {
+    review_status: 'AwaitingReview',
+    order: 'oldest',
+    limit: QUEUE_PAGE
   });
-  // Oldest first: the queue is worked from the front.
-  queue.reverse();
+  const queue = page.visits;
+  const waiting = page.total;
   const wanted = one((await searchParams).visit);
-  const open = queue.find((v) => v.id === wanted) ?? queue[0] ?? null;
+  // A deep-linked submission may sit beyond this page; fetch it directly
+  // rather than silently opening somebody else's visit.
+  const open =
+    queue.find((v) => v.id === wanted) ??
+    (wanted ? await getVisit(wanted) : null) ??
+    queue[0] ??
+    null;
   const evidence = open ? await visitEvidence(open.id) : [];
   const base = programmePath(programmeId);
+  // When the queue is empty, say what the rest of the programme still owes the
+  // office. These are real counts from the same reads the board uses - nothing
+  // is invented, and where a figure is genuinely zero it is shown as zero.
+  const caughtUp =
+    waiting === 0 && session.access.report
+      ? await getDashboard(programmeId)
+      : null;
 
   return (
     <PageContainer>
@@ -66,12 +89,53 @@ export default async function ReviewPage({
         programme={programme}
         access={session.access}
         current='/review'
-        description={`${queue.length} ${queue.length === 1 ? 'submission' : 'submissions'} awaiting review.`}
+        description={`${waiting} ${waiting === 1 ? 'submission' : 'submissions'} awaiting review.`}
       >
-        {queue.length === 0 ? (
-          <p className='text-muted-foreground py-8 text-sm'>
-            Nothing is waiting for review.
-          </p>
+        {waiting === 0 ? (
+          <div className='flex flex-col gap-4 py-6'>
+            <div className='flex flex-col gap-1'>
+              <p className='text-base font-semibold'>All caught up</p>
+              <p className='text-muted-foreground max-w-prose text-sm'>
+                There are no installer submissions waiting for office review.
+              </p>
+            </div>
+            {caughtUp && (
+              <dl className='grid grid-cols-2 gap-3 sm:grid-cols-3'>
+                {[
+                  {
+                    label: 'Awaiting review',
+                    value: caughtUp.awaiting_review,
+                    href: null
+                  },
+                  {
+                    label: 'Action required',
+                    value: caughtUp.action_required,
+                    href: `${base}/visits?disposition=ActionRequired`
+                  },
+                  {
+                    label: 'Portal checks outstanding',
+                    value: caughtUp.portal_outstanding,
+                    href: null
+                  }
+                ].map((stat) => (
+                  <div key={stat.label} className='rounded-lg border p-3'>
+                    <dt className='text-muted-foreground text-xs font-medium'>
+                      {stat.label}
+                    </dt>
+                    <dd className='mt-0.5 text-2xl font-semibold tabular-nums'>
+                      {stat.href && stat.value > 0 ? (
+                        <Link href={stat.href} className='hover:underline'>
+                          {stat.value.toLocaleString('en-GB')}
+                        </Link>
+                      ) : (
+                        stat.value.toLocaleString('en-GB')
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
         ) : (
           <div className='grid gap-5 lg:grid-cols-[18rem_1fr]'>
             <nav aria-label='Review queue' className='lg:border-r lg:pr-4'>

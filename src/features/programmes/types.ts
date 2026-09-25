@@ -28,7 +28,10 @@ export const PORTAL_VERIFICATIONS = [
 export type PortalVerification = (typeof PORTAL_VERIFICATIONS)[number];
 
 export type SignalClass = 'Good' | 'Advisory' | 'Bad';
-export type ReviewStatus = 'Draft' | 'AwaitingReview' | 'Reviewed';
+/** Named so the URL layer can validate a review status like any other filter. */
+export const REVIEW_STATUSES = ['Draft', 'AwaitingReview', 'Reviewed'] as const;
+
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
 export interface SignalConfig {
   metric?: string;
@@ -133,8 +136,14 @@ export interface ProgrammeDashboard {
     signal_config: SignalConfig;
     synthetic: boolean;
   };
+  /** The programme's own recorded target and window; null when not agreed. */
+  target_property_count: number | null;
+  delivery_start_date: string | null;
+  delivery_end_date: string | null;
+  today: string;
   total_properties: number;
   attended: number;
+  completed_properties: number;
   remaining: number;
   visits_total: number;
   visits_today: number;
@@ -189,6 +198,11 @@ export interface DailyReport {
   complete_and_live: number;
   awaiting_review: number;
   awaiting_portal_confirmation: number;
+  portal_confirmed_live: number;
+  portal_not_live: number;
+  portal_unable_to_verify: number;
+  serial_mismatches: number;
+  visits: number;
   lines: {
     external_ref: string;
     address: string;
@@ -207,6 +221,27 @@ export interface DailyReport {
     review_status: ReviewStatus;
     comments: string | null;
   }[];
+}
+
+/** A page of visits and the true total behind the same filters. */
+export interface VisitPage {
+  visits: ProgrammeVisit[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+/**
+ * The filters plus the page, as the URL carries them.
+ *
+ * Paging lives with the filters because a page number without its filters is
+ * meaningless: "page 3" is only page 3 of a particular question.
+ */
+export interface VisitListQuery extends VisitFilters {
+  /** One box: address, postcode, PCH id, meter serial, SIM serial. */
+  query?: string;
+  offset?: number;
+  limit?: number;
 }
 
 /** The filters every programme read understands. Mirrors app.programme_visit_filter. */

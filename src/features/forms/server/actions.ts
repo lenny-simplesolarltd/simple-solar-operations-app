@@ -166,6 +166,59 @@ export async function listSurveyorsAction() {
 }
 
 /**
+ * Sets who may complete a form. The refusal is returned as it comes back, so a
+ * manager sees WHY (no workflow owns this form, no role chosen, unknown role)
+ * rather than a save that quietly did nothing.
+ */
+export async function setFormAccessAction(
+  input: { formId: string; mode: string; roleCodes: string[] },
+  expectedVersion: number | null,
+  commandId: string
+) {
+  const parsed = z
+    .strictObject({
+      formId: uuid,
+      mode: z.enum(['Invitation', 'Roles', 'Workflow']),
+      // Role codes are checked against public.roles by the command; the length
+      // cap is only to keep a nonsense request out of the database.
+      roleCodes: z.array(z.string().trim().min(1).max(40)).max(40)
+    })
+    .safeParse(input);
+  if (!parsed.success || !uuid.safeParse(commandId).success) return invalid;
+  return refreshed(
+    await forms.setFormAccess(parsed.data, expectedVersion, commandId)
+  );
+}
+
+/**
+ * A staff member completing a Roles-mode form in the app.
+ *
+ * Every argument is re-validated here because a server action is callable with
+ * anything at all, and the database decides entitlement again on top: this
+ * action grants nothing that app.form_completion_route does not already allow.
+ */
+export async function completeFormAction(
+  input: {
+    formId: string;
+    revisionId: string;
+    submissionId: string;
+    answers: unknown;
+  },
+  commandId: string
+) {
+  const parsed = z
+    .strictObject({
+      formId: uuid,
+      revisionId: uuid,
+      submissionId: uuid,
+      answers: z.record(z.string(), z.unknown())
+    })
+    .safeParse(input);
+  if (!parsed.success || !uuid.safeParse(commandId).success) return invalid;
+  return refreshed(await forms.completeForm(parsed.data, commandId));
+}
+
+/**
  * The recipient page's submit. No staff session is needed or used - but a
  * developer who is previewing must not be able to write a real response either,
  * even holding a valid recipient token.

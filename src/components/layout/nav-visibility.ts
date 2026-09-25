@@ -20,6 +20,11 @@ const has = (user: AppUser, roles: RoleCode[]) =>
 /** Modules behind a release gate (release_modes), as the server read them. */
 export interface Released {
   forms: boolean;
+  /**
+   * This person has at least one form they may complete. Optional and
+   * defaulting to false: an omitted capability must never open a door.
+   */
+  canFillForms?: boolean;
   programmes: boolean;
 }
 
@@ -93,8 +98,14 @@ export function canSee(
       // which is exactly what communications.chat.use encodes.
       return permissions.has('communications.chat.use');
     case 'forms':
-      // Hidden, not merely disabled, while Forms is switched off.
-      return released.forms && permissions.has('forms.read');
+      // Hidden, not merely disabled, while Forms is switched off. Offered to
+      // form MANAGERS and to anyone with a form to complete - needing Forms
+      // administration in order to reach the form you are asked to fill in was
+      // the problem this replaces.
+      return (
+        released.forms &&
+        (permissions.has('forms.read') || released.canFillForms === true)
+      );
     case 'programmes':
       // The office view: reporting, review and the board.
       return (
@@ -106,6 +117,14 @@ export function canSee(
     case 'programmeField':
       // The field worker's own entry: their properties and their visits.
       return released.programmes && permissions.has('programme.visit.submit');
+    case 'programmeFieldOnly':
+      // The same entry, but only for people who do NOT also get the management
+      // view. An Admin used to see "Programmes" and "My programme visits"
+      // pointing at the same URL, which reads as two features and is one.
+      return (
+        canSee('programmeField', user, permissions, released) &&
+        !canSee('programmes', user, permissions, released)
+      );
   }
 }
 

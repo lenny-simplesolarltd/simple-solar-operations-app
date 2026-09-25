@@ -17,14 +17,30 @@ interface Tab {
   show: (access: ProgrammeAccess) => boolean;
 }
 
+/**
+ * Six tabs, not eight.
+ *
+ * Every screen used to be a tab of equal weight, so "Import" - something done
+ * once, by one role, at the start of a programme - sat beside "Board", which
+ * the office lives in all day. Import is now an action on Properties, where the
+ * properties it creates are, and Record a visit is offered as an action to the
+ * people who actually do it rather than as a permanent office tab.
+ *
+ * The old routes still exist and still work; only the menu changed.
+ */
 const TABS: Tab[] = [
   { href: '', label: 'Overview', show: (a) => a.report || a.readAll },
   { href: '/review', label: 'Review', show: (a) => a.review },
   { href: '/board', label: 'Board', show: (a) => a.readAll },
-  { href: '/visits', label: 'All visits', show: (a) => a.readAll },
+  { href: '/visits', label: 'Visits', show: (a) => a.readAll },
   { href: '/properties', label: 'Properties', show: (a) => a.read },
-  { href: '/visit', label: 'Record a visit', show: (a) => a.submit },
-  { href: '/import', label: 'Import', show: (a) => a.manage }
+  { href: '/report', label: 'Reports', show: (a) => a.report },
+  // Field staff have no office tabs at all, so this is their only way in.
+  {
+    href: '/visit',
+    label: 'Record a visit',
+    show: (a) => a.submit && !a.readAll
+  }
 ];
 
 /**

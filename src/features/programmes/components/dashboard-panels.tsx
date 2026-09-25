@@ -1,4 +1,5 @@
 import { Progress } from '@/components/ui/progress';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { signalBandsSentence } from '../labels';
 import type { ProgrammeDashboard } from '../types';
@@ -47,6 +48,9 @@ function Stat({
 /** Progress and run rate: how much is done, and what that implies. */
 export function ProgressPanel({ data }: { data: ProgrammeDashboard }) {
   const { total_properties: total, attended, remaining } = data;
+  // "0 of 0 properties attended (0%)" reads as a finished programme with
+  // nothing in it. Until something is imported there is no progress to show.
+  if (total === 0) return null;
   const percent = total > 0 ? Math.round((attended / total) * 100) : 0;
   const days = data.by_day.length;
   // The average over days actually worked, not over calendar days: a weekend
@@ -85,11 +89,274 @@ export function ProgressPanel({ data }: { data: ProgrammeDashboard }) {
   );
 }
 
+/**
+ * Delivery against the target, which is a different question from progress
+ * through the import.
+ *
+ * "1,036 of 1,036 attended" reads as finished, and is what this screen used to
+ * say, when the programme is contracted to reach about 1,400 properties and only
+ * 1,036 have been handed over. The two denominators are both shown, labelled,
+ * because they mean different things:
+ *
+ *   Imported   - properties in the system now
+ *   Target     - properties the programme is expected to reach
+ *   Attended   - visited at least once
+ *   Completed  - a visit reached Complete & working, so the meter IS live
+ *
+ * Nothing is derived from a date that has not been recorded. Where there is no
+ * delivery window, this says the window has not been recorded rather than
+ * printing a required-per-day figure computed from a date nobody agreed.
+ */
+export function DeliveryPanel({
+  data,
+  importHref
+}: {
+  data: ProgrammeDashboard;
+  /** Where importing happens, when this person may import. */
+  importHref?: string | null;
+}) {
+  const {
+    total_properties: imported,
+    attended,
+    completed_properties: completed,
+    target_property_count: target,
+    delivery_end_date: endDate,
+    today
+  } = data;
+
+  const remainingImported = Math.max(imported - attended, 0);
+  const remainingTarget =
+    target === null ? null : Math.max(target - completed, 0);
+  const awaitingImport =
+    target === null ? null : Math.max(target - imported, 0);
+  const n = (v: number) => v.toLocaleString('en-GB');
+
+  // Nothing imported yet is not a progress figure, it is a blocked programme.
+  // Showing "Target 0" or "0% attended" here read as a target of nothing, when
+  // the truth is that 1,400 properties are expected and none have arrived.
+  if (imported === 0) {
+    return (
+      <section className='flex flex-col gap-3 rounded-lg border p-4'>
+        <h3 className='text-sm font-semibold tracking-wide uppercase'>
+          Delivery
+        </h3>
+        <dl className='grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3'>
+          <dt className='text-muted-foreground'>Programme target</dt>
+          <dd className='font-medium tabular-nums'>
+            {target === null ? 'Not recorded' : n(target)}
+          </dd>
+          <dt className='text-muted-foreground'>Properties imported</dt>
+          <dd className='font-medium tabular-nums'>
+            {target === null ? '0' : `0 / ${n(target)}`}
+          </dd>
+          <dt className='text-muted-foreground'>Awaiting import</dt>
+          <dd className='font-medium tabular-nums'>
+            {awaitingImport === null ? 'Unknown' : n(awaitingImport)}
+          </dd>
+        </dl>
+        <div className='bg-muted/40 flex flex-col gap-2 rounded-lg border border-dashed p-4'>
+          <p className='font-medium'>No properties imported yet</p>
+          <p className='text-muted-foreground text-sm'>
+            Nothing can be visited, reviewed or reported on until the client
+            sends the property list and it is imported. Every figure below is
+            therefore zero, not missing.
+          </p>
+          {importHref && (
+            <Link
+              href={importHref}
+              className='bg-primary text-primary-foreground hover:bg-primary/90 mt-1 inline-flex min-h-11 w-fit items-center rounded-md px-4 text-sm font-medium'
+            >
+              Import PCH property list
+            </Link>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // Working days left, counted honestly: only from a recorded end date, and only
+  // while it is still in the future.
+  const daysLeft = (() => {
+    if (!endDate) return null;
+    const end = Date.parse(`${endDate}T00:00:00Z`);
+    const now = Date.parse(`${today}T00:00:00Z`);
+    if (Number.isNaN(end) || Number.isNaN(now)) return null;
+    const days = Math.ceil((end - now) / 86400000);
+    return days > 0 ? days : 0;
+  })();
+
+  const perDayNeeded =
+    remainingTarget !== null && daysLeft !== null && daysLeft > 0
+      ? remainingTarget / daysLeft
+      : null;
+
+  return (
+    <section className='flex flex-col gap-3 rounded-lg border p-4'>
+      <h3 className='text-sm font-semibold tracking-wide uppercase'>
+        Delivery
+      </h3>
+      <dl className='grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3'>
+        <dt className='text-muted-foreground'>Programme target</dt>
+        <dd className='font-medium tabular-nums'>
+          {target === null ? 'Not recorded' : n(target)}
+        </dd>
+        <dt className='text-muted-foreground'>Properties imported</dt>
+        <dd className='font-medium tabular-nums'>
+          {target === null ? n(imported) : `${n(imported)} / ${n(target)}`}
+        </dd>
+        <dt className='text-muted-foreground'>Awaiting import</dt>
+        <dd className='font-medium tabular-nums'>
+          {awaitingImport === null ? 'Unknown' : n(awaitingImport)}
+        </dd>
+        <dt className='text-muted-foreground'>Attended</dt>
+        <dd className='font-medium tabular-nums'>{n(attended)}</dd>
+        <dt className='text-muted-foreground'>Completed and live</dt>
+        <dd className='font-medium tabular-nums'>{n(completed)}</dd>
+        <dt className='text-muted-foreground'>Remaining of imported</dt>
+        <dd className='font-medium tabular-nums'>{n(remainingImported)}</dd>
+        <dt className='text-muted-foreground'>Remaining against target</dt>
+        <dd className='font-medium tabular-nums'>
+          {remainingTarget === null ? 'No target recorded' : n(remainingTarget)}
+        </dd>
+      </dl>
+
+      <p className='text-muted-foreground text-sm'>
+        {perDayNeeded === null
+          ? endDate
+            ? 'The delivery window has closed, so no required daily rate is shown.'
+            : 'No delivery window has been recorded, so no required daily rate is shown.'
+          : `${perDayNeeded.toFixed(1)} completions a day to reach the target by ${endDate}, with ${n(daysLeft as number)} ${daysLeft === 1 ? 'day' : 'days'} left.`}
+      </p>
+    </section>
+  );
+}
+
+/**
+ * The work the office has to do something about, separated from the general
+ * counts.
+ *
+ * These four were four tiles among fourteen, so "37 meters need replacing" had
+ * exactly the same weight as "SIMs changed". They are the only figures on this
+ * screen that represent a property that is stuck, and each one links to the
+ * visits it is counting, because the next question is always "which ones?".
+ */
+export function NeedsActionPanel({
+  data,
+  basePath
+}: {
+  data: ProgrammeDashboard;
+  basePath: string;
+}) {
+  const items = [
+    {
+      label: 'Awaiting review',
+      value: data.awaiting_review,
+      hint: 'Submitted, not yet checked',
+      href: `${basePath}/review` as string | null,
+      tone: 'info' as const
+    },
+    {
+      label: 'Action required',
+      value: data.action_required,
+      hint: 'Something must be done before this property is finished',
+      href: `${basePath}/visits?disposition=ActionRequired`,
+      tone: 'bad' as const
+    },
+    {
+      label: 'Meter replacements',
+      value: data.meter_replacements_required,
+      hint: 'The meter itself has to be changed',
+      href: `${basePath}/visits?disposition=MeterRequiresChanging`,
+      tone: 'bad' as const
+    },
+    {
+      label: 'No access — rebook',
+      value: data.no_access_rebook,
+      hint: 'Nobody in. Needs another appointment',
+      href: `${basePath}/visits?disposition=NoAccessRebook`,
+      tone: 'warn' as const
+    },
+    {
+      label: 'Portal checks outstanding',
+      value: data.portal_outstanding,
+      hint: 'Cannot be completed until the portal is checked',
+      // No link: "checked but with no answer yet" is not one of the filters the
+      // list understands, and a link that quietly showed a different set of
+      // visits would be worse than no link.
+      href: null,
+      tone: 'warn' as const
+    }
+  ];
+  const total = items.reduce((a, b) => a + b.value, 0);
+
+  return (
+    <section className='flex flex-col gap-3 rounded-lg border p-4'>
+      <div className='flex flex-wrap items-baseline justify-between gap-2'>
+        <h3 className='text-sm font-semibold tracking-wide uppercase'>
+          Needs office action
+        </h3>
+        <p className='text-muted-foreground text-sm tabular-nums'>
+          {total === 0
+            ? 'Nothing outstanding'
+            : `${total.toLocaleString('en-GB')} outstanding`}
+        </p>
+      </div>
+      <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'>
+        {items.map((item) => {
+          const body = (
+            <>
+              <span className='text-muted-foreground text-xs font-medium'>
+                {item.label}
+              </span>
+              <span
+                className={cn(
+                  'mt-0.5 text-2xl font-semibold tabular-nums',
+                  item.value > 0 &&
+                    {
+                      info: 'text-info',
+                      warn: 'text-warning',
+                      bad: 'text-destructive'
+                    }[item.tone]
+                )}
+              >
+                {item.value.toLocaleString('en-GB')}
+              </span>
+              <span className='text-muted-foreground mt-0.5 text-xs'>
+                {item.hint}
+              </span>
+            </>
+          );
+          const shell = 'flex min-h-11 flex-col rounded-lg border p-3';
+          return item.href ? (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(shell, 'hover:bg-accent/50')}
+            >
+              {body}
+            </Link>
+          ) : (
+            <div key={item.label} className={shell}>
+              {body}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function StatGrid({ data }: { data: ProgrammeDashboard }) {
   return (
     <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4'>
       <Stat label='Total properties' value={data.total_properties} />
       <Stat label='Attended' value={data.attended} />
+      <Stat
+        label='Completed and live'
+        value={data.completed_properties}
+        tone='good'
+        hint='The meter is live in the portal'
+      />
       <Stat label='Remaining' value={data.remaining} />
       <Stat label='Visits today' value={data.visits_today} tone='info' />
       <Stat label='SIMs changed' value={data.sims_changed} />

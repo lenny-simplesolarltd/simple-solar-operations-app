@@ -103,7 +103,7 @@ await check('installer: record a visit', `${P}/${programmeId}/visit`, john, [
   'Installer Meter Visit',
   'What happened?',
   'Tenant not home',
-  'SIM card changed - portal working',
+  'SIM changed - meter appears working',
   'Meter dead',
   'Property'
 ]);

@@ -19,8 +19,7 @@ import {
   DISPOSITION_HINT,
   DISPOSITION_LABEL,
   OUTCOME_SHORT,
-  PORTAL_LABEL,
-  propertyAddress
+  PORTAL_LABEL
 } from '../labels';
 import { reviewVisitAction } from '../server/actions';
 import {
@@ -49,18 +48,47 @@ import { SignalBadge } from './badges';
 
 const DRAG_TYPE = 'application/x-programme-visit';
 
+/** "Submitted 14:32, 24 Sep" — how long a card has been sitting there. */
+function submittedLabel(iso: string | null) {
+  if (!iso) return 'Not submitted';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Not submitted';
+  return `Submitted ${d.toLocaleString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: 'numeric',
+    month: 'short'
+  })}`;
+}
+
+/**
+ * One column: the cards it is showing, and how many there really are.
+ *
+ * The two are separate because at programme scale they diverge — a column can
+ * legitimately hold four hundred visits — and a column that renders sixty of
+ * them must say so rather than imply sixty is all there is.
+ */
+export interface BoardColumn {
+  disposition: Disposition;
+  cards: ProgrammeVisit[];
+  total: number;
+}
+
 interface BoardProps {
   programmeId: string;
-  visits: ProgrammeVisit[];
+  columns: BoardColumn[];
   canReview: boolean;
   basePath: string;
+  /** Where "see all N" goes, carrying the filters the board is showing. */
+  listQuery: string;
 }
 
 export function VisitBoard({
   programmeId,
-  visits,
+  columns,
   canReview,
-  basePath
+  basePath,
+  listQuery
 }: BoardProps) {
   const router = useRouter();
   const [dragging, setDragging] = useState<string | null>(null);
@@ -72,11 +100,6 @@ export function VisitBoard({
     target: Disposition;
   } | null>(null);
   const [portal, setPortal] = useState<PortalVerification | null>(null);
-
-  const columns = DISPOSITIONS.map((disposition) => ({
-    disposition,
-    cards: visits.filter((v) => v.disposition === disposition)
-  }));
 
   function move(
     visit: ProgrammeVisit,
@@ -119,8 +142,16 @@ export function VisitBoard({
 
   return (
     <>
+      {/* Two bands, because the five columns are not five equivalent states:
+          one is the inbox everything lands in, and the other four are what the
+          office decided. Labelling them says which way work travels without
+          changing a single disposition. */}
+      <div className='flex gap-3 pb-1 text-xs font-semibold tracking-wide uppercase'>
+        <span className='text-muted-foreground w-[17rem] shrink-0'>Inbox</span>
+        <span className='text-muted-foreground shrink-0'>Outcome / action</span>
+      </div>
       <div className='flex gap-3 overflow-x-auto pb-4'>
-        {columns.map(({ disposition, cards }) => (
+        {columns.map(({ disposition, cards, total }) => (
           <section
             key={disposition}
             aria-label={DISPOSITION_LABEL[disposition]}
@@ -136,11 +167,16 @@ export function VisitBoard({
               e.preventDefault();
               setOver(null);
               const id = e.dataTransfer.getData(DRAG_TYPE);
-              const visit = visits.find((v) => v.id === id);
+              const visit = columns
+                .flatMap((c) => c.cards)
+                .find((v) => v.id === id);
               if (visit) move(visit, disposition);
             }}
             className={cn(
               'bg-muted/40 flex w-[17rem] shrink-0 flex-col rounded-lg border',
+              // The inbox is visually the source, not one of the outcomes.
+              disposition === 'AwaitingReview' &&
+                'border-info/40 bg-info-soft/30',
               over === disposition && 'ring-primary bg-accent ring-2'
             )}
           >
@@ -149,7 +185,9 @@ export function VisitBoard({
                 {DISPOSITION_LABEL[disposition]}
               </h3>
               <span className='text-muted-foreground text-sm tabular-nums'>
-                {cards.length}
+                {cards.length < total
+                  ? `${cards.length} of ${total.toLocaleString('en-GB')}`
+                  : total.toLocaleString('en-GB')}
               </span>
             </header>
             <p className='text-muted-foreground px-3 pt-2 text-xs'>
@@ -202,13 +240,32 @@ export function VisitBoard({
                         Serial mismatch
                       </p>
                     )}
-                    {visit.portalCheckRequired && !visit.portalVerification && (
-                      <p className='text-muted-foreground text-xs'>
-                        Portal not checked
+                    {/* The portal answer is the one fact that decides whether
+                        this visit can ever be complete, so it is on the card
+                        rather than one click away. */}
+                    {visit.portalVerification ? (
+                      <p
+                        className={cn(
+                          'text-xs',
+                          visit.portalVerification === 'ConfirmedLive'
+                            ? 'text-success font-medium'
+                            : 'text-warning font-medium'
+                        )}
+                      >
+                        {PORTAL_LABEL[visit.portalVerification]}
                       </p>
+                    ) : (
+                      visit.portalCheckRequired && (
+                        <p className='text-muted-foreground text-xs'>
+                          Portal not checked
+                        </p>
+                      )
                     )}
                     <p className='text-muted-foreground text-xs'>
                       {visit.installerName} · {visit.visitDate}
+                    </p>
+                    <p className='text-muted-foreground text-xs'>
+                      {submittedLabel(visit.submittedAt)}
                     </p>
                     {canReview && (
                       <label className='mt-1 flex flex-col gap-1 text-xs'>
@@ -240,6 +297,14 @@ export function VisitBoard({
                 </li>
               )}
             </ul>
+            {cards.length < total && (
+              <Link
+                href={`${basePath}/visits?${listQuery}${listQuery ? '&' : ''}disposition=${disposition}`}
+                className='border-t px-3 py-2 text-xs font-medium hover:underline'
+              >
+                See all {total.toLocaleString('en-GB')} in a list
+              </Link>
+            )}
           </section>
         ))}
       </div>

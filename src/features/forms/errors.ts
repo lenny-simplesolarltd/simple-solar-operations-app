@@ -45,6 +45,16 @@ const MESSAGES: Record<string, string> = {
   FORMS_INVALID_REASON: 'The reason is too long.',
   FORMS_LINKS_NOT_CONFIGURED:
     'Recipient links are not set up on this server yet (FORMS_LINK_SECRET). Nothing was created.',
+  FORMS_COMPLETION_DENIED:
+    'This form is not one you can complete here. It may have been changed, unpublished, or handed to another workflow.',
+  FORMS_SUBMISSION_ID_REQUIRED:
+    'Your answers could not be sent. Reload the page and try again.',
+  FORMS_ACCESS_MODE_INVALID: 'Choose who may complete this form.',
+  FORMS_ACCESS_NOT_WORKFLOW_OWNED:
+    'Nothing points at this form as its workflow form, so a workflow cannot decide who completes it.',
+  FORMS_ACCESS_ROLES_REQUIRED:
+    'Choose at least one role, or nobody would be able to complete this form.',
+  FORMS_ACCESS_ROLE_UNKNOWN: 'One of those roles no longer exists.',
   FORMS_REQUIRED_MISSING: 'Please answer the required questions.',
   FORMS_INVALID_ANSWER: 'Please check your answers.',
   FORMS_UNKNOWN_FIELD: 'This form has changed. Reload the page and try again.',

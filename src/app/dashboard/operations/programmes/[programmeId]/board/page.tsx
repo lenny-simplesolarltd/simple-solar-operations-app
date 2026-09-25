@@ -16,10 +16,37 @@ import {
 } from '@/features/programmes/server/queries';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
+import { DISPOSITIONS } from '@/features/programmes/types';
 import { filtersFromParams, type SearchParams } from '../filters';
 
 export const metadata: Metadata = {
   title: 'Programme board | Simple Solar Operations'
+};
+
+/** Cards rendered per column. The header still states the column's real size. */
+const COLUMN_CARDS = 60;
+
+/** The board's own filters, so "see all N" opens the same question in a list. */
+const listQueryString = (
+  params: Record<string, string | string[] | undefined>
+) => {
+  const q = new URLSearchParams();
+  for (const key of [
+    'from',
+    'to',
+    'installer',
+    'outcome',
+    'signal',
+    'portal',
+    'postcode',
+    'status',
+    'q'
+  ]) {
+    const v = params[key];
+    const one = Array.isArray(v) ? v[0] : v;
+    if (one) q.set(key, one);
+  }
+  return q.toString();
 };
 
 export default async function BoardPage({
@@ -45,12 +72,29 @@ export default async function BoardPage({
 
   // The board's columns ARE the statuses, so a status filter would hide the
   // columns it names. Everything else filters as usual.
-  const filters = filtersFromParams(await searchParams);
+  const query = await searchParams;
+  const filters = filtersFromParams(query);
   delete filters.disposition;
-  const [visits, installers] = await Promise.all([
-    listVisits(programmeId, filters),
+  delete filters.offset;
+
+  // Each column is its own query, so each gets its own true count. Loading one
+  // flat page and dealing the rows into columns cannot work at programme scale:
+  // whichever disposition happened to be busiest that week would fill the page
+  // and the quiet columns would look empty when they were not.
+  const [columns, installers] = await Promise.all([
+    Promise.all(
+      DISPOSITIONS.map(async (disposition) => {
+        const page = await listVisits(programmeId, {
+          ...filters,
+          disposition,
+          limit: COLUMN_CARDS
+        });
+        return { disposition, cards: page.visits, total: page.total };
+      })
+    ),
     listInstallers(programmeId)
   ]);
+  const listQuery = listQueryString(query);
 
   return (
     <PageContainer scrollable={false}>
@@ -68,9 +112,10 @@ export default async function BoardPage({
         <VisitFilterBar installers={installers} showDisposition={false} />
         <VisitBoard
           programmeId={programmeId}
-          visits={visits}
+          columns={columns}
           canReview={session.access.review}
           basePath={programmePath(programmeId)}
+          listQuery={listQuery}
         />
         {!session.access.review && (
           <p className='text-muted-foreground text-xs'>

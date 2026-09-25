@@ -22,7 +22,7 @@ import {
   PORTAL_VERIFICATIONS,
   type VisitFilters
 } from '../types';
-import { getDailyReport, listVisits } from './queries';
+import { getDailyReport, listAllVisits } from './queries';
 
 /**
  * Server actions for the Programmes screens.
@@ -474,7 +474,9 @@ export async function exportVisitsAction(
 > {
   if (!uuid.safeParse(programmeId).success)
     return { ok: false, message: 'That programme could not be found.' };
-  const visits = await listVisits(programmeId, { ...filters, limit: 5000 });
+  // Paged through in full: an export that silently stops at a round number is
+  // worse than no export, because the file looks complete.
+  const visits = await listAllVisits(programmeId, filters);
   const rows = visits.map((v) => [
     v.property.externalRef,
     v.property.addressLine1,

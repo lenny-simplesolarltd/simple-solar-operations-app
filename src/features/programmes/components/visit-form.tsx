@@ -7,10 +7,15 @@ import {
 } from '@/features/forms/components/form-renderer';
 import type { AnswerValue, FormDefinition } from '@/features/forms/definition';
 import { cn } from '@/lib/utils';
-import { IconCheck, IconLoader2 } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconInfoCircle,
+  IconLoader2
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { signalBandsSentence } from '../labels';
+import { compareSerials } from '../serial';
 import { startVisitAction, submitVisitAction } from '../server/actions';
 import type { ProgrammeProperty, SignalConfig } from '../types';
 import { VisitPhotoField } from './photo-field';
@@ -45,6 +50,10 @@ import { PropertyLookupField } from './property-lookup';
 
 interface FieldMap {
   property?: string | string[];
+  /** The question whose answer becomes programme_visits.actual_meter_serial. */
+  actual_meter_serial?: string | string[];
+  meter_reading?: string | string[];
+  csq?: string | string[];
   evidence?: Record<string, string[] | string>;
 }
 
@@ -62,8 +71,14 @@ export interface VisitFormProps {
   fieldMap: FieldMap;
   /** Pre-chosen when the person came from the property list. */
   property?: ProgrammeProperty | null;
-  /** Where to go once the visit is recorded. */
+  /** Where to go once the visit is recorded: the next property. */
   doneHref: string;
+  /**
+   * The way out, for someone who has finished for the day. The programmes list
+   * rather than this programme's overview: the overview is office reporting,
+   * and a field account is not guaranteed to be able to open it.
+   */
+  exitHref: string;
 }
 
 /** Which evidence category a photo question collects, from the field map. */
@@ -83,10 +98,13 @@ export function VisitForm({
   form,
   fieldMap,
   property = null,
-  doneHref
+  doneHref,
+  exitHref
 }: VisitFormProps) {
-  const router = useRouter();
   const propertyFieldId = first(fieldMap.property);
+  const serialFieldId = first(fieldMap.actual_meter_serial);
+  const readingFieldId = first(fieldMap.meter_reading);
+  const csqFieldId = first(fieldMap.csq);
 
   const [visitId, setVisitId] = useState<string | null>(null);
   // The version the server reports for the draft, so the submit's optimistic
@@ -178,6 +196,19 @@ export function VisitForm({
     [visitId, fieldMap]
   );
 
+  // The expected serial is known before the installer types the actual one, so
+  // it is put beside that question rather than left at the top of the form.
+  const fieldAppendix = useCallback(
+    (field: { id: string }, value: AnswerValue | undefined) =>
+      field.id === serialFieldId ? (
+        <MeterSerialCheck
+          expected={picked?.expectedMeterSerial ?? null}
+          actual={typeof value === 'string' ? value : ''}
+        />
+      ) : null,
+    [serialFieldId, picked]
+  );
+
   const submit = useCallback(
     async (answers: Record<string, AnswerValue>) => {
       if (!visitId)
@@ -199,8 +230,11 @@ export function VisitForm({
         submitCommandId.current
       );
       if (response.ok) {
+        // Deliberately no redirect: the person is told what has happened to the
+        // visit and chooses what to do next. Navigating for them hid the fact
+        // that the visit is only AWAITING review, and left someone who had
+        // finished for the day on the property list with nothing to do.
         setSaved(true);
-        router.push(doneHref);
         return { ok: true as const };
       }
       // A refusal wrote nothing. Keep the visit and its photographs; a new
@@ -208,30 +242,10 @@ export function VisitForm({
       submitCommandId.current = crypto.randomUUID();
       return { ok: false as const, message: response.outcome.message };
     },
-    [
-      visitId,
-      visitVersion,
-      programmeId,
-      form,
-      propertyFieldId,
-      router,
-      doneHref
-    ]
+    [visitId, visitVersion, programmeId, form, propertyFieldId]
   );
 
-  if (saved)
-    return (
-      <div className='flex flex-col items-center gap-3 py-10 text-center'>
-        <IconCheck aria-hidden className='text-success size-10' />
-        <p className='text-lg font-semibold'>Visit recorded</p>
-        <p className='text-muted-foreground text-sm'>
-          It is now with the office for review.
-        </p>
-        <Button asChild className='h-12'>
-          <a href={doneHref}>Record another visit</a>
-        </Button>
-      </div>
-    );
+  if (saved) return <VisitRecorded doneHref={doneHref} exitHref={exitHref} />;
 
   return (
     <div className='flex flex-col gap-4'>
@@ -258,6 +272,14 @@ export function VisitForm({
         onSubmit={submit}
         photoControl={photoControl}
         lookupControl={lookupControl}
+        fieldAppendix={fieldAppendix}
+        // The reading is numeric(14,3), so it keeps a decimal keypad; CSQ is a
+        // whole number between 0 and 31 and gets the digits-only one.
+        numberInputModes={{
+          ...(readingFieldId ? { [readingFieldId]: 'decimal' as const } : {}),
+          ...(csqFieldId ? { [csqFieldId]: 'numeric' as const } : {})
+        }}
+        stickySubmit
         // Kept per visit form version, so a republished form never restores
         // answers keyed by questions that no longer exist.
         draftKey={`programme-visit:${programmeId}:${form.revisionId}`}
@@ -276,6 +298,108 @@ export function VisitForm({
           </div>
         }
       />
+    </div>
+  );
+}
+
+/**
+ * The expected serial, beside the question that asks for the actual one.
+ *
+ * Advisory only, and it says so. The server decides meter_serial_matches when
+ * the visit is submitted and the office reviews every mismatch, so this must
+ * never read as a verdict - a screen that said "mismatch" as though it were the
+ * finding would invite someone to change what they read off the meter to make
+ * the screen agree, which is the opposite of what the evidence is for.
+ */
+export function MeterSerialCheck({
+  expected,
+  actual
+}: {
+  expected: string | null;
+  actual: string;
+}) {
+  const state = compareSerials(expected, actual);
+  const base = 'flex items-start gap-2 rounded-lg px-3 py-2 text-sm';
+
+  if (state === 'no-expected')
+    return (
+      <p className={cn(base, 'bg-muted/60 text-muted-foreground')}>
+        <IconInfoCircle aria-hidden className='mt-0.5 size-4 shrink-0' />
+        <span>
+          No expected serial was given for this property, so there is nothing to
+          check it against here. Record what is on the meter; the office checks
+          it on review.
+        </span>
+      </p>
+    );
+
+  if (state === 'not-typed')
+    return (
+      <p className={cn(base, 'bg-info-soft text-info')}>
+        <IconInfoCircle aria-hidden className='mt-0.5 size-4 shrink-0' />
+        <span>
+          Expected serial{' '}
+          <strong className='font-semibold break-all'>{expected}</strong>. Read
+          the serial from the meter itself, even if it differs from this.
+        </span>
+      </p>
+    );
+
+  if (state === 'match')
+    return (
+      <p className={cn(base, 'bg-success-soft text-success')} role='status'>
+        <IconCheck aria-hidden className='mt-0.5 size-4 shrink-0' />
+        <span>
+          Same as the expected serial. The office still confirms this on review.
+        </span>
+      </p>
+    );
+
+  return (
+    <p
+      className={cn(base, 'bg-destructive-soft text-destructive')}
+      role='status'
+    >
+      <IconAlertTriangle aria-hidden className='mt-0.5 size-4 shrink-0' />
+      <span>
+        This is not the serial expected here, which is{' '}
+        <strong className='font-semibold break-all'>{expected}</strong>. Check
+        you are at the right meter. If the meter really does read differently,
+        send what you read - the office reviews every mismatch.
+      </span>
+    </p>
+  );
+}
+
+/**
+ * What a recorded visit ends on. Two ways forward, because a round ends in one
+ * of exactly two ways: the next property, or finished for now. The wording
+ * stays honest about the visit being with the office rather than done.
+ */
+export function VisitRecorded({
+  doneHref,
+  exitHref
+}: {
+  doneHref: string;
+  exitHref: string;
+}) {
+  return (
+    <div className='flex flex-col items-center gap-3 py-10 text-center'>
+      <IconCheck aria-hidden className='text-success size-10' />
+      <p className='text-lg font-semibold'>Visit recorded</p>
+      <p className='text-muted-foreground text-sm'>
+        It is now with the office for review.
+      </p>
+      <div className='flex w-full max-w-xs flex-col gap-2 pt-2'>
+        {/* Plain links, not router pushes: a full load starts the next visit
+            from a clean form rather than reusing this one's state. */}
+        <Button asChild className='h-12 w-full'>
+          <a href={doneHref}>Record the next property</a>
+        </Button>
+        <Button asChild variant='outline' className='h-12 w-full'>
+          <a href={exitHref}>Finish for now</a>
+        </Button>
+      </div>
     </div>
   );
 }
