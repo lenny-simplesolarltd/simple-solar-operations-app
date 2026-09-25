@@ -2,6 +2,7 @@ import { formsEnabled } from '@/features/forms/server/service';
 import { FormsNotEnabled } from '@/features/forms/components/forms-not-enabled';
 import PageContainer from '@/components/layout/page-container';
 import { PreviewFrame } from '@/features/forms/components/preview-frame';
+import { publishState } from '@/features/forms/publish-state';
 import { getForm, getRevision } from '@/features/forms/server/service';
 import { getPermissions } from '@/features/presale/server/queries';
 import { getCurrentUser } from '@/lib/auth';
@@ -65,8 +66,17 @@ export default async function PreviewPage({
           Back to the {form.kind === 'template' ? 'template' : 'form'}
         </Link>
         <PreviewFrame
+          // The same description the editor shows, so the two screens cannot
+          // disagree about whether this form is live.
           label={
-            revision ? `Published version ${revision.number}` : 'Saved draft'
+            revision
+              ? `Published version ${revision.number}`
+              : publishState({
+                  isTemplate: form.kind === 'template',
+                  revision: form.revision,
+                  hasUnpublishedChanges: form.hasUnpublishedChanges,
+                  dirty: false
+                }).label
           }
           versions={form.revisions.map((r) => r.number)}
           formId={form.id}

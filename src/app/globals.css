@@ -209,3 +209,37 @@
   /* Apply the reveal animation */
   animation: reveal 0.4s ease-in-out forwards;
 }
+
+/*
+ * The form builder's columns.
+ *
+ * Written as real media queries rather than Tailwind variants because two
+ * competing grid-template-columns utilities (lg and a 1400px arbitrary one)
+ * are emitted in an order that is not guaranteed, and the wrong one won: the
+ * live preview silently wrapped to a second row at full width instead of
+ * sitting beside the editor. Explicit rules cannot be reordered out from
+ * under us.
+ *
+ *   < 1024px   one column; the Preview button opens the full-page preview
+ *   >= 1024px  questions + question settings
+ *   >= 1400px  questions + settings + the live preview
+ */
+.forms-builder-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .forms-builder-grid {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  .forms-builder-grid {
+    grid-template-columns: minmax(20rem, 1fr) 20rem 26rem;
+  }
+  .forms-builder-preview {
+    display: block;
+  }
+}

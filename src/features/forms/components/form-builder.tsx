@@ -57,6 +57,8 @@ import {
 } from '../server/actions';
 import type { FormDetail } from '../types';
 import { FormStatusBadge } from './badges';
+import { LivePreview } from './live-preview';
+import { publishState } from '../publish-state';
 
 export interface BuilderPermissions {
   edit: boolean;
@@ -255,17 +257,25 @@ export function FormBuilder({
     .filter((f) => isInputType(f.type))
     .forEach((f, i) => inputNumber.set(f.id, i + 1));
 
+  const published = publishState({
+    isTemplate,
+    revision: form.revision,
+    hasUnpublishedChanges: form.hasUnpublishedChanges,
+    dirty
+  });
+
   return (
     <div className='flex flex-col gap-4'>
       <div className='flex flex-wrap items-center gap-2'>
         <FormStatusBadge status={form.status} />
-        <span className='text-muted-foreground text-sm'>
-          {isTemplate
-            ? 'Template'
-            : form.revision > 0
-              ? `Version ${form.revision} published${form.hasUnpublishedChanges || dirty ? ' · draft has unpublished changes' : ''}`
-              : 'Not published yet'}
-        </span>
+        {/* One description of the form, shared with the preview beside it, so
+            the two can never contradict each other. */}
+        <span className='text-sm font-medium'>{published.label}</span>
+        {published.detail && (
+          <span className='text-muted-foreground text-sm'>
+            {published.detail}
+          </span>
+        )}
         <div className='ml-auto flex flex-wrap items-center gap-2'>
           {editable && (
             <Button
@@ -418,7 +428,11 @@ export function FormBuilder({
         </p>
       )}
 
-      <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]'>
+      {/* Two columns from lg (questions + settings); the live preview joins
+          them at 1400px, which is where three columns stop squeezing the
+          question list. Below that the Preview button still opens the
+          full-page preview. */}
+      <div className='forms-builder-grid'>
         <section
           aria-label='Form content'
           className='flex min-w-0 flex-col gap-3'
@@ -550,6 +564,20 @@ export function FormBuilder({
               Select a question to change its settings.
             </p>
           )}
+        </aside>
+
+        {/* The recipient's view, live from the draft being edited. Hidden
+            below 2xl, where three columns would squeeze the editor. */}
+        <aside
+          aria-label='Live preview'
+          className='forms-builder-preview hidden min-[1400px]:sticky min-[1400px]:top-4 min-[1400px]:self-start'
+        >
+          <LivePreview
+            title={draft.title}
+            description={draft.description}
+            definition={draft.definition}
+            state={published}
+          />
         </aside>
       </div>
     </div>
