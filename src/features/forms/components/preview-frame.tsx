@@ -95,7 +95,7 @@ export function PreviewFrame({
           device === 'mobile' ? 'max-w-[390px]' : 'max-w-4xl'
         )}
       >
-        <PublicShell>
+        <PublicShell embedded>
           <FormRenderer
             key={`${current}-${device}`}
             title={title}

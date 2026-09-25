@@ -146,9 +146,21 @@ export function ProgrammePropertyBody({
         )}
       </div>
       <Where reference={property.reference} postcode={property.postcode} />
-      {property.expectedMeterSerial && (
+      {/* PCH's record of the site, named as theirs. Omitted entirely rather
+          than shown blank when the register did not carry it. */}
+      {(property.expectedMeterSerial ||
+        property.existingSimType ||
+        property.existingSimSerial) && (
         <p className='text-muted-foreground text-xs'>
-          Meter expected here: {property.expectedMeterSerial}
+          PCH baseline:{' '}
+          {[
+            property.expectedMeterSerial &&
+              `meter ${property.expectedMeterSerial}`,
+            property.existingSimType && `SIM ${property.existingSimType}`,
+            property.existingSimSerial && `ICCID ${property.existingSimSerial}`
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         </p>
       )}
       {property.state && (

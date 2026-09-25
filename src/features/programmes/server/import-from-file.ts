@@ -3,7 +3,7 @@ import 'server-only';
 import { getCurrentUser } from '@/lib/auth';
 import { previewWriteBlock } from '@/lib/preview/guard';
 import { IMPORT_KEY_LABEL } from '../labels';
-import type { ImportKey } from '../types';
+import type { IdentityKey, ImportKey } from '../types';
 import {
   addImportRowsAction,
   createImportAction,
@@ -113,10 +113,12 @@ export interface StageProgrammeImportInput {
  * contents, and never taken on trust: an id from the request is only accepted
  * if the session can already see that programme.
  */
-async function resolveProgramme(
-  programmeId: string | undefined
-): Promise<
-  { ok: true; programme: { id: string; name: string } } | ProgrammeImportRefusal
+async function resolveProgramme(programmeId: string | undefined): Promise<
+  | {
+      ok: true;
+      programme: { id: string; name: string; importIdentityKey: IdentityKey };
+    }
+  | ProgrammeImportRefusal
 > {
   const programmes = await listProgrammes();
   if (programmeId) {
@@ -127,11 +129,25 @@ async function resolveProgramme(
         'PROGRAMME_NOT_FOUND',
         'No programme with that id is visible to the signed-in staff member.'
       );
-    return { ok: true, programme: { id: found.id, name: found.name } };
+    return {
+      ok: true,
+      programme: {
+        id: found.id,
+        name: found.name,
+        importIdentityKey: found.importIdentityKey
+      }
+    };
   }
   const open = programmes.filter((p) => p.status !== 'Closed');
   if (open.length === 1)
-    return { ok: true, programme: { id: open[0].id, name: open[0].name } };
+    return {
+      ok: true,
+      programme: {
+        id: open[0].id,
+        name: open[0].name,
+        importIdentityKey: open[0].importIdentityKey
+      }
+    };
   if (open.length === 0)
     return refuse(
       409,
@@ -229,14 +245,20 @@ export async function stageProgrammeImport(
       'That file is larger than 20 MB. Split it and try again.'
     );
 
-  // requireMapping: an upload from chat has nobody standing at the mapping step,
-  // so a file whose headings do not read as a property reference and an address
-  // is left alone rather than staged as an import nobody asked for.
-  const plan = planImport(input, { requireMapping: true });
-  if (!plan.ok) return refuse(422, plan.code, plan.message);
-
+  // The programme is resolved FIRST because what counts as identifying a row is
+  // that programme's own configuration: a register keyed by meter serial is a
+  // property list for PCH and not one for a programme keyed by property ID.
   const programme = await resolveProgramme(input.programmeId);
   if (!programme.ok) return programme;
+
+  // requireMapping: an upload from chat has nobody standing at the mapping step,
+  // so a file whose headings do not read as this programme's identity and an
+  // address is left alone rather than staged as an import nobody asked for.
+  const plan = planImport(input, {
+    requireMapping: true,
+    identityKey: programme.programme.importIdentityKey
+  });
+  if (!plan.ok) return refuse(422, plan.code, plan.message);
 
   const importId = crypto.randomUUID();
   const created = await createImportAction(
@@ -255,6 +277,17 @@ export async function stageProgrammeImport(
       created.outcome.message
     );
 
+  // Every command on the import raises its version, so the version to quote
+  // back is the one the LAST of them returned - not the one create answered
+  // with. A 1,468-row file is eight chunks, so mapping with create's version
+  // was eight versions stale and the staging always refused.
+  const versionOf = (result: unknown) =>
+    typeof (result as { version?: unknown })?.version === 'number'
+      ? (result as { version: number }).version
+      : null;
+
+  let version = versionOf(created.result);
+
   // Chunked exactly as the wizard chunks it: 1,400 rows in one request is both
   // a large body and an all-or-nothing failure, and the command is idempotent
   // per row index so a resent chunk cannot double a row.
@@ -269,15 +302,22 @@ export async function stageProgrammeImport(
         added.outcome.code ?? 'PROGRAMME_IMPORT_ADD_ROWS_FAILED',
         added.outcome.message
       );
+    version = versionOf(added.result) ?? version;
   }
 
-  const createdResult = created.result as { version?: number } | undefined;
+  // Only if no command reported one: asking the import is a second source of
+  // truth, and a second source that disagrees is worse than none.
+  if (version === null) {
+    const staged = await getImport(importId);
+    version = staged?.version ?? 1;
+  }
+
   const mapped = await mapImportAction(
     {
       importId,
       programmeId: programme.programme.id,
       mapping: mappingPayload(plan.mapping),
-      expectedVersion: createdResult?.version ?? 1
+      expectedVersion: version
     },
     crypto.randomUUID()
   );

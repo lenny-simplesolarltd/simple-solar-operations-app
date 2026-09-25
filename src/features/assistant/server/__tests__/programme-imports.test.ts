@@ -51,6 +51,7 @@ const programme: ProgrammeSummary = {
   id: PROGRAMME_ID,
   code: 'MTR-01',
   name: 'Meter SIM replacement',
+  importIdentityKey: 'external_ref',
   clientName: 'A client',
   status: 'Active',
   startsOn: null,

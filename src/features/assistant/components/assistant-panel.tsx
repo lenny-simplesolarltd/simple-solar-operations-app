@@ -6,7 +6,9 @@ import {
   IconAlertTriangle,
   IconArrowUp,
   IconFileText,
+  IconFolder,
   IconPaperclip,
+  IconUpload,
   IconPhoto,
   IconCheck,
   IconHistory,
@@ -19,6 +21,13 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { describeContext, type AssistantPageContext } from '../context';
+import { StoredFilePicker } from './stored-file-picker';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import type { ConversationItem, ConversationState } from '../lib/conversation';
 import {
   ACCEPT_ATTRIBUTE,
@@ -51,6 +60,8 @@ export interface AssistantPanelProps {
   page: AssistantPageContext;
   capabilities: AssistantCapabilities | null;
   capabilitiesError?: boolean;
+  /** Capabilities, awaited. Used before deciding how to read an attachment. */
+  ensureCapabilities?: () => Promise<AssistantCapabilities | null>;
   onSend(text: string, attachments?: Attachment[]): void;
   onStop(): void;
   onRetry(errorId: string): void;
@@ -118,6 +129,7 @@ export function AssistantPanel({
   page,
   capabilities,
   capabilitiesError,
+  ensureCapabilities,
   onSend,
   onStop,
   onRetry,
@@ -172,6 +184,11 @@ export function AssistantPanel({
   // chips clear on send, and nothing here persists.
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [rejected, setRejected] = useState<AttachmentRejection[]>([]);
+  // Reading a few megabytes of PNG into base64 is not instant. Without this,
+  // pressing Send during the read sent the turn with no attachments at all and
+  // said nothing about it.
+  const [reading, setReading] = useState(0);
+  const [picking, setPicking] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -180,25 +197,38 @@ export function AssistantPanel({
   // client offer and the server's answer cannot drift apart. It is only an
   // offer: the route re-checks the session, the release gate and the permission
   // before it reads a single row of somebody's property register.
-  const canImportProperties = Boolean(
-    capabilities?.configured &&
-      capabilities.tools.some((t) => t.name === 'apply_programme_import')
-  );
+  const mayImport = (caps: AssistantCapabilities | null) =>
+    Boolean(
+      caps?.configured &&
+        caps.tools.some((t) => t.name === 'apply_programme_import')
+    );
 
   const take = async (files: File[]) => {
     if (files.length === 0) return;
-    // A property list is far too big to travel through the model, so its bytes
-    // go straight to the import pipeline and only a bounded summary comes back.
-    const result = await readAttachments(files, attachments.length, {
-      programmeImport: canImportProperties ? {} : undefined
-    });
-    if (result.attachments.length > 0) {
-      setAttachments((current) =>
-        [...current, ...result.attachments].slice(0, MAX_ATTACHMENTS)
-      );
+    setReading((n) => n + 1);
+    try {
+      // Capabilities are fetched when the drawer opens. Deciding from the
+      // state here would mean a file chosen before that request landed took
+      // the ordinary text path - a property list read into the model instead
+      // of staged - so the answer is awaited rather than read.
+      const caps = ensureCapabilities
+        ? await ensureCapabilities()
+        : capabilities;
+      // A property list is far too big to travel through the model, so its bytes
+      // go straight to the import pipeline and only a bounded summary comes back.
+      const result = await readAttachments(files, attachments.length, {
+        programmeImport: mayImport(caps) ? {} : undefined
+      });
+      if (result.attachments.length > 0) {
+        setAttachments((current) =>
+          [...current, ...result.attachments].slice(0, MAX_ATTACHMENTS)
+        );
+      }
+      // Say what was not read, rather than dropping it quietly.
+      setRejected(result.rejected);
+    } finally {
+      setReading((n) => n - 1);
     }
-    // Say what was not read, rather than dropping it quietly.
-    setRejected(result.rejected);
   };
 
   const submit = () => {
@@ -206,7 +236,9 @@ export function AssistantPanel({
       (!draft.trim() && attachments.length === 0) ||
       working ||
       unavailable ||
-      opening
+      opening ||
+      // Sending now would silently leave the files behind.
+      reading > 0
     )
       return;
     pinnedRef.current = true;
@@ -218,7 +250,9 @@ export function AssistantPanel({
     );
     setDraft('');
     setAttachments([]);
-    setRejected([]);
+    // Refusals deliberately survive the send: a file that was never attached is
+    // something the person still needs to know about, and it clears the next
+    // time they attach anything.
   };
 
   /** Put words in the composer and leave the sending to the person. */
@@ -259,8 +293,45 @@ export function AssistantPanel({
   return (
     <section
       aria-labelledby={headingId}
-      className='bg-card text-card-foreground flex h-full min-h-0 w-full flex-col'
+      // The whole conversation is the drop target, not the one-line composer.
+      // Dropping a screenshot means "look at this", and nobody aims that at a
+      // text box - they let go over the conversation they are having.
+      onDragOver={(e) => {
+        if (unavailable || opening || !e.dataTransfer.types.includes('Files'))
+          return;
+        e.preventDefault();
+        setDragging(true);
+      }}
+      // Only the drag actually leaving the panel counts. A drag crossing a
+      // message or a button fires dragleave on the child, and clearing on that
+      // made the target flicker away under the pointer.
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+          setDragging(false);
+      }}
+      onDrop={(e) => {
+        setDragging(false);
+        if (unavailable || opening) return;
+        const files = filesFrom(e.dataTransfer);
+        if (files.length === 0) return;
+        e.preventDefault();
+        void take(files);
+      }}
+      className={cn(
+        'bg-card text-card-foreground relative flex h-full min-h-0 w-full flex-col',
+        dragging && 'ring-ring/60 ring-2 ring-inset'
+      )}
     >
+      {dragging && (
+        <div
+          aria-hidden
+          className='bg-card/85 pointer-events-none absolute inset-0 z-20 flex items-center justify-center'
+        >
+          <p className='border-ring text-foreground rounded-lg border-2 border-dashed px-4 py-3 text-sm font-medium'>
+            Drop to attach
+          </p>
+        </div>
+      )}
       {/* Without its own close button the panel sits in the sheet, whose close button occupies the top-right corner. */}
       <header
         className={cn(
@@ -486,8 +557,14 @@ export function AssistantPanel({
               ))}
             </div>
           )}
-        {(attachments.length > 0 || rejected.length > 0) && (
-          <div className='mb-1.5 flex flex-wrap gap-1.5'>
+        {(attachments.length > 0 || rejected.length > 0 || reading > 0) && (
+          <div className='mb-1.5 flex flex-wrap items-center gap-1.5'>
+            {reading > 0 && (
+              <span className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+                <IconLoader2 className='size-3.5 animate-spin' aria-hidden />
+                Reading…
+              </span>
+            )}
             {attachments.map((a, i) => (
               <span
                 key={`${a.name}-${i}`}
@@ -527,22 +604,7 @@ export function AssistantPanel({
             e.preventDefault();
             submit();
           }}
-          onDragOver={(e) => {
-            if (unavailable || opening) return;
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            if (unavailable || opening) return;
-            e.preventDefault();
-            setDragging(false);
-            void take(filesFrom(e.dataTransfer));
-          }}
-          className={cn(
-            'border-input focus-within:border-ring focus-within:ring-ring/40 bg-background flex items-end gap-2 rounded-lg border p-1.5 transition-shadow focus-within:ring-[3px]',
-            dragging && 'border-ring ring-ring/40 ring-[3px]'
-          )}
+          className='border-input focus-within:border-ring focus-within:ring-ring/40 bg-background flex items-end gap-2 rounded-lg border p-1.5 transition-shadow focus-within:ring-[3px]'
         >
           <input
             ref={fileRef}
@@ -556,19 +618,43 @@ export function AssistantPanel({
               e.target.value = '';
             }}
           />
-          <Button
-            type='button'
-            size='icon'
-            variant='ghost'
-            className='size-9 shrink-0 rounded-md'
-            disabled={
-              unavailable || opening || attachments.length >= MAX_ATTACHMENTS
-            }
-            onClick={() => fileRef.current?.click()}
-          >
-            <IconPaperclip aria-hidden />
-            <span className='sr-only'>Attach a screenshot or file</span>
-          </Button>
+          {/* Two sources, one reader: whichever is chosen ends up as a File
+              passed to take(), so the size caps, the accepted types and the
+              property-list staging seam apply identically to both. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type='button'
+                size='icon'
+                variant='ghost'
+                className='size-9 shrink-0 rounded-md'
+                disabled={
+                  unavailable ||
+                  opening ||
+                  attachments.length >= MAX_ATTACHMENTS
+                }
+              >
+                <IconPaperclip aria-hidden />
+                <span className='sr-only'>Attach a screenshot or file</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='start' side='top'>
+              <DropdownMenuItem onSelect={() => fileRef.current?.click()}>
+                <IconUpload aria-hidden />
+                From this device
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPicking(true)}>
+                <IconFolder aria-hidden />
+                From Files &amp; documents
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {picking && (
+            <StoredFilePicker
+              onPick={(file) => void take([file])}
+              onClose={() => setPicking(false)}
+            />
+          )}
           <label htmlFor='assistant-composer' className='sr-only'>
             Message SimpleBot
           </label>
@@ -633,11 +719,14 @@ export function AssistantPanel({
               disabled={
                 (!draft.trim() && attachments.length === 0) ||
                 unavailable ||
-                opening
+                opening ||
+                reading > 0
               }
             >
               <IconArrowUp aria-hidden />
-              <span className='sr-only'>Send</span>
+              <span className='sr-only'>
+                {reading > 0 ? 'Reading attachments' : 'Send'}
+              </span>
             </Button>
           )}
         </form>
@@ -923,11 +1012,35 @@ function Item({
   switch (item.kind) {
     case 'user':
       return (
-        <div className='flex justify-end'>
+        <div className='flex flex-col items-end gap-1'>
           <p className='bg-secondary text-secondary-foreground max-w-[88%] rounded-lg rounded-br-sm px-3 py-2 text-sm break-words whitespace-pre-wrap'>
             <span className='sr-only'>You: </span>
             {item.text}
           </p>
+          {/* What went with the message. Attachments are not kept after the
+              turn, so this is the only record that they were sent at all - and
+              without it a message that carried two screenshots looked exactly
+              like one that carried none. */}
+          {item.attachments?.length ? (
+            <ul className='flex max-w-[88%] flex-wrap justify-end gap-1.5'>
+              {item.attachments.map((a, i) => (
+                <li
+                  key={`${a.name}-${i}`}
+                  className='bg-muted/60 text-muted-foreground flex max-w-56 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs'
+                >
+                  {a.kind === 'image' ? (
+                    <IconPhoto className='size-3.5 shrink-0' aria-hidden />
+                  ) : (
+                    <IconFileText className='size-3.5 shrink-0' aria-hidden />
+                  )}
+                  <span className='truncate'>{a.name}</span>
+                </li>
+              ))}
+              <li className='sr-only'>
+                sent with this message, not kept afterwards
+              </li>
+            </ul>
+          ) : null}
         </div>
       );
 

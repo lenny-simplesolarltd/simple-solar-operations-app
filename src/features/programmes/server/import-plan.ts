@@ -18,7 +18,13 @@
 // keep.
 
 import { parseCsv, type CsvTable } from '@/lib/csv';
-import { IMPORT_KEYS, IMPORT_KEY_REQUIRED, type ImportKey } from '../types';
+import {
+  DEFAULT_IDENTITY_KEY,
+  IMPORT_KEYS,
+  importKeyRequired,
+  type IdentityKey,
+  type ImportKey
+} from '../types';
 
 /** What the file picker offers, and what an upload is checked against. */
 export const IMPORT_FILE_ACCEPT = '.csv,text/csv';
@@ -60,6 +66,8 @@ export function guessMapping(
       'expected_meter_serial',
       /meter.*(serial|msn|no|number)|(serial|msn).*meter/i
     ],
+    // Before the serial pattern: "Sim Type" must not be taken for a SIM number.
+    ['existing_sim_type', /sim.*(type|provider|network|carrier)|^sim$/i],
     ['existing_sim_serial', /sim.*(serial|iccid|no|number)|iccid/i],
     ['notes', /note|comment|remark/i]
   ];
@@ -79,9 +87,10 @@ export function guessMapping(
 
 /** Which required fields the mapping still has no column for. */
 export function missingRequiredKeys(
-  mapping: Partial<Record<ImportKey, number>>
+  mapping: Partial<Record<ImportKey, number>>,
+  identityKey: IdentityKey = DEFAULT_IDENTITY_KEY
 ): ImportKey[] {
-  return IMPORT_KEY_REQUIRED.filter((k) => mapping[k] === undefined);
+  return importKeyRequired(identityKey).filter((k) => mapping[k] === undefined);
 }
 
 /**
@@ -102,12 +111,21 @@ export function tableNotes(table: CsvTable): string[] {
   return said;
 }
 
+/**
+ * Rows above which an unrecognised CSV is refused rather than read into the
+ * message. A table somebody wants explained is tens of rows; a register is
+ * hundreds, and inlining one puts somebody's data in front of the model.
+ */
+export const MAX_UNRECOGNISED_ROWS = 100;
+
 export type ImportPlanRefusal =
   | 'FILE_TOO_LARGE'
   | 'NOT_A_CSV'
   | 'NO_ROWS'
   | 'TOO_MANY_COLUMNS'
-  | 'NOT_A_PROPERTY_LIST';
+  | 'NOT_A_PROPERTY_LIST'
+  | 'PROPERTY_LIST_NO_REF'
+  | 'UNRECOGNISED_CSV_TOO_LARGE';
 
 export interface ImportPlan {
   table: CsvTable;
@@ -129,7 +147,11 @@ export type ImportPlanResult =
  */
 export function planImport(
   input: { filename: string; text: string; sizeBytes?: number },
-  options: { requireMapping?: boolean } = {}
+  options: {
+    requireMapping?: boolean;
+    /** The programme's import_identity_key. What "identifies a row" means here. */
+    identityKey?: IdentityKey;
+  } = {}
 ): ImportPlanResult {
   if ((input.sizeBytes ?? 0) > MAX_IMPORT_BYTES)
     return {
@@ -162,16 +184,50 @@ export function planImport(
         'That file has more than 200 columns, which is not a property list.'
     };
 
+  const identityKey = options.identityKey ?? DEFAULT_IDENTITY_KEY;
   const mapping = guessMapping(table.header);
   if (options.requireMapping) {
-    const missing = missingRequiredKeys(mapping);
-    if (missing.length)
+    const missing = missingRequiredKeys(mapping, identityKey);
+    // A file with addresses but no reference IS a property list - one missing
+    // the column that gives each property its identity. It must not fall
+    // through to being read into the model like a rota would: that is how a
+    // whole property register ends up in a model request. Say what is missing
+    // and stop.
+    if (missing.length === 1 && missing[0] === identityKey)
+      return {
+        ok: false,
+        code: 'PROPERTY_LIST_NO_REF',
+        message:
+          identityKey === 'expected_meter_serial'
+            ? 'This looks like a property list, but it has no column of meter serials. This programme identifies a property by its meter, so the import cannot tell one row from another without it. Add the column and attach it again, or use the programme\u2019s import screen to map the columns by hand. Nothing was read from the file.'
+            : 'This looks like a property list, but it has no column giving each property its own reference (a property ID, UPRN or asset number). This programme identifies a property by that reference, so the import cannot tell one row from another without it. Add the column and attach it again, or use the programme\u2019s import screen to map the columns by hand. Nothing was read from the file.'
+      };
+    if (missing.length) {
+      // NOT_A_PROPERTY_LIST is the one refusal the caller may ignore, reading
+      // the file into the message instead - which is right for a rota or a
+      // small export somebody wants explained, and badly wrong for a register
+      // whose headings simply were not recognised. A file this size is a
+      // dataset, not a question, so it is refused outright rather than poured
+      // into a conversation. The headings are named so the person can see why.
+      if (table.rows.length > MAX_UNRECOGNISED_ROWS) {
+        const headings = table.header
+          .map((h) => h.trim())
+          .filter(Boolean)
+          .slice(0, 8)
+          .join(', ');
+        return {
+          ok: false,
+          code: 'UNRECOGNISED_CSV_TOO_LARGE',
+          message: `This file has ${table.rows.length.toLocaleString('en-GB')} rows and none of its columns were recognised${headings ? ` (${headings})` : ''}, so it was not treated as a property list and was not read. If it is a property list, open it on the programme's import screen where the columns can be mapped by hand.`
+        };
+      }
       return {
         ok: false,
         code: 'NOT_A_PROPERTY_LIST',
         message:
           'This file has no column that reads as a property reference and an address, so it was not treated as a property list.'
       };
+    }
   }
   return {
     ok: true,

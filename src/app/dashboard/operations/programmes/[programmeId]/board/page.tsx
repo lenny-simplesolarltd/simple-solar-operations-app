@@ -16,15 +16,12 @@ import {
 } from '@/features/programmes/server/queries';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import { DISPOSITIONS } from '@/features/programmes/types';
+import { COLUMN_CARDS, DISPOSITIONS } from '@/features/programmes/types';
 import { filtersFromParams, type SearchParams } from '../filters';
 
 export const metadata: Metadata = {
   title: 'Programme board | Simple Solar Operations'
 };
-
-/** Cards rendered per column. The header still states the column's real size. */
-const COLUMN_CARDS = 60;
 
 /** The board's own filters, so "see all N" opens the same question in a list. */
 const listQueryString = (

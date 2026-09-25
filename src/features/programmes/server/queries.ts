@@ -18,6 +18,7 @@ import type {
   VisitListQuery,
   VisitPage
 } from '../types';
+import { DEFAULT_IDENTITY_KEY } from '../types';
 
 /**
  * Programme reads.
@@ -39,11 +40,17 @@ const VISIT_COLUMNS = `
   recommended_disposition, review_status, disposition, portal_verification, action_note,
   reviewed_by, reviewed_at, visit_date, submitted_at, form_revision_id, submission_id, version,
   property:programme_properties!programme_visits_property_id_fkey!inner (
-    external_ref, address_line1, town, postcode, expected_meter_serial
+    external_ref, address_line1, town, postcode, expected_meter_serial,
+    existing_sim_type, existing_sim_serial
   ),
   installer:people!programme_visits_installer_id_fkey ( display_name ),
   reviewer:people!programme_visits_reviewed_by_fkey ( display_name )
 `;
+
+const VISIT_COLUMNS_BASE = VISIT_COLUMNS.replace(
+  '\n    existing_sim_type,',
+  '\n   '
+);
 
 type VisitRow = {
   id: string;
@@ -73,11 +80,13 @@ type VisitRow = {
   submission_id: string | null;
   version: number;
   property: {
-    external_ref: string;
+    external_ref: string | null;
     address_line1: string;
     town: string | null;
     postcode: string | null;
     expected_meter_serial: string | null;
+    existing_sim_type?: string | null;
+    existing_sim_serial: string | null;
   } | null;
   installer: { display_name: string | null } | null;
   reviewer: { display_name: string | null } | null;
@@ -95,7 +104,9 @@ function toVisit(row: VisitRow): ProgrammeVisit {
       addressLine1: row.property?.address_line1 ?? '',
       town: row.property?.town ?? null,
       postcode: row.property?.postcode ?? null,
-      expectedMeterSerial: row.property?.expected_meter_serial ?? null
+      expectedMeterSerial: row.property?.expected_meter_serial ?? null,
+      existingSimType: row.property?.existing_sim_type ?? null,
+      existingSimSerial: row.property?.existing_sim_serial ?? null
     },
     outcome: row.outcome as ProgrammeVisit['outcome'],
     actualMeterSerial: row.actual_meter_serial,
@@ -137,6 +148,7 @@ type ProgrammeRow = {
   visit_form_id: string | null;
   signal_config: SignalConfig;
   property_visibility: string;
+  import_identity_key?: string | null;
   synthetic: boolean;
   notes: string | null;
   version: number;
@@ -154,14 +166,49 @@ const toProgramme = (row: ProgrammeRow): ProgrammeSummary => ({
   signalConfig: row.signal_config ?? {},
   propertyVisibility:
     row.property_visibility as ProgrammeSummary['propertyVisibility'],
+  importIdentityKey: (row.import_identity_key ??
+    DEFAULT_IDENTITY_KEY) as ProgrammeSummary['importIdentityKey'],
   synthetic: row.synthetic,
   notes: row.notes,
   version: row.version
 });
 
-const PROGRAMME_COLUMNS =
+const PROGRAMME_COLUMNS_BASE =
   'id, code, name, client_name, status, starts_on, ends_on, visit_form_id, ' +
   'signal_config, property_visibility, synthetic, notes, version';
+
+const PROGRAMME_COLUMNS = `${PROGRAMME_COLUMNS_BASE}, import_identity_key`;
+
+/**
+ * Columns that exist only once 20260925170000 has run.
+ *
+ * Between deploying this code and running that migration, a read naming one of
+ * them fails outright - and these reads are on the path of the board, the
+ * review screen, the installer's property panel and SimpleBot. Rather than
+ * take all of that down for the length of a deployment, a read that trips over
+ * a missing column is retried without it: every programme is then on the
+ * default identity and the SIM type reads as not recorded, which is exactly
+ * the state the data is in before the migration anyway.
+ */
+const PENDING_COLUMNS = ['import_identity_key', 'existing_sim_type'];
+
+const missingPendingColumn = (message: string) =>
+  /does not exist/i.test(message) &&
+  PENDING_COLUMNS.some((column) => message.includes(column));
+
+/** Runs a select, and retries with the pre-migration column list if it must. */
+async function selectWithFallback<
+  R extends { data: unknown; error: { message: string } | null }
+>(
+  run: (columns: string) => PromiseLike<R>,
+  columns: string,
+  legacyColumns: string
+) {
+  let outcome = await run(columns);
+  if (outcome.error && missingPendingColumn(outcome.error.message))
+    outcome = await run(legacyColumns);
+  return outcome;
+}
 
 /**
  * Whether the module is switched on at all (FN-22). Fails closed: an error, a
@@ -213,11 +260,17 @@ export async function currentAccess() {
 
 export async function listProgrammes(): Promise<ProgrammeSummary[]> {
   const supabase = await programmeDb();
-  const { data, error } = await supabase
-    .from('programmes')
-    .select(PROGRAMME_COLUMNS)
-    .order('synthetic', { ascending: true })
-    .order('name');
+  const query = (columns: string) =>
+    supabase
+      .from('programmes')
+      .select(columns)
+      .order('synthetic', { ascending: true })
+      .order('name');
+  const { data, error } = await selectWithFallback(
+    query,
+    PROGRAMME_COLUMNS,
+    PROGRAMME_COLUMNS_BASE
+  );
   if (error) throw new Error(`programmes: ${error.message}`);
   return (data as unknown as ProgrammeRow[]).map(toProgramme);
 }
@@ -226,29 +279,41 @@ export async function getProgramme(
   programmeId: string
 ): Promise<ProgrammeSummary | null> {
   const supabase = await programmeDb();
-  const { data, error } = await supabase
-    .from('programmes')
-    .select(PROGRAMME_COLUMNS)
-    .eq('id', programmeId)
-    .maybeSingle();
+  const query = (columns: string) =>
+    supabase
+      .from('programmes')
+      .select(columns)
+      .eq('id', programmeId)
+      .maybeSingle();
+  const { data, error } = await selectWithFallback(
+    query,
+    PROGRAMME_COLUMNS,
+    PROGRAMME_COLUMNS_BASE
+  );
   if (error) throw new Error(`programme: ${error.message}`);
   return data ? toProgramme(data as unknown as ProgrammeRow) : null;
 }
 
 const PROPERTY_COLUMNS =
   'id, programme_id, external_ref, address_line1, address_line2, town, postcode, ' +
-  'expected_meter_serial, existing_sim_serial, notes, active, synthetic, version';
+  'expected_meter_serial, existing_sim_serial, existing_sim_type, notes, active, synthetic, version';
+
+const PROPERTY_COLUMNS_BASE = PROPERTY_COLUMNS.replace(
+  ', existing_sim_type',
+  ''
+);
 
 type PropertyRow = {
   id: string;
   programme_id: string;
-  external_ref: string;
+  external_ref: string | null;
   address_line1: string;
   address_line2: string | null;
   town: string | null;
   postcode: string | null;
   expected_meter_serial: string | null;
   existing_sim_serial: string | null;
+  existing_sim_type?: string | null;
   notes: string | null;
   active: boolean;
   synthetic: boolean;
@@ -258,12 +323,13 @@ type PropertyRow = {
 const toProperty = (r: PropertyRow): ProgrammeProperty => ({
   id: r.id,
   programmeId: r.programme_id,
-  externalRef: r.external_ref,
+  externalRef: r.external_ref ?? '',
   addressLine1: r.address_line1,
   addressLine2: r.address_line2,
   town: r.town,
   postcode: r.postcode,
   expectedMeterSerial: r.expected_meter_serial,
+  existingSimType: r.existing_sim_type ?? null,
   existingSimSerial: r.existing_sim_serial,
   notes: r.notes,
   active: r.active,
@@ -309,46 +375,58 @@ export async function searchPropertyPage(
   const offset = Math.max(search.offset ?? 0, 0);
   const outstanding = search.only === 'outstanding';
 
-  let query = supabase
-    .from('programme_properties')
-    .select(
-      outstanding
-        ? `${PROPERTY_COLUMNS}, visits:programme_visits!programme_visits_property_id_fkey!left(id)`
-        : PROPERTY_COLUMNS,
-      { count: 'exact' }
-    )
-    .eq('programme_id', programmeId)
-    .eq('active', true);
+  const build = (columns: string) => {
+    let query = supabase
+      .from('programme_properties')
+      .select(
+        outstanding
+          ? `${columns}, visits:programme_visits!programme_visits_property_id_fkey!left(id)`
+          : columns,
+        { count: 'exact' }
+      )
+      .eq('programme_id', programmeId)
+      .eq('active', true);
 
-  if (outstanding) {
-    // A draft is on no board and in no count, so it does not make a property
-    // visited. Filtering the embedded rows first and then requiring none to
-    // remain is the anti-join.
-    query = query.neq('visits.review_status', 'Draft').is('visits', null);
-  }
-
-  const text = (search.query ?? '').trim();
-  if (text) {
-    // A postcode or a serial is recognised however it was typed; the address and
-    // the reference match on any part.
-    const loose = text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    const like = text.replace(/[%_,]/g, ' ');
-    const clauses = [
-      `address_line1.ilike.%${like}%`,
-      `address_line2.ilike.%${like}%`,
-      `town.ilike.%${like}%`,
-      `external_ref.ilike.%${like}%`
-    ];
-    if (loose) {
-      clauses.push(`postcode_norm.like.${loose}%`);
-      clauses.push(`expected_serial_norm.like.%${loose}%`);
+    if (outstanding) {
+      // A draft is on no board and in no count, so it does not make a property
+      // visited. Filtering the embedded rows first and then requiring none to
+      // remain is the anti-join.
+      query = query.neq('visits.review_status', 'Draft').is('visits', null);
     }
-    query = query.or(clauses.join(','));
-  }
 
-  const { data, error, count } = await query
-    .order('external_ref')
-    .range(offset, offset + limit - 1);
+    const text = (search.query ?? '').trim();
+    if (text) {
+      // A postcode or a serial is recognised however it was typed; the address and
+      // the reference match on any part.
+      const loose = text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const like = text.replace(/[%_,]/g, ' ');
+      const clauses = [
+        `address_line1.ilike.%${like}%`,
+        `address_line2.ilike.%${like}%`,
+        `town.ilike.%${like}%`,
+        `external_ref.ilike.%${like}%`
+      ];
+      if (loose) {
+        clauses.push(`postcode_norm.like.${loose}%`);
+        clauses.push(`expected_serial_norm.like.%${loose}%`);
+      }
+      query = query.or(clauses.join(','));
+    }
+
+    // external_ref is optional now, so it cannot be the only ordering: a
+    // programme keyed by meter has none at all and the page order would be
+    // whatever the planner felt like. Address is always present.
+    return query
+      .order('external_ref', { nullsFirst: false })
+      .order('address_line1')
+      .range(offset, offset + limit - 1);
+  };
+
+  const { data, error, count } = await selectWithFallback(
+    build,
+    PROPERTY_COLUMNS,
+    PROPERTY_COLUMNS_BASE
+  );
   if (error) throw new Error(`properties: ${error.message}`);
 
   return {
@@ -388,11 +466,16 @@ export async function getProperty(
   propertyId: string
 ): Promise<ProgrammeProperty | null> {
   const supabase = await programmeDb();
-  const { data, error } = await supabase
-    .from('programme_properties')
-    .select(PROPERTY_COLUMNS)
-    .eq('id', propertyId)
-    .maybeSingle();
+  const { data, error } = await selectWithFallback(
+    (columns) =>
+      supabase
+        .from('programme_properties')
+        .select(columns)
+        .eq('id', propertyId)
+        .maybeSingle(),
+    PROPERTY_COLUMNS,
+    PROPERTY_COLUMNS_BASE
+  );
   if (error) throw new Error(`property: ${error.message}`);
   return data ? toProperty(data as unknown as PropertyRow) : null;
 }
@@ -422,51 +505,60 @@ export async function listVisits(
   const limit = Math.min(Math.max(filters.limit ?? 100, 1), 500);
   const offset = Math.max(filters.offset ?? 0, 0);
 
-  let query = supabase
-    .from('programme_visits')
-    .select(VISIT_COLUMNS, { count: 'exact' })
-    .eq('programme_id', programmeId);
+  const build = (columns: string) => {
+    let query = supabase
+      .from('programme_visits')
+      .select(columns, { count: 'exact' })
+      .eq('programme_id', programmeId);
 
-  if (!filters.includeDrafts) query = query.neq('review_status', 'Draft');
-  if (filters.from) query = query.gte('visit_date', filters.from);
-  if (filters.to) query = query.lte('visit_date', filters.to);
-  if (filters.installer_id)
-    query = query.eq('installer_id', filters.installer_id);
-  if (filters.outcome) query = query.eq('outcome', filters.outcome);
-  if (filters.disposition) query = query.eq('disposition', filters.disposition);
-  if (filters.review_status)
-    query = query.eq('review_status', filters.review_status);
-  if (filters.signal_classification)
-    query = query.eq('signal_classification', filters.signal_classification);
-  if (filters.portal_verification)
-    query = query.eq('portal_verification', filters.portal_verification);
+    if (!filters.includeDrafts) query = query.neq('review_status', 'Draft');
+    if (filters.from) query = query.gte('visit_date', filters.from);
+    if (filters.to) query = query.lte('visit_date', filters.to);
+    if (filters.installer_id)
+      query = query.eq('installer_id', filters.installer_id);
+    if (filters.outcome) query = query.eq('outcome', filters.outcome);
+    if (filters.disposition)
+      query = query.eq('disposition', filters.disposition);
+    if (filters.review_status)
+      query = query.eq('review_status', filters.review_status);
+    if (filters.signal_classification)
+      query = query.eq('signal_classification', filters.signal_classification);
+    if (filters.portal_verification)
+      query = query.eq('portal_verification', filters.portal_verification);
 
-  // Postcode area: a prefix on the property's normalised postcode, in the
-  // database rather than on the rows that happened to come back.
-  const area = (filters.postcode ?? '').replace(/\s/g, '').toUpperCase();
-  if (area) query = query.like('property.postcode_norm', `${area}%`);
+    // Postcode area: a prefix on the property's normalised postcode, in the
+    // database rather than on the rows that happened to come back.
+    const area = (filters.postcode ?? '').replace(/\s/g, '').toUpperCase();
+    if (area) query = query.like('property.postcode_norm', `${area}%`);
 
-  // One search box across the things Office actually knows: an address, a
-  // postcode, a PCH property id, a meter serial, a SIM serial. They live on two
-  // tables, and a PostgREST logic tree cannot span an embedded resource, so the
-  // searchable text is maintained on the visit by trigger - see
-  // 20260925110000_programme_visit_search.sql. One filter, so it composes with
-  // every other filter and the count still describes the rows.
-  const text = (filters.query ?? '').trim().toLowerCase();
-  if (text) {
-    // Wildcards typed into the box are not wildcards, and runs of whitespace
-    // collapse because the stored text is single-spaced.
-    const safe = text
-      .replace(/[%_\\]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (safe) query = query.ilike('search_text', `%${safe}%`);
-  }
+    // One search box across the things Office actually knows: an address, a
+    // postcode, a PCH property id, a meter serial, a SIM serial. They live on two
+    // tables, and a PostgREST logic tree cannot span an embedded resource, so the
+    // searchable text is maintained on the visit by trigger - see
+    // 20260925110000_programme_visit_search.sql. One filter, so it composes with
+    // every other filter and the count still describes the rows.
+    const text = (filters.query ?? '').trim().toLowerCase();
+    if (text) {
+      // Wildcards typed into the box are not wildcards, and runs of whitespace
+      // collapse because the stored text is single-spaced.
+      const safe = text
+        .replace(/[%_\\]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (safe) query = query.ilike('search_text', `%${safe}%`);
+    }
 
-  const oldestFirst = filters.order === 'oldest';
-  const { data, error, count } = await query
-    .order('submitted_at', { ascending: oldestFirst, nullsFirst: false })
-    .range(offset, offset + limit - 1);
+    const oldestFirst = filters.order === 'oldest';
+    return query
+      .order('submitted_at', { ascending: oldestFirst, nullsFirst: false })
+      .range(offset, offset + limit - 1);
+  };
+
+  const { data, error, count } = await selectWithFallback(
+    build,
+    VISIT_COLUMNS,
+    VISIT_COLUMNS_BASE
+  );
   if (error) throw new Error(`visits: ${error.message}`);
 
   return {
@@ -497,11 +589,16 @@ export async function getVisit(
   visitId: string
 ): Promise<ProgrammeVisit | null> {
   const supabase = await programmeDb();
-  const { data, error } = await supabase
-    .from('programme_visits')
-    .select(VISIT_COLUMNS)
-    .eq('id', visitId)
-    .maybeSingle();
+  const { data, error } = await selectWithFallback(
+    (columns) =>
+      supabase
+        .from('programme_visits')
+        .select(columns)
+        .eq('id', visitId)
+        .maybeSingle(),
+    VISIT_COLUMNS,
+    VISIT_COLUMNS_BASE
+  );
   if (error) throw new Error(`visit: ${error.message}`);
   return data ? toVisit(data as unknown as VisitRow) : null;
 }

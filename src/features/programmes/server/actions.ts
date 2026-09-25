@@ -17,12 +17,23 @@ import {
   reviewReason
 } from '../labels';
 import {
+  COLUMN_CARDS,
   DISPOSITIONS,
   IMPORT_KEYS,
   PORTAL_VERIFICATIONS,
+  type ProgrammeVisit,
   type VisitFilters
 } from '../types';
-import { getDailyReport, listAllVisits } from './queries';
+import {
+  currentAccess,
+  getDailyReport,
+  listAllVisits,
+  listVisits
+} from './queries';
+// The board reads the same query string the pages do, so "Load more" can never
+// widen a filter the board is showing. filtersFromParams also drops anything it
+// does not recognise, which is what makes a client-supplied string safe here.
+import { filtersFromParams } from '@/app/dashboard/operations/programmes/[programmeId]/filters';
 
 /**
  * Server actions for the Programmes screens.
@@ -174,6 +185,51 @@ export async function reviewVisitAction(
   return response;
 }
 
+/**
+ * The next page of cards for ONE board column.
+ *
+ * The board renders COLUMN_CARDS per column because a column can legitimately
+ * hold hundreds of visits; this is how the person asks for the rest without
+ * leaving the board. The filters arrive as the query string the board is
+ * already showing rather than as a parsed object, so the board, the list and
+ * the CSV export cannot drift apart in how they read a filter.
+ */
+export async function loadBoardColumnAction(input: {
+  programmeId: string;
+  disposition: string;
+  /** The board's own query string, e.g. "installer=...&q=...". */
+  query: string;
+  offset: number;
+}): Promise<
+  { ok: true; visits: ProgrammeVisit[]; total: number } | { ok: false }
+> {
+  const parsed = z
+    .strictObject({
+      programmeId: uuid,
+      disposition: z.enum(DISPOSITIONS),
+      query: z.string().max(2000),
+      offset: z.number().int().min(0).max(100_000)
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { programmeId, disposition, query, offset } = parsed.data;
+
+  // Reading the board is readAll, the same gate the board page applies.
+  const session = await currentAccess();
+  if (!session?.access.readAll) return { ok: false };
+
+  const params = Object.fromEntries(new URLSearchParams(query));
+  const filters = filtersFromParams(params);
+  delete filters.disposition;
+  const page = await listVisits(programmeId, {
+    ...filters,
+    disposition,
+    limit: COLUMN_CARDS,
+    offset
+  });
+  return { ok: true, visits: page.visits, total: page.total };
+}
+
 // -- Evidence --------------------------------------------------------------------
 
 /**
@@ -296,7 +352,13 @@ export async function mapImportAction(
     .strictObject({
       importId: uuid,
       programmeId: uuid,
-      mapping: z.record(z.enum(IMPORT_KEYS), z.number().int().min(0).max(199)),
+      // partialRecord, not record: a mapping names the columns the file HAS.
+      // z.record over an enum is exhaustive, so every canonical field added to
+      // IMPORT_KEYS would otherwise become mandatory in every mapping.
+      mapping: z.partialRecord(
+        z.enum(IMPORT_KEYS),
+        z.number().int().min(0).max(199)
+      ),
       expectedVersion: z.number().int().min(1)
     })
     .safeParse(input);

@@ -152,6 +152,13 @@ function visitForModel(v: ProgrammeVisit) {
     csq_band: v.signalClassification
       ? SIGNAL_LABEL[v.signalClassification]
       : null,
+    // Baseline beside observation, so "compare what PCH gave us with what the
+    // installer found" is answerable from one row without a second lookup.
+    expected_meter_serial: v.property.expectedMeterSerial,
+    existing_sim_type: v.property.existingSimType,
+    existing_sim_serial: v.property.existingSimSerial,
+    actual_meter_serial: v.actualMeterSerial,
+    new_sim_serial: v.newSimSerial,
     meter_serial_matches: v.meterSerialMatches,
     // Stated as its own field because it is the single most common reason a
     // visit needs a human: the meter on site was not the one expected.
@@ -365,6 +372,7 @@ export const propertySearchTool: ReadTool<{
             .join(', '),
           postcode: p.postcode,
           expected_meter_serial: p.expectedMeterSerial,
+          existing_sim_type: p.existingSimType,
           existing_sim_serial: p.existingSimSerial
         })),
         note:
@@ -421,7 +429,10 @@ export const propertyDetailTool: ReadTool<{ propertyId: string }> = {
             .filter(Boolean)
             .join(', '),
           postcode: property.postcode,
+          // The CLIENT's baseline for this property. What the installer found
+          // is on the visits below; the two are never merged.
           expected_meter_serial: property.expectedMeterSerial,
+          existing_sim_type: property.existingSimType,
           existing_sim_serial: property.existingSimSerial,
           notes: property.notes
         },
@@ -438,6 +449,8 @@ export const propertyDetailTool: ReadTool<{ propertyId: string }> = {
             .join(', '),
           postcode: property.postcode,
           expectedMeterSerial: property.expectedMeterSerial,
+          existingSimType: property.existingSimType,
+          existingSimSerial: property.existingSimSerial,
           // listVisits returns newest first, so the first row is the state the
           // property is actually in. Null while nobody has been.
           state: visits[0] ? DISPOSITION_LABEL[visits[0].disposition] : null,

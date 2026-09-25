@@ -61,7 +61,9 @@ const visit = (over: Partial<ProgrammeVisit> = {}): ProgrammeVisit => ({
     addressLine1: '12 Mill Lane',
     town: 'Barnard Castle',
     postcode: 'DL12 8AB',
-    expectedMeterSerial: 'M123456'
+    expectedMeterSerial: 'M123456',
+    existingSimType: 'Velos',
+    existingSimSerial: '8944502106211700645'
   },
   outcome: 'SimChangedPortalWorking',
   actualMeterSerial: 'M123456',
@@ -101,6 +103,7 @@ const property = (
   postcode: 'DL12 8AB',
   expectedMeterSerial: 'M123456',
   existingSimSerial: null,
+  existingSimType: null,
   notes: null,
   active: true,
   synthetic: false,

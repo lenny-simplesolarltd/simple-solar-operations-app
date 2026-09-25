@@ -103,20 +103,40 @@ export function ReviewPanel({
     <div className='flex flex-col gap-6'>
       <section className='grid gap-4 lg:grid-cols-2'>
         <div className='flex flex-col gap-3 rounded-lg border p-4'>
+          {/* The client's record of what is there, and the installer's record of
+              what was found, are two different claims about the world. They are
+              kept apart so a reviewer is never reading one for the other. */}
           <h3 className='text-sm font-semibold tracking-wide uppercase'>
-            Property
+            Property · what PCH gave us
           </h3>
           <dl className='grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1.5 text-sm'>
             <dt className='text-muted-foreground'>Address</dt>
             <dd className='font-medium'>{propertyAddress(visit.property)}</dd>
-            <dt className='text-muted-foreground'>PCH property ID</dt>
-            <dd className='font-medium tabular-nums'>
-              {visit.property.externalRef}
-            </dd>
+            {visit.property.externalRef && (
+              <>
+                <dt className='text-muted-foreground'>PCH property ID</dt>
+                <dd className='font-medium tabular-nums'>
+                  {visit.property.externalRef}
+                </dd>
+              </>
+            )}
             <dt className='text-muted-foreground'>Expected meter serial</dt>
             <dd className='font-medium'>
               {visit.property.expectedMeterSerial ?? 'Not recorded'}
             </dd>
+            <dt className='text-muted-foreground'>Existing SIM type</dt>
+            <dd className='font-medium'>
+              {visit.property.existingSimType ?? 'Not recorded'}
+            </dd>
+            <dt className='text-muted-foreground'>Existing SIM ICCID</dt>
+            <dd className='font-medium break-all'>
+              {visit.property.existingSimSerial ?? 'Not recorded'}
+            </dd>
+          </dl>
+          <h3 className='mt-2 text-sm font-semibold tracking-wide uppercase'>
+            What the installer found
+          </h3>
+          <dl className='grid grid-cols-[10rem_1fr] gap-x-4 gap-y-1.5 text-sm'>
             <dt className='text-muted-foreground'>Actual meter serial</dt>
             <dd className='font-medium'>
               {visit.actualMeterSerial ?? 'Not recorded'}
@@ -126,6 +146,7 @@ export function ReviewPanel({
               {visit.meterReading ?? 'Not recorded'}
             </dd>
           </dl>
+          {/* The canonical comparison, derived server-side. Not repeated here. */}
           <SerialMatch
             matches={visit.meterSerialMatches}
             expected={visit.property.expectedMeterSerial}
@@ -153,7 +174,9 @@ export function ReviewPanel({
               )}
             </dd>
             <dt className='text-muted-foreground'>New SIM serial</dt>
-            <dd className='font-medium'>{visit.newSimSerial ?? '—'}</dd>
+            <dd className='font-medium break-all'>
+              {visit.newSimSerial ?? '—'}
+            </dd>
             <dt className='text-muted-foreground'>CSQ</dt>
             <dd>
               <SignalBadge

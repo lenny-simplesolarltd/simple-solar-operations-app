@@ -27,6 +27,7 @@ const property: ProgrammeProperty = {
   postcode: 'PL1 1AA',
   expectedMeterSerial: '21L3312345',
   existingSimSerial: null,
+  existingSimType: null,
   notes: null,
   active: true,
   synthetic: false,

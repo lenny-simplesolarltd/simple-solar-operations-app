@@ -16,8 +16,26 @@ export type ProposalState =
   | 'cancelled'
   | 'failed';
 
+/**
+ * What was attached to a sent message: enough to show it, never the bytes.
+ *
+ * Attachments are not kept after the turn, so this is a label, not the content.
+ * It exists because a message that carried two screenshots and one that carried
+ * none used to render identically - which made a working attachment look like a
+ * lost one.
+ */
+export interface SentAttachment {
+  name: string;
+  kind: 'image' | 'text';
+}
+
 export type ConversationItem =
-  | { id: string; kind: 'user'; text: string }
+  | {
+      id: string;
+      kind: 'user';
+      text: string;
+      attachments?: SentAttachment[];
+    }
   | { id: string; kind: 'assistant'; text: string; streaming: boolean }
   | {
       id: string;
@@ -70,7 +88,13 @@ export interface ConversationState {
 }
 
 export type ConversationAction =
-  | { type: 'send'; id: string; text: string; runId: string }
+  | {
+      type: 'send';
+      id: string;
+      text: string;
+      runId: string;
+      attachments?: SentAttachment[];
+    }
   /** Re-runs the message behind an error row, replacing that row instead of repeating the staff message. */
   | { type: 'retry'; errorId: string; text: string }
   | { type: 'event'; id: string; event: AssistantStreamEvent }
@@ -146,7 +170,14 @@ export function conversationReducer(
         pendingRunId: action.runId,
         items: [
           ...state.items,
-          { id: action.id, kind: 'user', text: action.text }
+          {
+            id: action.id,
+            kind: 'user',
+            text: action.text,
+            ...(action.attachments?.length && {
+              attachments: action.attachments
+            })
+          }
         ]
       };
 

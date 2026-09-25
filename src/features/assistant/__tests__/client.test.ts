@@ -146,6 +146,39 @@ describe('conversation reducer', () => {
       runId: 'run-1'
     });
 
+  /**
+   * A message that carried screenshots and one that carried none used to be
+   * indistinguishable once sent, which is what made a working attachment look
+   * like a lost one. The names ride on the sent item; the bytes never do.
+   */
+  it('remembers what was attached to a sent message, by name only', () => {
+    const state = conversationReducer(initialConversation(THREAD), {
+      type: 'send',
+      id: id(),
+      text: 'check these',
+      runId: 'run-1',
+      attachments: [
+        { name: 'old-form.jpeg', kind: 'image' },
+        { name: 'rows.csv', kind: 'text' }
+      ]
+    });
+    const sent = state.items.at(-1);
+    expect(sent).toMatchObject({
+      kind: 'user',
+      text: 'check these',
+      attachments: [
+        { name: 'old-form.jpeg', kind: 'image' },
+        { name: 'rows.csv', kind: 'text' }
+      ]
+    });
+    // Never the contents: they are not kept after the turn.
+    expect(JSON.stringify(sent)).not.toContain('data');
+  });
+
+  it('leaves a message with no attachments unmarked', () => {
+    expect(started().items.at(-1)).not.toHaveProperty('attachments');
+  });
+
   const action: PendingActionView = {
     token: 'body.sig',
     actionId: 'a1',

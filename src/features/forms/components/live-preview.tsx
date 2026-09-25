@@ -85,7 +85,7 @@ export function LivePreview({
           device === 'mobile' ? 'max-w-[390px]' : 'max-w-none'
         )}
       >
-        <PublicShell>
+        <PublicShell embedded>
           <FormRenderer
             // Remounting on device change resets any answers typed into the
             // preview, which are meaningless once the frame resizes.

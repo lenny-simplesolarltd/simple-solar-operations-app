@@ -99,6 +99,7 @@ export function AssistantDrawer() {
         page={shell.page}
         capabilities={shell.capabilities}
         capabilitiesError={shell.capabilitiesError}
+        ensureCapabilities={shell.ensureCapabilities}
         onSend={conversation.send}
         onStop={conversation.stop}
         onRetry={conversation.retry}

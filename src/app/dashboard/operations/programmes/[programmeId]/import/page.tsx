@@ -57,6 +57,7 @@ export default async function ImportPage({
       >
         <ImportWizard
           programmeId={programmeId}
+          identityKey={programme.importIdentityKey}
           existing={open}
           existingRows={openRows}
         />

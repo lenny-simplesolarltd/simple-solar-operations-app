@@ -127,20 +127,49 @@ export function PropertyLookupField({
             </p>
           </div>
         </div>
-        <dl className='mt-3 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 border-t pt-3 text-sm'>
-          <dt className='text-muted-foreground'>PCH property ID</dt>
-          <dd className='font-semibold break-all tabular-nums'>
-            {chosen.externalRef}
-          </dd>
-          <dt className='text-muted-foreground'>Expected meter</dt>
-          <dd className='font-semibold break-all'>
-            {chosen.expectedMeterSerial ?? (
-              <span className='text-muted-foreground font-normal'>
-                Not recorded
-              </span>
+        {/* PCH's record of this property, labelled as theirs: everything the
+            installer is about to type is a reading of the real world, and the
+            two must never be mistaken for each other on a phone in a hallway.
+            A value PCH did not supply says so rather than sitting blank. */}
+        <div className='mt-3 border-t pt-3'>
+          <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+            PCH baseline
+          </p>
+          <dl className='mt-1.5 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 text-sm'>
+            {chosen.externalRef && (
+              <>
+                <dt className='text-muted-foreground'>PCH property ID</dt>
+                <dd className='font-semibold break-all tabular-nums'>
+                  {chosen.externalRef}
+                </dd>
+              </>
             )}
-          </dd>
-        </dl>
+            <dt className='text-muted-foreground'>Expected meter</dt>
+            <dd className='font-semibold break-all'>
+              {chosen.expectedMeterSerial ?? (
+                <span className='text-muted-foreground font-normal'>
+                  Not recorded
+                </span>
+              )}
+            </dd>
+            <dt className='text-muted-foreground'>Existing SIM type</dt>
+            <dd className='font-semibold break-all'>
+              {chosen.existingSimType ?? (
+                <span className='text-muted-foreground font-normal'>
+                  Not recorded
+                </span>
+              )}
+            </dd>
+            <dt className='text-muted-foreground'>Existing SIM ICCID</dt>
+            <dd className='font-semibold break-all'>
+              {chosen.existingSimSerial ?? (
+                <span className='text-muted-foreground font-normal'>
+                  Not recorded
+                </span>
+              )}
+            </dd>
+          </dl>
+        </div>
         {chosen.notes && (
           <p className='text-muted-foreground mt-2 text-xs break-words'>
             {chosen.notes}

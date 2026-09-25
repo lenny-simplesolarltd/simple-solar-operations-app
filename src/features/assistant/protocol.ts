@@ -330,7 +330,10 @@ export interface ProgrammePropertyCardData {
   reference: string;
   address: string;
   postcode: string | null;
+  /** The client's baseline for this property, not what a visit found. */
   expectedMeterSerial: string | null;
+  existingSimType: string | null;
+  existingSimSerial: string | null;
   /** The latest operational state, once a visit has been recorded. */
   state: string | null;
   visited: boolean;

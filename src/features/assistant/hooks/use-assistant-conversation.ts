@@ -205,7 +205,21 @@ export function useAssistantConversations(
       to(
         retryOf
           ? { type: 'retry', errorId: retryOf, text }
-          : { type: 'send', id: newId(), text, runId }
+          : {
+              type: 'send',
+              id: newId(),
+              text,
+              runId,
+              // Names only. The bytes travel with the turn and are not kept, so
+              // this is what lets the sent message show what went with it.
+              ...(attachments?.length && {
+                attachments: attachments.map((a) => ({
+                  name: a.name,
+                  kind:
+                    a.kind === 'image' ? ('image' as const) : ('text' as const)
+                }))
+              })
+            }
       );
       if (mode === 'persistent') writeStoredActive(conversationId);
 

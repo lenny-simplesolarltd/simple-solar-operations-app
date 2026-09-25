@@ -123,6 +123,8 @@ describe('programme_property card', () => {
       address: '24 King Street, Exeter',
       postcode: 'EX1 2AB',
       expectedMeterSerial: 'M12345678',
+      existingSimType: 'Velos',
+      existingSimSerial: '8944502106211700645',
       state: 'Action required',
       visited: true
     }
@@ -325,6 +327,8 @@ describe('every programme card at phone width', () => {
         address: '24 King Street, Exeter',
         postcode: 'EX1 2AB',
         expectedMeterSerial: 'M12345678',
+        existingSimType: 'Velos',
+        existingSimSerial: '8944502106211700645',
         state: 'Complete & working',
         visited: true
       }

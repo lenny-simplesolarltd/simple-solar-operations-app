@@ -131,17 +131,26 @@ function stagingBackend() {
     validRows: 0,
     invalidRows: 0,
     judged: [] as { problems: { field: string; problem: string }[] }[],
-    chunks: [] as number[]
+    chunks: [] as number[],
+    // Every command on an import raises its version, exactly as the database
+    // does. Without this the mock let a caller map with a stale version and the
+    // real staging refused what the test called a pass.
+    version: 0
   };
   backend.runCommand.mockImplementation(async (request: CommandRequest) => {
     const payload = request.payload as Record<string, unknown>;
     if (request.command_type === 'PROGRAMME_IMPORT_CREATE') {
       state.importId = payload.import_id as string;
       state.header = payload.header as string[];
+      state.version += 1;
       return {
         ok: true,
         outcome: { status: 'Succeeded', heading: 'SUCCESS', message: 'Saved.' },
-        result: { import_id: state.importId, status: 'Draft', version: 1 }
+        result: {
+          import_id: state.importId,
+          status: 'Draft',
+          version: state.version
+        }
       };
     }
     if (request.command_type === 'PROGRAMME_IMPORT_ADD_ROWS') {
@@ -151,13 +160,28 @@ function stagingBackend() {
       expect(from).toBe(state.rows.length + 1);
       for (const row of rows) expect(row).toHaveLength(state.header.length);
       state.rows.push(...rows);
+      state.version += 1;
       return {
         ok: true,
         outcome: { status: 'Succeeded', heading: 'SUCCESS', message: 'Saved.' },
-        result: { row_count: state.rows.length, version: 1 }
+        result: { row_count: state.rows.length, version: state.version }
       };
     }
     if (request.command_type === 'PROGRAMME_IMPORT_MAP') {
+      // The database refuses a stale version; so does this.
+      if (request.expected_version !== state.version) {
+        return {
+          ok: false,
+          outcome: {
+            status: 'Failed',
+            heading: 'COULD NOT COMPLETE',
+            code: 'PROGRAMME_STALE_VERSION',
+            message:
+              'This record changed after you opened the form. Go back, refresh, and try again.'
+          }
+        };
+      }
+      state.version += 1;
       const mapping = payload.mapping as Record<string, number>;
       state.judged = judge(state.rows, mapping);
       state.invalidRows = state.judged.filter(
@@ -170,7 +194,7 @@ function stagingBackend() {
         result: {
           valid_rows: state.validRows,
           invalid_rows: state.invalidRows,
-          version: 2
+          version: state.version
         }
       };
     }
@@ -190,7 +214,7 @@ function stagingBackend() {
     updatedCount: null,
     appliedAt: null,
     createdAt: '2026-09-25T09:00:00.000Z',
-    version: 2
+    version: state.version
   }));
   queries.importRows.mockImplementation(async () =>
     state.judged
@@ -462,6 +486,83 @@ describe('what the model is given', () => {
     vi.unstubAllGlobals();
   });
 
+  /**
+   * The real failure of 2026-09-25: a 1,468-row PCH property register whose
+   * header was Address,Meter No,Sim Type,ICCID. It has no reference column, so
+   * it was refused - and the refusal fell through to the ordinary reading path,
+   * which put the whole register into the model request. The refusal now stops
+   * there instead.
+   */
+  it('never reads a property list that was refused for having no reference', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: false,
+            error: {
+              code: 'PROPERTY_LIST_NO_REF',
+              message: 'no column giving each property its own reference'
+            }
+          }),
+          { status: 422 }
+        )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const file = new File(
+      [
+        'Address,Meter No,Sim Type,ICCID\r\n' +
+          '"9 Northampton Close, Plymouth, Devon PL5 4JT",EML1409032559,Velos,8944502106211700645'
+      ],
+      'DEC MET Meters.csv',
+      { type: 'text/csv' }
+    );
+    const { attachments, rejected } = await readAttachments([file], 0, {
+      programmeImport: {}
+    });
+    expect(attachments).toEqual([]);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toContain('reference');
+    // The bytes must not have reached the message under any shape.
+    expect(JSON.stringify(attachments)).not.toContain('Northampton');
+    expect(JSON.stringify(attachments)).not.toContain('8944502106211700645');
+    vi.unstubAllGlobals();
+  });
+
+  it('recognises the real PCH header once the programme is keyed by meter', () => {
+    const plan = planImport(
+      {
+        filename: 'DEC MET Meters.csv',
+        text:
+          'Address,Meter No,Sim Type,ICCID\r\n' +
+          '"9 Northampton Close, Plymouth, Devon PL5 4JT",EML1409032559,Velos,8944502106211700645'
+      },
+      { requireMapping: true, identityKey: 'expected_meter_serial' }
+    );
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    // Every column has a canonical destination; none is dropped or shoved into notes.
+    expect(plan.mapping).toEqual({
+      address_line1: 0,
+      expected_meter_serial: 1,
+      existing_sim_type: 2,
+      existing_sim_serial: 3
+    });
+  });
+
+  it('still refuses that header for a programme keyed by property reference', () => {
+    const plan = planImport(
+      {
+        filename: 'DEC MET Meters.csv',
+        text: 'Address,Meter No,Sim Type,ICCID\r\n"1 A Street, Plymouth PL1 1AA",EML1,Velos,894450'
+      },
+      { requireMapping: true, identityKey: 'external_ref' }
+    );
+    expect(plan.ok).toBe(false);
+    if (plan.ok) return;
+    expect(plan.code).toBe('PROPERTY_LIST_NO_REF');
+    expect(plan.message).toContain('reference');
+  });
+
   it('does not touch the route at all for a caller that cannot import', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -472,5 +573,110 @@ describe('what the model is given', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(attachments).toHaveLength(1);
     vi.unstubAllGlobals();
+  });
+});
+
+/**
+ * Which column identifies a property is the TARGET PROGRAMME'S configuration,
+ * not a universal rule. The same bytes are a property list for one programme
+ * and not for another, and the detector has to say so.
+ */
+describe('recognition follows the programme, not a fixed column', () => {
+  const PCH =
+    'Address,Meter No,Sim Type,ICCID\r\nX,EML123,Velos,8944502106211700645';
+  const REFERENCED = 'Property ID,Address,Meter No\r\nPCH123,X,EML123';
+
+  it('accepts the PCH register for a programme keyed by meter, with no reference column', () => {
+    const plan = planImport(
+      { filename: 'DEC MET Meters.csv', text: PCH },
+      { requireMapping: true, identityKey: 'expected_meter_serial' }
+    );
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.mapping).toEqual({
+      address_line1: 0,
+      expected_meter_serial: 1,
+      existing_sim_type: 2,
+      existing_sim_serial: 3
+    });
+    expect(plan.mapping.external_ref).toBeUndefined();
+  });
+
+  it('refuses those same bytes for a programme keyed by property reference', () => {
+    const plan = planImport(
+      { filename: 'DEC MET Meters.csv', text: PCH },
+      { requireMapping: true, identityKey: 'external_ref' }
+    );
+    expect(plan.ok).toBe(false);
+    if (plan.ok) return;
+    expect(plan.code).toBe('PROPERTY_LIST_NO_REF');
+  });
+
+  it('accepts a file that does carry the reference for that programme', () => {
+    const plan = planImport(
+      { filename: 'register.csv', text: REFERENCED },
+      { requireMapping: true, identityKey: 'external_ref' }
+    );
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.mapping.external_ref).toBe(0);
+  });
+});
+
+/**
+ * The meter-reading export (PCH Dec Meters ful list): an unnamed numeric first
+ * column, then Serial, Type, Location, Last read, Total. None of those headings
+ * are recognised, so it used to take the fall-through path and be read into the
+ * message - 1,445 rows of somebody's register in front of the model, with no
+ * refusal shown to explain why nothing was staged.
+ */
+describe('a large CSV whose columns mean nothing to us', () => {
+  const header = ',Serial,Type,Location,Last read,Total,\r\n';
+  const row = (n: number) =>
+    `${58000 + n},EML14090${n},MC,${n} Northampton Close Plymouth,2025-10-18T04:36:33.000Z,32992.3,Offline`;
+  const big =
+    header + Array.from({ length: 150 }, (_, i) => row(i)).join('\r\n');
+  const small =
+    header + Array.from({ length: 5 }, (_, i) => row(i)).join('\r\n');
+
+  it('is refused rather than read, whichever field identifies the programme', () => {
+    for (const identityKey of [
+      'external_ref',
+      'expected_meter_serial'
+    ] as const) {
+      const plan = planImport(
+        { filename: 'readings.csv', text: big },
+        { requireMapping: true, identityKey }
+      );
+      expect(plan.ok).toBe(false);
+      if (plan.ok) return;
+      expect(plan.code).toBe('UNRECOGNISED_CSV_TOO_LARGE');
+      // It says how many rows and what the headings were, so the refusal is
+      // actionable rather than a flat "no".
+      expect(plan.message).toContain('150');
+      expect(plan.message).toContain('Serial');
+    }
+  });
+
+  it('never invents a reference out of an unnamed numeric column', () => {
+    const plan = planImport(
+      { filename: 'readings.csv', text: small },
+      { requireMapping: false }
+    );
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.mapping.external_ref).toBeUndefined();
+    expect(plan.mapping).toEqual({});
+  });
+
+  it('still lets a small unrecognised table be read in chat', () => {
+    const plan = planImport(
+      { filename: 'rota.csv', text: 'Day,Installer\r\nMonday,Dan' },
+      { requireMapping: true, identityKey: 'external_ref' }
+    );
+    expect(plan.ok).toBe(false);
+    if (plan.ok) return;
+    // NOT_A_PROPERTY_LIST is the one code the caller may ignore and read anyway.
+    expect(plan.code).toBe('NOT_A_PROPERTY_LIST');
   });
 });

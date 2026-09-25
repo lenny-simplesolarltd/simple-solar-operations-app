@@ -26,6 +26,15 @@ interface AssistantShellValue {
   publishPage(page: AssistantPageContext | null): void;
   capabilities: AssistantCapabilities | null;
   capabilitiesError: boolean;
+  /**
+   * Capabilities, waiting for the first fetch if it has not landed yet.
+   *
+   * Anything that DECIDES something from capabilities must await this rather
+   * than read `capabilities`, which is null until the drawer's fetch resolves.
+   * Attaching a property list within that window used to silently take the
+   * ordinary text path, because the import capability had not arrived yet.
+   */
+  ensureCapabilities(): Promise<AssistantCapabilities | null>;
   /** The open conversation (and, through it, the staff member's others). */
   conversation: AssistantConversations;
   /**
@@ -80,21 +89,33 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     [pathname]
   );
 
-  // Capabilities are fetched the first time the drawer opens, not on every page load.
-  const requested = useRef(false);
-  useEffect(() => {
-    if (!open || requested.current) return;
-    requested.current = true;
-    fetch('/api/assistant/capabilities')
+  // Capabilities are fetched the first time the drawer opens, not on every page
+  // load. The in-flight promise is kept so a caller that needs the answer NOW
+  // can await the same request instead of racing it.
+  const inFlight = useRef<Promise<AssistantCapabilities | null> | null>(null);
+  const ensureCapabilities = useCallback(() => {
+    if (inFlight.current) return inFlight.current;
+    const request = fetch('/api/assistant/capabilities')
       .then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(String(r.status)))
       )
-      .then((data: AssistantCapabilities) => setCapabilities(data))
+      .then((data: AssistantCapabilities) => {
+        setCapabilities(data);
+        return data;
+      })
       .catch(() => {
-        requested.current = false;
+        // Cleared so a later attempt retries rather than caching the failure.
+        inFlight.current = null;
         setCapabilitiesError(true);
+        return null;
       });
-  }, [open]);
+    inFlight.current = request;
+    return request;
+  }, []);
+
+  useEffect(() => {
+    if (open) void ensureCapabilities();
+  }, [open, ensureCapabilities]);
 
   const [overrideMode, setOverrideMode] = useState(false);
   // Read at send time rather than captured, so toggling applies to the next
@@ -121,6 +142,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
       publishPage,
       capabilities,
       capabilitiesError,
+      ensureCapabilities,
       conversation,
       overrideMode,
       setOverrideMode
@@ -132,6 +154,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
       publishPage,
       capabilities,
       capabilitiesError,
+      ensureCapabilities,
       conversation,
       overrideMode
     ]

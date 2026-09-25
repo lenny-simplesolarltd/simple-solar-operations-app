@@ -105,6 +105,7 @@ export const IMPORT_KEY_LABEL: Record<ImportKey, string> = {
   postcode: 'Postcode',
   expected_meter_serial: 'Expected meter serial',
   existing_sim_serial: 'Existing SIM serial',
+  existing_sim_type: 'Existing SIM type',
   notes: 'Notes'
 };
 

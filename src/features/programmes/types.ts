@@ -10,6 +10,12 @@ export const VISIT_OUTCOMES = [
 ] as const;
 export type VisitOutcome = (typeof VISIT_OUTCOMES)[number];
 
+/**
+ * Cards rendered per column, and per "Load more". The column header always
+ * states the column's real size, which at programme scale is far larger.
+ */
+export const COLUMN_CARDS = 60;
+
 /** The board's columns, in board order. */
 export const DISPOSITIONS = [
   'AwaitingReview',
@@ -56,6 +62,8 @@ export interface ProgrammeSummary {
   visitFormId: string | null;
   signalConfig: SignalConfig;
   propertyVisibility: 'Assigned' | 'AllInProgramme';
+  /** Which canonical import field identifies a property in this programme's source data. */
+  importIdentityKey: IdentityKey;
   synthetic: boolean;
   notes: string | null;
   version: number;
@@ -64,13 +72,16 @@ export interface ProgrammeSummary {
 export interface ProgrammeProperty {
   id: string;
   programmeId: string;
+  /** The client's own reference, when they issue one. Empty when they do not. */
   externalRef: string;
   addressLine1: string;
   addressLine2: string | null;
   town: string | null;
   postcode: string | null;
   expectedMeterSerial: string | null;
+  /** Baseline from the client's register: what is fitted now, not what the visit found. */
   existingSimSerial: string | null;
+  existingSimType: string | null;
   notes: string | null;
   active: boolean;
   synthetic: boolean;
@@ -92,12 +103,15 @@ export interface ProgrammeVisit {
   propertyId: string;
   installerId: string;
   installerName: string | null;
+  /** The client's baseline for this property: what their records say is there. */
   property: {
     externalRef: string;
     addressLine1: string;
     town: string | null;
     postcode: string | null;
     expectedMeterSerial: string | null;
+    existingSimType: string | null;
+    existingSimSerial: string | null;
   };
   outcome: VisitOutcome | null;
   actualMeterSerial: string | null;
@@ -291,11 +305,25 @@ export const IMPORT_KEYS = [
   'postcode',
   'expected_meter_serial',
   'existing_sim_serial',
+  'existing_sim_type',
   'notes'
 ] as const;
 export type ImportKey = (typeof IMPORT_KEYS)[number];
 
-export const IMPORT_KEY_REQUIRED: readonly ImportKey[] = [
-  'external_ref',
-  'address_line1'
-];
+/**
+ * The canonical field whose value identifies a property in a programme's source
+ * data. Mirrors programmes.import_identity_key.
+ */
+export const IDENTITY_KEYS = ['external_ref', 'expected_meter_serial'] as const;
+export type IdentityKey = (typeof IDENTITY_KEYS)[number];
+export const DEFAULT_IDENTITY_KEY: IdentityKey = 'external_ref';
+
+/**
+ * What a file must carry before it can be imported into a programme: that
+ * programme's identity field, and an address. Nothing else - a SIM serial or
+ * type the client omitted is missing baseline data, not an unimportable
+ * property, because the installer records what is actually on site.
+ */
+export const importKeyRequired = (
+  identityKey: IdentityKey = DEFAULT_IDENTITY_KEY
+): readonly ImportKey[] => [identityKey, 'address_line1'];

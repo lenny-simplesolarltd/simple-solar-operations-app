@@ -3,10 +3,21 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { APP_ROUTES, isHelpRoute, routePatternFor } from '../routes';
 
+/**
+ * A parallel slot (@modal) and an interception ((..)visits) are ways of
+ * rendering a route that already exists somewhere else - the board's visit
+ * modal is /visits/[visitId] shown over the board, not a screen of its own. So
+ * they are not walked: counting them would invent staff pages nobody can
+ * navigate to, and the real route is already listed.
+ */
+const isSlotOrInterception = (name: string) =>
+  name.startsWith('@') || /^\(\.{1,3}\)/.test(name);
+
 function pages(dir: string, prefix: string): string[] {
   const out: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
+      if (isSlotOrInterception(entry.name)) continue;
       out.push(...pages(path.join(dir, entry.name), `${prefix}/${entry.name}`));
     } else if (entry.name === 'page.tsx') {
       out.push(prefix);

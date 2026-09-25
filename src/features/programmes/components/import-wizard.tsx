@@ -25,7 +25,9 @@ import {
 } from '../server/actions';
 import {
   IMPORT_KEYS,
-  IMPORT_KEY_REQUIRED,
+  importKeyRequired,
+  DEFAULT_IDENTITY_KEY,
+  type IdentityKey,
   type ImportKey,
   type ImportRow,
   type ImportSummary
@@ -57,14 +59,18 @@ type Stage = 'choose' | 'staging' | 'map' | 'preview' | 'done';
 
 export function ImportWizard({
   programmeId,
+  identityKey = DEFAULT_IDENTITY_KEY,
   existing,
   existingRows
 }: {
   programmeId: string;
+  /** Which column this programme identifies a property by. Marked required below. */
+  identityKey?: IdentityKey;
   /** An import already in progress, so a reload does not lose the staged rows. */
   existing?: ImportSummary | null;
   existingRows?: ImportRow[];
 }) {
+  const required = importKeyRequired(identityKey);
   const router = useRouter();
   const picker = useRef<HTMLInputElement>(null);
 
@@ -314,7 +320,7 @@ export function ImportWizard({
               <div key={key} className='flex flex-col gap-1.5'>
                 <Label htmlFor={`map-${key}`}>
                   {IMPORT_KEY_LABEL[key]}
-                  {IMPORT_KEY_REQUIRED.includes(key) && (
+                  {required.includes(key) && (
                     <span aria-hidden className='text-destructive ml-0.5'>
                       *
                     </span>
