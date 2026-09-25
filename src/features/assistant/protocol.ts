@@ -271,7 +271,107 @@ export type DisplayCard =
       related: HelpCardArticle[];
     }
   /** Stored files (no storage paths): Open/Download go through /api/evidence/<id>. */
-  | { kind: 'file_list'; title: string; files: FileCardData[]; total: number };
+  | { kind: 'file_list'; title: string; files: FileCardData[]; total: number }
+  /** Where an operational programme stands, as the programme Overview counts it. */
+  | { kind: 'programme_summary'; programme: ProgrammeSummaryCardData }
+  | { kind: 'programme_property'; property: ProgrammePropertyCardData }
+  | { kind: 'programme_visit'; visit: ProgrammeVisitCardData }
+  /** A submitted visit as the office sees it while reviewing, or once reviewed. */
+  | {
+      kind: 'programme_review_item';
+      visit: ProgrammeVisitCardData;
+      reviewStatus: string;
+      /** Only from a surface that actually read the evidence; otherwise absent, not zero. */
+      evidenceCount?: number;
+      /** Why the visit was put in front of a person, where the surface said so. */
+      reviewReasons?: string[];
+    }
+  /**
+   * An ambiguous search ("King Street"), as a bounded list somebody picks from.
+   * Selecting one only drafts a message naming it - see ProgrammeCandidate.
+   */
+  | {
+      kind: 'programme_candidates';
+      title: string;
+      /** What is being chosen, so the drafted message reads properly. */
+      target: 'property' | 'visit';
+      candidates: ProgrammeCandidate[];
+      /** The true total the tool reported; never the number of rows listed. */
+      total: number;
+    };
+
+// -- Programmes ---------------------------------------------------------------
+// Operational programmes (a meter/SIM replacement programme and the like).
+//
+// Canonical ids ride in props, never in the text a person reads: staff quote
+// the client's property reference, the address and the postcode to each other,
+// so those are what a card shows. The id is there for the card's own action.
+
+export interface ProgrammeSummaryCardData {
+  code: string;
+  name: string;
+  client: string | null;
+  status: string;
+  /** Development fixtures are real rows; saying so stops test data reading as the client's position. */
+  testData: boolean;
+  attended: number;
+  remaining: number;
+  completedAndLive: number;
+  /** The agreed delivery target. Null when none has been agreed - not zero. */
+  target: number | null;
+  /** Visits per working day, where any day has been worked. */
+  runRate: number | null;
+}
+
+export interface ProgrammePropertyCardData {
+  /** Canonical id. Carried in props only - never rendered. */
+  id: string;
+  /** The client's own reference for the property: what staff actually quote. */
+  reference: string;
+  address: string;
+  postcode: string | null;
+  expectedMeterSerial: string | null;
+  /** The latest operational state, once a visit has been recorded. */
+  state: string | null;
+  visited: boolean;
+}
+
+export interface ProgrammeVisitCardData {
+  /** Canonical id. Carried in props only - never rendered. */
+  id: string;
+  reference: string;
+  address: string;
+  postcode: string | null;
+  installer: string | null;
+  visitDate: string | null;
+  submittedAt: string | null;
+  outcome: string | null;
+  /** The operational state the visit sits in, in the board's own words. */
+  disposition: string;
+  portalVerification: string | null;
+  csq: number | null;
+  csqBand: string | null;
+  /** The meter found on site was not the one expected here. */
+  serialMismatch: boolean;
+}
+
+/**
+ * One row of an ambiguous search.
+ *
+ * The canonical id rides here so a selection is unambiguous, while the label a
+ * person reads is the address, postcode and property reference. Choosing a
+ * candidate carries the id and an intent and nothing else: it drafts a message
+ * for the person to send, so a card can never start a turn - let alone a
+ * write - by itself.
+ */
+export interface ProgrammeCandidate {
+  id: string;
+  reference: string;
+  address: string;
+  postcode: string | null;
+  /** A second line where one tells two rows apart: installer and date, for a visit. */
+  detail?: string;
+}
 
 export interface FileCardData {
   id: string;

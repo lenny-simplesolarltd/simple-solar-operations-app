@@ -9,9 +9,17 @@ import type {
   FileCardData,
   HelpCardArticle,
   JobCardData,
+  ProgrammeCandidate,
   TaskCardData
 } from '../protocol';
 import { FormCardBody, FormLinkRow } from './form-cards';
+import {
+  ProgrammeCandidateRow,
+  ProgrammePropertyBody,
+  ProgrammeReviewBody,
+  ProgrammeSummaryBody,
+  ProgrammeVisitBody
+} from './programme-cards';
 
 // Structured tool results. These show exactly what the application returned,
 // so staff can check the assistant's wording against the data.
@@ -57,7 +65,7 @@ function CardShell({
   // for free, and it survives re-renders while a turn is still streaming.
   return (
     <details className='bg-background group/card overflow-hidden rounded-lg border'>
-      <summary className='flex cursor-pointer list-none items-baseline justify-between gap-3 px-3 py-2 marker:hidden hover:bg-muted/50'>
+      <summary className='hover:bg-muted/50 flex cursor-pointer list-none items-baseline justify-between gap-3 px-3 py-2 marker:hidden'>
         <span className='flex min-w-0 items-baseline gap-1.5'>
           <IconChevronRight
             className='size-3 shrink-0 self-center transition-transform group-open/card:rotate-90'
@@ -251,11 +259,18 @@ const count = (n: number, one: string, many = `${one}s`) =>
 
 export function ResultCard({
   card,
-  onNavigate
+  onNavigate,
+  onSelectCandidate
 }: {
   card: DisplayCard;
   /** Called when a link inside the card is followed (the mobile sheet closes). */
   onNavigate?: () => void;
+  /**
+   * Called when somebody picks one of an ambiguous search's candidates. It is
+   * handed the canonical id and a message naming the property in words; what
+   * it does with them is the drawer's business, and it is never a write.
+   */
+  onSelectCandidate?: (candidate: ProgrammeCandidate, prompt: string) => void;
 }) {
   switch (card.kind) {
     case 'form':
@@ -498,6 +513,74 @@ export function ResultCard({
         </CardShell>
       );
     }
+
+    case 'programme_summary':
+      return (
+        <CardShell title='Programme' meta={card.programme.code}>
+          <ProgrammeSummaryBody programme={card.programme} />
+        </CardShell>
+      );
+
+    case 'programme_property':
+      return (
+        <CardShell title='Property'>
+          <ProgrammePropertyBody property={card.property} />
+        </CardShell>
+      );
+
+    case 'programme_visit':
+      return (
+        <CardShell title='Visit'>
+          <ProgrammeVisitBody visit={card.visit} />
+        </CardShell>
+      );
+
+    case 'programme_review_item':
+      return (
+        <CardShell title='Visit review'>
+          <ProgrammeReviewBody
+            visit={card.visit}
+            reviewStatus={card.reviewStatus}
+            evidenceCount={card.evidenceCount}
+            reviewReasons={card.reviewReasons}
+          />
+        </CardShell>
+      );
+
+    case 'programme_candidates':
+      return (
+        <CardShell
+          title={card.title}
+          meta={
+            card.total > card.candidates.length
+              ? `${card.candidates.length} of ${card.total}`
+              : count(card.total, 'match', 'matches')
+          }
+        >
+          {card.candidates.length === 0 ? (
+            <p className='text-muted-foreground px-3 py-3 text-sm'>
+              Nothing you have access to matched.
+            </p>
+          ) : (
+            <ul className='divide-y'>
+              {card.candidates.map((candidate) => (
+                <ProgrammeCandidateRow
+                  key={candidate.id}
+                  candidate={candidate}
+                  target={card.target}
+                  onSelect={onSelectCandidate}
+                />
+              ))}
+            </ul>
+          )}
+          {card.total > card.candidates.length && (
+            <p className='text-muted-foreground border-t px-3 py-2 text-xs'>
+              Showing {card.candidates.length} of {card.total}. Narrow the
+              search, or ask for the next page.
+            </p>
+          )}
+        </CardShell>
+      );
 
     case 'workflow':
       return (

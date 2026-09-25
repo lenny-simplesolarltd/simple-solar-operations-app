@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { formsEnabled } from '@/features/forms/server/service';
+import { programmesEnabled } from '@/features/programmes/server/queries';
 import { ToolRegistry, type PlannedTool } from '../registry';
 import { BULK_TASK_MUTATION_TOOLS, BULK_TASK_READ_TOOLS } from './bulk-tasks';
 import { CUSTOMER_MUTATION_TOOLS, CUSTOMER_READ_TOOLS } from './customers';
@@ -16,6 +17,15 @@ import {
   listJobOperationsTool
 } from './operations';
 import { PLANNED_TOOLS } from './planned';
+import {
+  PROGRAMME_IMPORT_MUTATION_TOOLS,
+  PROGRAMME_IMPORT_READ_TOOLS
+} from './programme-imports';
+import {
+  PROGRAMME_OPERATION_MUTATION_TOOLS,
+  PROGRAMME_OPERATION_READ_TOOLS
+} from './programme-operations';
+import { PROGRAMME_READ_TOOLS } from './programmes';
 import { PRESALE_MUTATION_TOOLS } from './presale-create';
 import {
   PRESALE_REVISION_MUTATION_TOOLS,
@@ -30,7 +40,10 @@ import { getMyTasksTool, getTeamTasksTool } from './tasks';
  * registered as planned.
  */
 export function createToolRegistry(
-  options: { forms: boolean } = { forms: true }
+  options: { forms: boolean; programmes?: boolean } = {
+    forms: true,
+    programmes: true
+  }
 ): ToolRegistry {
   const registry = new ToolRegistry()
     .register(findJobTool)
@@ -99,11 +112,47 @@ export function createToolRegistry(
           } satisfies PlannedTool)
     );
   }
+  // Programmes: the same reads the programme screens use, so a number the
+  // assistant quotes and a number the Overview shows cannot disagree. Gated on
+  // FN-22 exactly as the screens are - while the module is switched off the
+  // model is told the tools are unavailable and none can execute.
+  for (const tool of [
+    ...PROGRAMME_READ_TOOLS,
+    // Imports: explaining and applying a property list that was staged on the
+    // import screen. There is deliberately no tool that STAGES a file from
+    // chat - see programme-imports.ts - because the model would be retyping
+    // somebody's property list, which is exactly how invented rows get in.
+    ...PROGRAMME_IMPORT_READ_TOOLS,
+    ...PROGRAMME_IMPORT_MUTATION_TOOLS,
+    // Office review and the installer's own visit workflow. Both go through
+    // the same commands the screens call - PROGRAMME_VISIT_REVIEW, and
+    // START then SUBMIT - so "Complete & working" still needs the office's
+    // portal confirmation whoever asks for it and however they phrase it.
+    ...PROGRAMME_OPERATION_READ_TOOLS,
+    ...PROGRAMME_OPERATION_MUTATION_TOOLS
+  ]) {
+    registry.register(
+      options.programmes !== false
+        ? (tool as Parameters<ToolRegistry['register']>[0])
+        : ({
+            name: tool.name,
+            summary: tool.summary,
+            domain: tool.domain,
+            kind: tool.kind,
+            status: 'planned',
+            dependsOn: 'Programmes is switched off (release gate FN-22)'
+          } satisfies PlannedTool)
+    );
+  }
   for (const tool of PLANNED_TOOLS) registry.register(tool);
   return registry;
 }
 
-/** The registry for one request: Forms tools only while Forms is switched on. */
+/** The registry for one request: release-gated tools only while their module is on. */
 export async function createRequestToolRegistry(): Promise<ToolRegistry> {
-  return createToolRegistry({ forms: await formsEnabled() });
+  const [forms, programmes] = await Promise.all([
+    formsEnabled(),
+    programmesEnabled()
+  ]);
+  return createToolRegistry({ forms, programmes });
 }

@@ -60,6 +60,7 @@ describe('the production registry', () => {
         .map((t) => t.name)
         .sort()
     ).toEqual([
+      'explain_programme_import',
       'find_job',
       'get_customer_contact',
       'get_form',
@@ -81,21 +82,36 @@ describe('the production registry', () => {
       'list_forms',
       'list_job_files',
       'list_job_operations',
+      'list_programme_imports',
       'plan_task_action',
+      'programme_capabilities',
+      'programme_daily_report',
+      'programme_list',
+      'programme_property_get',
+      'programme_property_search',
+      'programme_summary',
+      'programme_visit_evidence',
+      'programme_visit_get',
+      'programme_visit_search',
+      'programme_visit_submit_status',
       'search_files',
       'search_help_articles'
     ]);
     const mutations = available.filter((t) => t.kind === 'mutation');
     expect(mutations.map((t) => t.name).sort()).toEqual([
+      'apply_programme_import',
       'complete_tasks',
       'create_file_folder',
       'create_form',
       'create_form_link',
       'create_presale',
+      'discard_programme_import',
       'edit_form_draft',
       'move_files_to_folder',
       'move_job',
       'override_complete_tasks',
+      'programme_review_visit',
+      'programme_visit_submit',
       'publish_form',
       'raise_issue',
       'reopen_tasks',
@@ -118,7 +134,10 @@ describe('the production registry', () => {
         'customers',
         'jobs',
         'calendar',
-        'presales'
+        'presales',
+        // Programme review, the installer's visit workflow, and applying a
+        // staged property import - each the same command the screens call.
+        'programmes'
       ]).toContain(tool.domain);
       // Correcting contact details and lead source is CUSTOMER_UPDATE /
       // JOB_SALE_UPDATE (migration 20260920270000). Each asks for its own

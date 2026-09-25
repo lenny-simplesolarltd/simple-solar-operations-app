@@ -27,7 +27,11 @@ import {
   type AttachmentRejection
 } from '../lib/attachments';
 import { MAX_ATTACHMENTS, type Attachment } from '../protocol';
-import type { AssistantCapabilities, HelpCardArticle } from '../protocol';
+import type {
+  AssistantCapabilities,
+  HelpCardArticle,
+  ProgrammeCandidate
+} from '../protocol';
 import { suggestionsFor, type AssistantSuggestion } from '../suggestions';
 import { ActionCard } from './action-card';
 import {
@@ -171,9 +175,23 @@ export function AssistantPanel({
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Whether this person may stage a property import. `apply_programme_import`
+  // is the right signal because it already requires programme.manage, so the
+  // client offer and the server's answer cannot drift apart. It is only an
+  // offer: the route re-checks the session, the release gate and the permission
+  // before it reads a single row of somebody's property register.
+  const canImportProperties = Boolean(
+    capabilities?.configured &&
+      capabilities.tools.some((t) => t.name === 'apply_programme_import')
+  );
+
   const take = async (files: File[]) => {
     if (files.length === 0) return;
-    const result = await readAttachments(files, attachments.length);
+    // A property list is far too big to travel through the model, so its bytes
+    // go straight to the import pipeline and only a bounded summary comes back.
+    const result = await readAttachments(files, attachments.length, {
+      programmeImport: canImportProperties ? {} : undefined
+    });
     if (result.attachments.length > 0) {
       setAttachments((current) =>
         [...current, ...result.attachments].slice(0, MAX_ATTACHMENTS)
@@ -203,18 +221,23 @@ export function AssistantPanel({
     setRejected([]);
   };
 
+  /** Put words in the composer and leave the sending to the person. */
+  const prefill = (prompt: string) => {
+    setDraft(prompt);
+    requestAnimationFrame(() => {
+      const el = composerRef.current;
+      el?.focus();
+      el?.setSelectionRange(el.value.length, el.value.length);
+    });
+  };
+
   const choose = (suggestion: AssistantSuggestion) => {
     if (suggestion.mode === 'send') {
       pinnedRef.current = true;
       onSend(suggestion.prompt);
       return;
     }
-    setDraft(suggestion.prompt);
-    requestAnimationFrame(() => {
-      const el = composerRef.current;
-      el?.focus();
-      el?.setSelectionRange(el.value.length, el.value.length);
-    });
+    prefill(suggestion.prompt);
   };
 
   const blank =
@@ -414,6 +437,12 @@ export function AssistantPanel({
                       onRetry={onRetry}
                       onDecide={onDecide}
                       onNavigate={onNavigate}
+                      // Picking a candidate only drafts the message naming it:
+                      // the person still sends it, so a card can never start a
+                      // turn - let alone a change - on its own.
+                      onSelectCandidate={(_candidate, prompt) =>
+                        prefill(prompt)
+                      }
                       busy={working}
                     />
                   </li>
@@ -881,12 +910,14 @@ function Item({
   onRetry,
   onDecide,
   onNavigate,
+  onSelectCandidate,
   busy
 }: {
   item: ConversationItem;
   onRetry(errorId: string): void;
   onDecide(actionId: string, decision: 'confirm' | 'cancel'): void;
   onNavigate?: () => void;
+  onSelectCandidate?: (candidate: ProgrammeCandidate, prompt: string) => void;
   busy: boolean;
 }) {
   switch (item.kind) {
@@ -910,7 +941,13 @@ function Item({
 
     case 'tool':
       if (item.state === 'done' && item.display) {
-        return <ResultCard card={item.display} onNavigate={onNavigate} />;
+        return (
+          <ResultCard
+            card={item.display}
+            onNavigate={onNavigate}
+            onSelectCandidate={onSelectCandidate}
+          />
+        );
       }
       return (
         <p

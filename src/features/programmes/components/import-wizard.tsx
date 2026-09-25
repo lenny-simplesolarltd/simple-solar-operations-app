@@ -3,13 +3,18 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { parseCsv } from '@/lib/csv';
 import { cn } from '@/lib/utils';
 import { IconLoader2, IconUpload } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { IMPORT_KEY_LABEL } from '../labels';
+import {
+  IMPORT_FILE_ACCEPT,
+  importChunks,
+  missingRequiredKeys,
+  planImport
+} from '../server/import-plan';
 import { loadImportRowsAction } from '../server/preview';
 import {
   addImportRowsAction,
@@ -38,42 +43,15 @@ import {
  * happen.
  *
  * Nothing about any particular spreadsheet's shape is assumed. The column
- * guesses below are only a first offer, and a person confirms every one.
+ * guesses are only a first offer, and a person confirms every one.
+ *
+ * What a property file IS - the accepted types, the size limit, the column
+ * guesses, the notes about blank and ragged rows, and the chunk size - lives in
+ * server/import-plan, because SimpleBot's upload route has to reach the same
+ * conclusions about the same bytes. Two copies of guessMapping would mean the
+ * screen guessing one column and chat another, with nobody able to say which
+ * was right.
  */
-
-const CHUNK = 200;
-
-/** A first offer at which column means what, from the header's wording. */
-function guessMapping(header: string[]): Partial<Record<ImportKey, number>> {
-  const patterns: [ImportKey, RegExp][] = [
-    [
-      'external_ref',
-      /\b(pch|property|prop|uprn|asset)\b.*\b(id|ref|no|number)\b|^(id|ref|reference)$/i
-    ],
-    ['address_line1', /address\s*(line)?\s*1|^address$|^street/i],
-    ['address_line2', /address\s*(line)?\s*2/i],
-    ['town', /town|city|locality/i],
-    ['postcode', /post\s*code|postal/i],
-    [
-      'expected_meter_serial',
-      /meter.*(serial|msn|no|number)|(serial|msn).*meter/i
-    ],
-    ['existing_sim_serial', /sim.*(serial|iccid|no|number)|iccid/i],
-    ['notes', /note|comment|remark/i]
-  ];
-  const out: Partial<Record<ImportKey, number>> = {};
-  const taken = new Set<number>();
-  for (const [key, pattern] of patterns) {
-    const index = header.findIndex(
-      (h, i) => !taken.has(i) && pattern.test(h.trim())
-    );
-    if (index >= 0) {
-      out[key] = index;
-      taken.add(index);
-    }
-  }
-  return out;
-}
 
 type Stage = 'choose' | 'staging' | 'map' | 'preview' | 'done';
 
@@ -110,30 +88,24 @@ export function ImportWizard({
     if (!file) return;
     setProblem(null);
     setNotes([]);
-    if (file.size > 20 * 1024 * 1024) {
-      setProblem('That file is larger than 20 MB. Split it and try again.');
+    // The screen keeps the mapping step, so a file whose headings are
+    // unfamiliar is still worth staging: requireMapping is left off here.
+    const plan = planImport({
+      filename: file.name,
+      text: await file.text(),
+      sizeBytes: file.size
+    });
+    if (!plan.ok) {
+      setProblem(plan.message);
       return;
     }
-    const table = parseCsv(await file.text());
-    if (table.header.length === 0 || table.rows.length === 0) {
-      setProblem('That file has no header row or no data rows.');
-      return;
-    }
-    const said: string[] = [];
-    if (table.blankRowsDropped)
-      said.push(
-        `${table.blankRowsDropped} completely blank ${table.blankRowsDropped === 1 ? 'row was' : 'rows were'} skipped.`
-      );
-    if (table.raggedRows.length)
-      said.push(
-        `${table.raggedRows.length} ${table.raggedRows.length === 1 ? 'row has' : 'rows have'} a different number of columns from the header (first: row ${table.raggedRows[0].row}). They were padded to the header's width; check them in the preview.`
-      );
-    setNotes(said);
+    const table = plan.table;
+    setNotes(plan.notes);
 
     setBusy(true);
     setStage('staging');
     setHeader(table.header);
-    setMapping(guessMapping(table.header));
+    setMapping(plan.mapping);
 
     const importId = crypto.randomUUID();
     const created = await createImportAction(
@@ -149,10 +121,10 @@ export function ImportWizard({
 
     // Chunked so a 1,400-row file is not one enormous request, and so a failure
     // part-way through leaves the rows that did arrive.
-    for (let i = 0; i < table.rows.length; i += CHUNK) {
-      const chunk = table.rows.slice(i, i + CHUNK);
+    let staged = 0;
+    for (const chunk of importChunks(table.rows)) {
       const added = await addImportRowsAction(
-        { importId, fromIndex: i + 1, rows: chunk },
+        { importId, fromIndex: chunk.fromIndex, rows: chunk.rows },
         crypto.randomUUID()
       );
       if (!added.ok) {
@@ -161,7 +133,8 @@ export function ImportWizard({
         setProblem(added.outcome.message);
         return;
       }
-      setProgress(Math.round(((i + chunk.length) / table.rows.length) * 100));
+      staged += chunk.rows.length;
+      setProgress(Math.round((staged / table.rows.length) * 100));
     }
     setBusy(false);
     setSummary({
@@ -186,7 +159,7 @@ export function ImportWizard({
   async function validate() {
     if (!summary) return;
     setProblem(null);
-    const missing = IMPORT_KEY_REQUIRED.filter((k) => mapping[k] === undefined);
+    const missing = missingRequiredKeys(mapping);
     if (missing.length) {
       setProblem(
         `Choose the column for ${missing.map((k) => IMPORT_KEY_LABEL[k]).join(' and ')}.`
@@ -296,7 +269,7 @@ export function ImportWizard({
             ref={picker}
             id='import-file'
             type='file'
-            accept='.csv,text/csv'
+            accept={IMPORT_FILE_ACCEPT}
             className='sr-only'
             onChange={(e) => void choose(e.target.files?.[0])}
           />

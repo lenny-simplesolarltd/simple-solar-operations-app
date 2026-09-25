@@ -163,12 +163,23 @@ const PROGRAMME_COLUMNS =
   'id, code, name, client_name, status, starts_on, ends_on, visit_form_id, ' +
   'signal_config, property_visibility, synthetic, notes, version';
 
-/** Whether the module is switched on at all (FN-22). */
+/**
+ * Whether the module is switched on at all (FN-22). Fails closed: an error, a
+ * database without the function, or a caller with no request scope to read a
+ * session from, all count as off.
+ *
+ * The try/catch matters because this is called while BUILDING things - the
+ * dashboard layout's menu, and the assistant's tool registry - and a throw
+ * there takes down the whole screen rather than hiding one module.
+ */
 export async function programmesEnabled(): Promise<boolean> {
-  const supabase = await programmeDb();
-  const { data, error } = await supabase.rpc('programmes_enabled');
-  if (error) return false;
-  return data === true;
+  try {
+    const supabase = await programmeDb();
+    const { data, error } = await supabase.rpc('programmes_enabled');
+    return !error && data === true;
+  } catch {
+    return false;
+  }
 }
 
 /** What this person may do with programmes. Capabilities, never role names. */
@@ -265,24 +276,56 @@ export interface PropertySearch {
   /** 'outstanding' hides properties that already have a submitted visit. */
   only?: 'all' | 'outstanding';
   limit?: number;
+  offset?: number;
+}
+
+/** A page of properties and the true total behind the same search. */
+export interface PropertyPage {
+  properties: ProgrammeProperty[];
+  total: number;
+  offset: number;
+  limit: number;
 }
 
 /**
  * Property search: one box, matched against the address, the postcode, the
  * client's reference and the expected meter serial - the four things a field
  * worker might have in front of them.
+ *
+ * "Outstanding" is decided by the database, not afterwards. It used to fetch a
+ * page and then drop the visited ones from it in JavaScript, which meant a
+ * search for outstanding EX1 properties looked only at the first page of EX1
+ * properties, returned fewer than it found, and could never say how many there
+ * really were. The anti-join below asks the question properly: properties with
+ * no visit that has left Draft - the same definition visitedPropertyIds uses,
+ * so the list and the count cannot drift from the rest of the screen.
  */
-export async function searchProperties(
+export async function searchPropertyPage(
   programmeId: string,
   search: PropertySearch = {}
-): Promise<ProgrammeProperty[]> {
+): Promise<PropertyPage> {
   const supabase = await programmeDb();
   const limit = Math.min(Math.max(search.limit ?? 25, 1), 200);
+  const offset = Math.max(search.offset ?? 0, 0);
+  const outstanding = search.only === 'outstanding';
+
   let query = supabase
     .from('programme_properties')
-    .select(PROPERTY_COLUMNS)
+    .select(
+      outstanding
+        ? `${PROPERTY_COLUMNS}, visits:programme_visits!programme_visits_property_id_fkey!left(id)`
+        : PROPERTY_COLUMNS,
+      { count: 'exact' }
+    )
     .eq('programme_id', programmeId)
     .eq('active', true);
+
+  if (outstanding) {
+    // A draft is on no board and in no count, so it does not make a property
+    // visited. Filtering the embedded rows first and then requiring none to
+    // remain is the anti-join.
+    query = query.neq('visits.review_status', 'Draft').is('visits', null);
+  }
 
   const text = (search.query ?? '').trim();
   if (text) {
@@ -303,16 +346,25 @@ export async function searchProperties(
     query = query.or(clauses.join(','));
   }
 
-  const { data, error } = await query.order('external_ref').limit(limit);
+  const { data, error, count } = await query
+    .order('external_ref')
+    .range(offset, offset + limit - 1);
   if (error) throw new Error(`properties: ${error.message}`);
-  const mapped = (data as unknown as PropertyRow[]).map(toProperty);
 
-  if (search.only !== 'outstanding') return mapped;
-  const visited = await visitedPropertyIds(
-    programmeId,
-    mapped.map((p) => p.id)
-  );
-  return mapped.filter((p) => !visited.has(p.id));
+  return {
+    properties: (data as unknown as PropertyRow[]).map(toProperty),
+    total: count ?? 0,
+    offset,
+    limit
+  };
+}
+
+/** The properties alone, for callers that do not show a total. */
+export async function searchProperties(
+  programmeId: string,
+  search: PropertySearch = {}
+): Promise<ProgrammeProperty[]> {
+  return (await searchPropertyPage(programmeId, search)).properties;
 }
 
 /** Which of these properties already have a submitted visit. */
