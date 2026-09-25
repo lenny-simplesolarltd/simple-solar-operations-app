@@ -30,19 +30,13 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   createInvitationAction,
   invitationLinkAction,
-  listSurveyorsAction,
-  revokeInvitationAction,
-  searchJobsAction
+  revokeInvitationAction
 } from '../server/actions';
-import {
-  RECIPIENT_LABEL,
-  type InvitationSummary,
-  type RecipientType
-} from '../types';
+import { RECIPIENT_LABEL, type InvitationSummary } from '../types';
 import { LinkStatusBadge } from './badges';
 
 /**
@@ -123,7 +117,9 @@ export function ShareLinks({
             >
               <span className='min-w-0 flex-1 basis-56'>
                 <span className='block truncate text-sm font-medium'>
-                  {RECIPIENT_LABEL[l.recipientType]}: {l.recipientName}
+                  {l.recipientType === 'other'
+                    ? l.recipientName
+                    : `${RECIPIENT_LABEL[l.recipientType]}: ${l.recipientName}`}
                 </span>
                 <span className='text-muted-foreground block text-xs'>
                   v{l.revision}
@@ -165,6 +161,7 @@ export function ShareLinks({
           formId={formId}
           revision={revision}
           defaultJob={defaultJob ?? null}
+          linkCount={links.length}
           onClose={() => {
             setOpen(false);
             router.refresh();
@@ -264,29 +261,16 @@ function CreateLinkDialog({
   formId,
   revision,
   defaultJob,
+  linkCount,
   onClose
 }: {
   formId: string;
   revision: number;
   defaultJob: { id: string; jobRef: string } | null;
+  linkCount: number;
   onClose(): void;
 }) {
   const [commandId] = useState(() => crypto.randomUUID());
-  const [type, setType] = useState<RecipientType>('customer');
-  const [job, setJob] = useState<{
-    id: string;
-    jobRef: string;
-    customerName?: string;
-  } | null>(defaultJob);
-  const [jobQuery, setJobQuery] = useState('');
-  const [jobs, setJobs] = useState<
-    { id: string; jobRef: string; customerName: string }[]
-  >([]);
-  const [surveyors, setSurveyors] = useState<{ id: string; name: string }[]>(
-    []
-  );
-  const [surveyorId, setSurveyorId] = useState('');
-  const [label, setLabel] = useState('');
   const [expiry, setExpiry] = useState('30');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -295,28 +279,19 @@ function CreateLinkDialog({
     id: string;
   } | null>(null);
 
-  useEffect(() => {
-    if (type === 'surveyor' && surveyors.length === 0)
-      void listSurveyorsAction().then(setSurveyors);
-  }, [type, surveyors.length]);
-  useEffect(() => {
-    const t = setTimeout(
-      () => void searchJobsAction(jobQuery).then(setJobs),
-      250
-    );
-    return () => clearTimeout(t);
-  }, [jobQuery]);
-
   const submit = async () => {
     setError(null);
     setBusy(true);
     const result = await createInvitationAction(
       {
         formId,
-        recipientType: type,
-        jobId: job?.id ?? null,
-        personId: type === 'surveyor' ? surveyorId || null : null,
-        recipientLabel: type === 'other' ? label.trim() || null : null,
+        // Access settings decide who may complete a form, so a link carries no
+        // recipient of its own. 'other' plus a label is the one shape the
+        // form_invitations CHECK accepts without a job or a person.
+        recipientType: 'other',
+        jobId: defaultJob?.id ?? null,
+        personId: null,
+        recipientLabel: `Link ${linkCount + 1}`,
         expiresAt:
           expiry === 'none'
             ? null
@@ -376,119 +351,6 @@ function CreateLinkDialog({
               void submit();
             }}
           >
-            <fieldset className='flex flex-col gap-2'>
-              <legend className='mb-1 text-sm font-medium'>
-                Who is it for?
-              </legend>
-              <div className='flex flex-wrap gap-2'>
-                {(['customer', 'surveyor', 'other'] as const).map((t) => (
-                  <label
-                    key={t}
-                    className='has-[:checked]:border-foreground has-[:checked]:bg-foreground has-[:checked]:text-background has-[:focus-visible]:ring-ring/50 flex h-9 cursor-pointer items-center rounded-md border px-3 text-sm has-[:focus-visible]:ring-[3px]'
-                  >
-                    <input
-                      type='radio'
-                      name='recipient'
-                      className='sr-only'
-                      checked={type === t}
-                      onChange={() => setType(t)}
-                    />
-                    {RECIPIENT_LABEL[t]}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className='flex flex-col gap-2'>
-              <Label htmlFor='link-job'>
-                Job{' '}
-                {type === 'customer'
-                  ? '(the customer on this job)'
-                  : '(optional)'}
-              </Label>
-              {job ? (
-                <div className='flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm'>
-                  <span>
-                    <span className='font-mono font-medium'>{job.jobRef}</span>
-                    {job.customerName && (
-                      <span className='text-muted-foreground'>
-                        {' '}
-                        · {job.customerName}
-                      </span>
-                    )}
-                  </span>
-                  <Button
-                    type='button'
-                    size='sm'
-                    variant='ghost'
-                    onClick={() => setJob(null)}
-                  >
-                    Change
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Input
-                    id='link-job'
-                    placeholder='Search by job reference'
-                    value={jobQuery}
-                    onChange={(e) => setJobQuery(e.target.value)}
-                  />
-                  <ul className='max-h-40 overflow-y-auto rounded-md border'>
-                    {jobs.map((j) => (
-                      <li key={j.id}>
-                        <button
-                          type='button'
-                          onClick={() => setJob(j)}
-                          className='hover:bg-accent focus-visible:bg-accent w-full px-3 py-2 text-left text-sm outline-none'
-                        >
-                          <span className='font-mono'>{j.jobRef}</span>
-                          <span className='text-muted-foreground'>
-                            {' '}
-                            · {j.customerName}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                    {jobs.length === 0 && (
-                      <li className='text-muted-foreground px-3 py-2 text-sm'>
-                        No matching jobs.
-                      </li>
-                    )}
-                  </ul>
-                </>
-              )}
-            </div>
-
-            {type === 'surveyor' && (
-              <div className='flex flex-col gap-2'>
-                <Label htmlFor='link-surveyor'>Surveyor</Label>
-                <select
-                  id='link-surveyor'
-                  value={surveyorId}
-                  onChange={(e) => setSurveyorId(e.target.value)}
-                  className='border-input bg-background h-9 rounded-md border px-3 text-sm'
-                >
-                  <option value=''>Choose a surveyor…</option>
-                  {surveyors.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {type === 'other' && (
-              <div className='flex flex-col gap-2'>
-                <Label htmlFor='link-label'>Recipient name</Label>
-                <Input
-                  id='link-label'
-                  maxLength={200}
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                />
-              </div>
-            )}
             <div className='flex flex-col gap-2'>
               <Label htmlFor='link-expiry'>Link expires after</Label>
               <select
