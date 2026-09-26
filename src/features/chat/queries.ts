@@ -2,7 +2,12 @@ import 'server-only';
 
 import { readOps } from '@/lib/backend/read';
 import type { ReadResult } from '@/lib/backend/types';
-import type { ChatConversationRow, ChatMessageRow, ChatMember } from './types';
+import type {
+  ChatConversationRow,
+  ChatMessageRow,
+  ChatMember,
+  ChatTag
+} from './types';
 
 // Both reads check MEMBERSHIP inside the database handler, not by role, so a
 // Director calling CHAT_MESSAGES for a conversation they are not in is refused
@@ -81,11 +86,13 @@ export async function listMessages(
           evidenceId: String(a.evidence_id),
           name: str(a.name) ?? 'File'
         })),
-        tasks: list(raw.tasks).map((t) => ({
-          taskId: String(t.task_id),
-          title: str(t.title) ?? 'Task',
-          templateCode: str(t.template_code),
+        tags: list(raw.tags).map((t) => ({
+          kind: t.kind as ChatTag['kind'],
+          id: String(t.id),
+          title: str(t.title) ?? 'Untitled',
+          detail: str(t.detail),
           status: str(t.status),
+          jobId: str(t.job_id),
           jobRef: str(t.job_ref)
         }))
       }) satisfies ChatMessageRow

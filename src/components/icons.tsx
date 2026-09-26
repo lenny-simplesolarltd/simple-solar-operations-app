@@ -4,6 +4,8 @@ import {
   IconBan,
   IconFolders,
   IconMailForward,
+  IconMailPlus,
+  IconTemplate,
   IconMessageCircle,
   IconPhoneCall,
   IconToggleRight,
@@ -104,6 +106,8 @@ export const Icons = {
   cancellations: IconBan,
   files: IconFolders,
   communications: IconMailForward,
+  composeEmail: IconMailPlus,
+  emailTemplates: IconTemplate,
   chat: IconMessageCircle,
   release: IconToggleRight
 };

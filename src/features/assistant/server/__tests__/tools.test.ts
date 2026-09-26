@@ -61,6 +61,7 @@ describe('the production registry', () => {
         .sort()
     ).toEqual([
       'compare_quote_revisions',
+      'email_templates',
       'explain_programme_import',
       'find_customer',
       'find_job',
@@ -116,6 +117,8 @@ describe('the production registry', () => {
       'create_presale',
       'discard_programme_import',
       'edit_form_draft',
+      'email_send',
+      'email_template_set',
       'generate_document_pack',
       'message_colleague',
       'move_files_to_folder',
@@ -150,8 +153,10 @@ describe('the production registry', () => {
         'customers',
         'jobs',
         'calendar',
-        // Messaging a colleague: CHAT_START + CHAT_SEND, the same commands
-        // the chat screen calls. Internal only - it cannot leave the company.
+        // Messaging a colleague (CHAT_START + CHAT_SEND) and writing email
+        // from the office mailbox (ADHOC_EMAIL_SEND) - each the same command
+        // the matching screen calls. Chat cannot leave the company; email can,
+        // which is why FN-24 gates it and a person confirms every card.
         'communications',
         'presales',
         // Programme review, the installer's visit workflow, and applying a

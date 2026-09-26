@@ -1,5 +1,4 @@
 import { listConversations, listMessages } from '@/features/chat/queries';
-import { resolveJobRefs } from '@/features/chat/server/job-refs';
 import { getCurrentUser } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -37,8 +36,7 @@ export async function GET(
   return Response.json(
     {
       messages: messages.data,
-      conversations: conversations.ok ? conversations.data : [],
-      jobRefs: await resolveJobRefs(messages.data.flatMap((m) => m.jobIds))
+      conversations: conversations.ok ? conversations.data : []
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );

@@ -116,6 +116,9 @@ describe('visibleNavGroups', () => {
 });
 
 describe('Communications', () => {
+  // Writing an email and its saved wording live ON the Communications page,
+  // not beside it, so there is still exactly one nav entry.
+  const COMMUNICATIONS_URLS = ['/dashboard/communications'];
   const commUrls = (roles: RoleCode[]) =>
     urls(roles).filter((u) => u.startsWith('/dashboard/communications'));
 
@@ -127,7 +130,7 @@ describe('Communications', () => {
       'Office',
       'VariationApprover'
     ] as RoleCode[]) {
-      expect(commUrls([role])).toEqual(['/dashboard/communications']);
+      expect(commUrls([role])).toEqual(COMMUNICATIONS_URLS);
     }
   });
 
@@ -145,7 +148,7 @@ describe('Communications', () => {
   // Approving and recording are not release-gated: the office has to be able
   // to work through captured drafts while every function is still Disabled.
   it('does not depend on a release gate', () => {
-    expect(commUrls(['Office'])).toEqual(['/dashboard/communications']);
+    expect(commUrls(['Office'])).toEqual(COMMUNICATIONS_URLS);
   });
 });
 

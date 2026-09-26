@@ -12,7 +12,11 @@ import type { MentionSuggestion } from '../server/mention-types';
 import {
   IconArrowBackUp,
   IconBriefcase,
+  IconCalendarEvent,
   IconChecklist,
+  IconFileCheck,
+  IconForms,
+  IconLadder,
   IconPaperclip,
   IconSend,
   IconUser,
@@ -23,6 +27,19 @@ import { Avatar } from './avatar';
 import { useChat } from './chat-provider';
 import { shortTime, truncate } from './format';
 import { MessageBody } from './message-body';
+import { TagCards } from './tag-cards';
+import type { MentionKind } from '../server/mention-types';
+
+/** The same icon in the suggestion menu as on the card it produces. */
+const MENTION_ICONS: Record<MentionKind, typeof IconUser> = {
+  person: IconUser,
+  job: IconBriefcase,
+  task: IconChecklist,
+  form: IconForms,
+  form_submission: IconFileCheck,
+  work_package: IconCalendarEvent,
+  scaffold_booking: IconLadder
+};
 
 /**
  * The message list and composer. ONE implementation: the floating panel and the
@@ -33,7 +50,6 @@ export function MessageThread() {
   const {
     messages,
     pending,
-    jobRefs,
     viewerPersonId,
     viewerName,
     draft,
@@ -96,10 +112,10 @@ export function MessageThread() {
       setDraft(next.text);
       setMention(null);
       setSuggestions([]);
-      // A job goes in as its reference, which links itself. A colleague or a
-      // task needs its id to travel beside the message.
-      if (suggestion.kind === 'person') addTag('person', suggestion.id);
-      if (suggestion.kind === 'task') addTag('task', suggestion.id);
+      // A job goes in as its reference, which links itself: the server resolves
+      // it out of the body and makes the card from that. Everything else has no
+      // textual handle, so its id travels beside the message.
+      if (suggestion.kind !== 'job') addTag(suggestion.kind, suggestion.id);
       requestAnimationFrame(() => {
         composer.current?.focus();
         composer.current?.setSelectionRange(next.caret, next.caret);
@@ -161,36 +177,18 @@ export function MessageThread() {
                     ) : (
                       <MessageBody
                         body={m.body ?? ''}
-                        jobRefs={jobRefs}
+                        jobRefs={Object.fromEntries(
+                          m.tags
+                            .filter((t) => t.kind === 'job')
+                            .map((t) => [t.title.toUpperCase(), t.id])
+                        )}
                         mentioned={m.mentionedPersonIds.includes(
                           viewerPersonId
                         )}
                       />
                     )}
 
-                    {m.tasks.length > 0 && (
-                      <ul className='mt-1 flex flex-wrap gap-2'>
-                        {m.tasks.map((t) => (
-                          <li key={t.taskId}>
-                            <Link
-                              href={`/dashboard/tasks/${t.taskId}`}
-                              className='hover:bg-accent inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs'
-                            >
-                              <IconChecklist className='size-3' />
-                              <span className='font-medium'>
-                                {t.templateCode ?? 'Task'}
-                              </span>
-                              {t.title}
-                              {t.jobRef && (
-                                <span className='text-muted-foreground'>
-                                  · {t.jobRef}
-                                </span>
-                              )}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <TagCards tags={m.tags} />
 
                     {m.attachments.length > 0 && (
                       <ul className='mt-1 flex flex-wrap gap-2'>
@@ -324,13 +322,10 @@ export function MessageThread() {
                   i === highlight ? 'bg-accent' : ''
                 }`}
               >
-                {s.kind === 'person' ? (
-                  <IconUser className='size-3.5 shrink-0' />
-                ) : s.kind === 'job' ? (
-                  <IconBriefcase className='size-3.5 shrink-0' />
-                ) : (
-                  <IconChecklist className='size-3.5 shrink-0' />
-                )}
+                {(() => {
+                  const Icon = MENTION_ICONS[s.kind];
+                  return <Icon className='size-3.5 shrink-0' />;
+                })()}
                 <span className='min-w-0 flex-1'>
                   <span className='block truncate'>{s.label}</span>
                   {s.detail && (

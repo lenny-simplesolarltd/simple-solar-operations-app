@@ -514,7 +514,14 @@ export const reportScheduleSetTool: MutationTool<ScheduleSetInput> = {
       const resolved = await resolveRecipients(input.recipients);
       if (!resolved.ok)
         return fail('REPORT_RECIPIENT_UNRESOLVED', resolved.problem);
-      recipients = resolved.recipients;
+      // Name and address only. resolveRecipients also returns personId, which
+      // the command has no column for and its strict schema rejects outright -
+      // so passing the row through whole failed the whole confirmation with
+      // "Something about that request was not valid".
+      recipients = resolved.recipients.map(({ name, email }) => ({
+        name,
+        email
+      }));
     }
 
     const response = await setReportSubscriptionAction(

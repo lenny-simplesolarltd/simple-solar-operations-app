@@ -7,6 +7,7 @@ import { BULK_TASK_MUTATION_TOOLS, BULK_TASK_READ_TOOLS } from './bulk-tasks';
 import { CUSTOMER_SEARCH_READ_TOOLS } from './customer-search';
 import { CUSTOMER_MUTATION_TOOLS, CUSTOMER_READ_TOOLS } from './customers';
 import { DOCUMENT_MUTATION_TOOLS, DOCUMENT_READ_TOOLS } from './documents';
+import { EMAIL_MUTATION_TOOLS, EMAIL_READ_TOOLS } from './email';
 import { FILE_MANAGEMENT_TOOLS } from './file-management';
 import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
@@ -105,6 +106,12 @@ export function createToolRegistry(
   // QUEUES a new revision through DOCUMENT_GENERATE and never rewrites a
   // stored one. See tools/documents.ts.
   for (const tool of [...DOCUMENT_READ_TOOLS, ...DOCUMENT_MUTATION_TOOLS])
+    registry.register(tool as Parameters<ToolRegistry['register']>[0]);
+  // Writing email from the office mailbox, and the wording kept to write it
+  // from. The same ADHOC_EMAIL_SEND the Communications screen calls, so FN-24,
+  // the sending mailbox and the merge-field refusal all apply identically -
+  // there is no assistant-side path to a recipient. See tools/email.ts.
+  for (const tool of [...EMAIL_READ_TOOLS, ...EMAIL_MUTATION_TOOLS])
     registry.register(tool as Parameters<ToolRegistry['register']>[0]);
   // Attaching a signed contract to PRE02. It cannot upload and takes no
   // storage path: it links a file a PERSON already stored on the job, so the

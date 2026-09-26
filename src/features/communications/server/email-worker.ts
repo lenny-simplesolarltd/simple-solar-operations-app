@@ -35,7 +35,8 @@ import type { EmailToSend, EmailTransport } from './transport';
 export const EMAIL_ACTION_TYPES = [
   'EmailOrder',
   'EmailScaffold',
-  'EmailReport'
+  'EmailReport',
+  'EmailAdhoc'
 ] as const;
 
 type Json = Record<string, unknown>;

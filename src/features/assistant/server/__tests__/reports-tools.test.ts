@@ -559,6 +559,53 @@ describe('every mutation is a proposal, never an action', () => {
     expect(actions.sendReportAction).not.toHaveBeenCalled();
   });
 
+  it('hands the command only the fields its schema accepts', async () => {
+    // The regression this exists for: resolveRecipients also returns
+    // personId, the command's recipient schema is strict, and execute passed
+    // the row through whole. Every confirmation of a schedule with recipients
+    // died on the server's own zod parse - "Something about that request was
+    // not valid. Nothing was changed." - and the proposal card said so with
+    // no clue which field. prepare() is not enough to catch it: only
+    // execute() builds the payload, and the action is mocked here, so assert
+    // the SHAPE rather than trusting the call to have gone through.
+    queries.getReportSubscriptions.mockResolvedValue({
+      subscriptions: [subscription({ reportType: 'Weekly' })]
+    });
+    people.listReportPeople.mockResolvedValue([]);
+    actions.setReportSubscriptionAction.mockResolvedValue({
+      ok: true,
+      result: {}
+    });
+    actions.setReportSubscriptionAction.mockClear();
+
+    const out = await reportScheduleSetTool.execute(
+      {
+        source_kind: 'Form',
+        source_id: SOURCE,
+        report_type: 'Weekly',
+        enabled: true,
+        send_hour: 10,
+        week_starts_on: 1,
+        recipients: ['lenny@example.test', 'dan@example.test']
+      } as never,
+      {
+        actor: { user: {}, permissions: new Set(['programme.manage']) },
+        threadId: 't',
+        commandId: '11111111-2222-4333-8444-666666666666',
+        expectedVersion: null,
+        initiatedVia: 'assistant'
+      } as never
+    );
+
+    expect(out.ok).toBe(true);
+    const [payload] = actions.setReportSubscriptionAction.mock.calls[0] as [
+      { recipients: Record<string, unknown>[] }
+    ];
+    expect(payload.recipients).toHaveLength(2);
+    for (const r of payload.recipients)
+      expect(Object.keys(r).sort()).toEqual(['email', 'name']);
+  });
+
   it('every mutation tool carries a confirmation label', () => {
     for (const tool of [
       reportScheduleSetTool,

@@ -440,27 +440,24 @@ await refuses(
 );
 
 // ---------------------------------------------------------------------------
-// 6. Door 4: the allow-list. An empty one refuses the whole claim.
+// 6. Door 4 is gone: an empty allow-list no longer refuses the claim.
+//
+// It used to raise EMAIL_REFUSED and abandon the whole batch. The owner took
+// the rail off every type - a permitted person choosing a recipient is the
+// authorisation - so an empty list is now simply not consulted, and the next
+// door is what stops anything.
 // ---------------------------------------------------------------------------
 await setSetting('email.mode', 'LIVE');
-assert.equal(
-  await sqlErr(`select app.outbox_claim(array['EmailOrder'], 10) r`),
-  'EMAIL_REFUSED: LIVE mode requires outbound.allowed_recipients'
-);
-assert.equal(
-  (await outRow(o1)).status,
-  'Pending',
-  'a refused claim leaves the row untouched'
-);
-
-// ---------------------------------------------------------------------------
-// 7. Door 3: the sender. Allow-listed recipient, but no configured mailbox.
-// ---------------------------------------------------------------------------
-await setSetting('outbound.allowed_recipients', ['pat@acme.example']);
-// Unconfigure the mailbox the go-live migration set, so this door is still
-// exercised: a deployment that loses the sender must fail closed, not send
-// from whatever the provider defaults to.
+// Unconfigure the mailbox the go-live migration set, so the NEXT door is the
+// one that stops this: a deployment that loses the sender must fail closed,
+// not send from whatever the provider defaults to.
 await setSetting('email.from_mailbox', '');
+// ---------------------------------------------------------------------------
+// 7. Door 3: the sender. A recipient nobody listed, and no configured mailbox.
+//
+// That this claim returns AT ALL is the assertion for section 6: with an empty
+// allow-list it used to raise and abandon the batch before reaching here.
+// ---------------------------------------------------------------------------
 let claim = await sql(`select app.outbox_claim(array['EmailOrder'], 10) r`);
 assert.equal(claim.claimed.length, 0, 'nothing claimed for sending');
 assert.equal(claim.settled.length, 1, JSON.stringify(claim));
@@ -620,7 +617,12 @@ assert.equal((await outRow(o4)).status, 'NeedsReview');
 assert.equal((await commRow(c4)).status, 'Uncertain');
 
 // ---------------------------------------------------------------------------
-// 12. A recipient dropped from the allow-list stops the send
+// 12. A recipient nobody allow-listed is sent to anyway
+//
+// The inverse of what this section used to assert. The list came off every
+// type: the address on the communication is the authorisation, and a settings
+// row that exists nowhere in the UI is not allowed to turn a wrong address
+// into a silent non-delivery.
 // ---------------------------------------------------------------------------
 const c5 = await draft();
 ok(
@@ -633,13 +635,15 @@ const o5 = ok(
 ).outbox_id;
 await setSetting('outbound.allowed_recipients', ['someone.else@example.com']);
 claim = await sql(`select app.outbox_claim(array['EmailOrder'], 10) r`);
-assert.equal(claim.claimed.length, 0);
-assert.equal(
-  claim.settled.find((s) => s.outbox_id === o5).code,
-  'RECIPIENT_NOT_ALLOWLISTED',
-  JSON.stringify(claim.settled)
+assert.ok(
+  claim.claimed.some((c) => c.outbox_id === o5),
+  JSON.stringify(claim)
 );
-assert.equal((await outRow(o5)).status, 'NeedsReview');
+assert.equal(
+  claim.settled.find((s) => s.outbox_id === o5),
+  undefined,
+  'no RECIPIENT_NOT_ALLOWLISTED: the list is not consulted'
+);
 
 // ---------------------------------------------------------------------------
 // 13. Reads
@@ -719,13 +723,19 @@ assert.deepEqual(
 );
 
 // ---------------------------------------------------------------------------
-// The allow-list guards DERIVED recipients, not chosen ones
+// The allow-list no longer gates email at all
 //
-// A merchant address comes out of job data, so a bug there could write to a
-// stranger and the allow-list is what stops it. A report's recipients were
-// typed into a screen by somebody with the permission to choose them - asking
-// for the same names again in a settings row only means the report silently
-// does not arrive.
+// It began as the last door before go-live, then became per-action-type so a
+// report could reach the colleague somebody had just typed in. The owner then
+// took it off the remaining types: every address in this system is on a record
+// a person in the business entered and can see, and a second list that exists
+// nowhere in the UI turns a wrong address into a silent non-delivery
+// diagnosable only by reading app.email_claim_decision.
+//
+// What this test pins is the trade that was accepted: a DERIVED recipient - a
+// merchant address out of job data - now sends for real. The doors that remain
+// are the release mode, email.mode, the sender, the recipient list and the
+// payload hash.
 // ---------------------------------------------------------------------------
 const stranger = 'nobody-allow-listed@example.test';
 await db.query(
@@ -752,19 +762,59 @@ const decisionFor = async (type, actionType) => {
       [`TEST-${actionType}-${c}`, actionType, c]
     )
   ).id;
-  await db.query(`update public.communications set outbox_id=$1 where id=$2`, [o, c]);
-  return one(`select app.email_claim_decision(o) d from public.outbox o where o.id=$1`, [o]);
+  await db.query(`update public.communications set outbox_id=$1 where id=$2`, [
+    o,
+    c
+  ]);
+  return one(
+    `select app.email_claim_decision(o) d from public.outbox o where o.id=$1`,
+    [o]
+  );
 };
 
+for (const [type, actionType] of [
+  ['MerchantOrder', 'EmailOrder'],
+  ['ScheduledReport', 'EmailReport'],
+  ['AdhocEmail', 'EmailAdhoc']
+])
+  assert.equal(
+    (await decisionFor(type, actionType)).d.decision,
+    'send',
+    `${actionType} sends to a recipient nobody allow-listed`
+  );
+
+// And the rail still works if a type is ever put back under it, which is the
+// only reason the column survives.
+await db.query(
+  `update app.outbox_action_types set allowlist_required = true where action_type = 'EmailOrder'`
+);
 assert.equal(
   (await decisionFor('MerchantOrder', 'EmailOrder')).d.code,
   'RECIPIENT_NOT_ALLOWLISTED',
-  'a DERIVED recipient still has to be allow-listed'
+  'a type put back under the list is gated again'
 );
-assert.equal(
-  (await decisionFor('ScheduledReport', 'EmailReport')).d.decision,
-  'send',
-  'a CHOSEN recipient does not: picking them was the authorisation'
+await db.query(
+  `update app.outbox_action_types set allowlist_required = false where action_type = 'EmailOrder'`
+);
+
+// ---------------------------------------------------------------------------
+// An unresolved merge field never reaches a customer
+// ---------------------------------------------------------------------------
+const merged = (
+  await one(
+    `select app.email_merge_apply('Hi {{customer_name}}, on {{today}}',
+            jsonb_build_object('today', '26 Sep 2026')) r`
+  )
+).r;
+assert.deepEqual(
+  merged.missing,
+  ['customer_name'],
+  'an unfilled placeholder is reported, not blanked'
+);
+assert.match(
+  merged.text,
+  /\{\{customer_name\}\}/,
+  'and left in the text for the caller to refuse on'
 );
 
 console.log('t_communications ok');

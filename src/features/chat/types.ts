@@ -26,14 +26,68 @@ export interface ChatReaction {
   personId: string;
 }
 
-/** A task tagged in a message. Filtered to what the READER may see. */
-export interface ChatTaskTag {
-  taskId: string;
+/**
+ * The things a message points at. One shape for all six kinds, because a chip
+ * needs the same four facts whatever it names, and the database already
+ * filtered the list to what the READER may see.
+ */
+export type ChatTagKind =
+  | 'job'
+  | 'task'
+  | 'form'
+  | 'form_submission'
+  | 'work_package'
+  | 'scaffold_booking';
+
+export interface ChatTag {
+  kind: ChatTagKind;
+  id: string;
   title: string;
-  templateCode: string | null;
+  detail: string | null;
   status: string | null;
+  /** The job this belongs to, where it belongs to one. */
+  jobId: string | null;
   jobRef: string | null;
 }
+
+/**
+ * Where a chip goes when it is clicked.
+ *
+ * Deliberately decided here and not in the database: a route is a fact about
+ * this application's URLs, and a read that hard-coded them would have to be
+ * migrated every time a page moved. Scheduled work and scaffold have no page
+ * of their own, so they open the job at the tab that shows them.
+ */
+export function tagHref(tag: ChatTag): string {
+  switch (tag.kind) {
+    case 'job':
+      return `/dashboard/jobs/${tag.id}`;
+    case 'task':
+      return `/dashboard/tasks/${tag.id}`;
+    case 'form':
+      return `/dashboard/forms/${tag.id}`;
+    case 'form_submission':
+      return `/dashboard/forms/responses/${tag.id}`;
+    case 'work_package':
+      return tag.jobId
+        ? `/dashboard/jobs/${tag.jobId}?tab=work`
+        : '/dashboard/planner';
+    case 'scaffold_booking':
+      return tag.jobId
+        ? `/dashboard/jobs/${tag.jobId}?tab=operations`
+        : '/dashboard/planner';
+  }
+}
+
+/** What the chip calls this kind of thing, when the title alone is not enough. */
+export const TAG_KIND_LABEL: Record<ChatTagKind, string> = {
+  job: 'Job',
+  task: 'Task',
+  form: 'Form',
+  form_submission: 'Response',
+  work_package: 'Booked work',
+  scaffold_booking: 'Scaffold'
+};
 
 export interface ChatAttachment {
   evidenceId: string;
@@ -55,7 +109,8 @@ export interface ChatMessageRow {
   editedAt: string | null;
   reactions: ChatReaction[];
   attachments: ChatAttachment[];
-  tasks: ChatTaskTag[];
+  /** Jobs, tasks, forms, responses, scheduled work and scaffold this message points at. */
+  tags: ChatTag[];
 }
 
 /**

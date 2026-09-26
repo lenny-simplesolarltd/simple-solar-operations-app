@@ -24,6 +24,7 @@ import { newlyUnread, notificationBody, playMessageChime } from '../notify';
 import { totalUnread, type ChatSurface } from '../unread';
 import { conversationName } from '../types';
 import type { ChatConversationRow, ChatMessageRow } from '../types';
+import type { MentionKind } from '../server/mention-types';
 import { newCommandId } from './avatar';
 
 // THE single owner of chat state.
@@ -48,6 +49,14 @@ import { newCommandId } from './avatar';
 const SURFACE_KEY = 'ss.chat.surface';
 const LAUNCHER_KEY = 'ss.chat.launcher';
 
+/**
+ * The tags waiting on an unsent message: colleagues, who become mentions, and
+ * everything else, which becomes a card.
+ */
+type Tagged = { people: string[]; things: { kind: string; id: string }[] };
+
+const NOTHING_TAGGED: Tagged = { people: [], things: [] };
+
 type Pending = {
   localId: string;
   body: string;
@@ -61,7 +70,6 @@ interface ChatState {
   viewerName: string;
   conversations: ChatConversationRow[];
   messages: ChatMessageRow[];
-  jobRefs: Record<string, string>;
   pending: Pending[];
   selected: string | null;
   surface: ChatSurface;
@@ -74,8 +82,8 @@ interface ChatState {
   draft: string;
   replyTo: ChatMessageRow | null;
   setDraft: (value: string) => void;
-  /** Record that "@" tagged a colleague or a task in the current draft. */
-  addTag: (kind: 'person' | 'task', id: string) => void;
+  /** Record that "@" tagged a colleague, or a piece of work, in the current draft. */
+  addTag: (kind: MentionKind, id: string) => void;
   setReplyTo: (message: ChatMessageRow | null) => void;
   setSurface: (surface: ChatSurface) => void;
   /** The × control: put the floating launcher away entirely. */
@@ -117,7 +125,6 @@ export function ChatProvider({
 }) {
   const [conversations, setConversations] = useState<ChatConversationRow[]>([]);
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
-  const [jobRefs, setJobRefs] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Pending[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [surface, setSurfaceState] = useState<ChatSurface>('minimised');
@@ -130,9 +137,9 @@ export function ChatProvider({
   >({});
   // What "@" put in the message, per conversation. The body carries the words;
   // these carry the meaning, and the server keeps only what the author may see.
-  const [tags, setTags] = useState<
-    Record<string, { people: string[]; tasks: string[] }>
-  >({});
+  // A job is absent on purpose: its reference is in the body, and the server
+  // resolves it from there.
+  const [tags, setTags] = useState<Record<string, Tagged>>({});
 
   // The subscription is created once. This is how its callback reads the
   // current selection without being torn down every time it changes.
@@ -156,11 +163,9 @@ export function ChatProvider({
     const data = (await res.json()) as {
       messages: ChatMessageRow[];
       conversations: ChatConversationRow[];
-      jobRefs: Record<string, string>;
     };
     setMessages(data.messages);
     setConversations(data.conversations);
-    setJobRefs(data.jobRefs);
     setLoadingThread(false);
   }, []);
 
@@ -370,16 +375,26 @@ export function ChatProvider({
     setDrafts((prev) => ({ ...prev, [selectedRef.current as string]: value }));
   }, []);
 
-  const addTag = useCallback((kind: 'person' | 'task', id: string) => {
+  const addTag = useCallback((kind: MentionKind, id: string) => {
     const conversationId = selectedRef.current;
     if (!conversationId) return;
     setTags((prev) => {
-      const current = prev[conversationId] ?? { people: [], tasks: [] };
-      const key = kind === 'person' ? 'people' : 'tasks';
-      if (current[key].includes(id)) return prev;
+      const current = prev[conversationId] ?? NOTHING_TAGGED;
+      if (kind === 'person') {
+        if (current.people.includes(id)) return prev;
+        return {
+          ...prev,
+          [conversationId]: { ...current, people: [...current.people, id] }
+        };
+      }
+      if (current.things.some((t) => t.kind === kind && t.id === id))
+        return prev;
       return {
         ...prev,
-        [conversationId]: { ...current, [key]: [...current[key], id] }
+        [conversationId]: {
+          ...current,
+          things: [...current.things, { kind, id }]
+        }
       };
     });
   }, []);
@@ -399,16 +414,13 @@ export function ChatProvider({
     if (!text) return;
     const localId = newCommandId();
     const replyToId = replyTargets[conversationId]?.id ?? null;
-    const tagged = tags[conversationId] ?? { people: [], tasks: [] };
+    const tagged = tags[conversationId] ?? NOTHING_TAGGED;
 
     // Optimistic: on screen before the round trip, and the box clears at once.
     setPending((prev) => [...prev, { localId, body: text, replyToId }]);
     setDrafts((prev) => ({ ...prev, [conversationId]: '' }));
     setReplyTargets((prev) => ({ ...prev, [conversationId]: null }));
-    setTags((prev) => ({
-      ...prev,
-      [conversationId]: { people: [], tasks: [] }
-    }));
+    setTags((prev) => ({ ...prev, [conversationId]: NOTHING_TAGGED }));
 
     const result = await runCommand({
       command_id: localId,
@@ -418,7 +430,7 @@ export function ChatProvider({
         body: text,
         ...(replyToId ? { reply_to_id: replyToId } : {}),
         ...(tagged.people.length ? { mention_person_ids: tagged.people } : {}),
-        ...(tagged.tasks.length ? { mention_task_ids: tagged.tasks } : {})
+        ...(tagged.things.length ? { tags: tagged.things } : {})
       }
     });
 
@@ -529,7 +541,6 @@ export function ChatProvider({
       viewerName,
       conversations,
       messages,
-      jobRefs,
       pending,
       selected,
       surface,
@@ -559,7 +570,6 @@ export function ChatProvider({
       viewerName,
       conversations,
       messages,
-      jobRefs,
       pending,
       selected,
       surface,

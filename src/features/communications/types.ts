@@ -111,3 +111,62 @@ export interface CommunicationsList {
   communications: CommunicationRow[];
   retrievedAt: string | null;
 }
+
+// -- Ad-hoc email and its saved wording ---------------------------------------
+
+/** Saved wording for an ad-hoc email. May carry {{merge_field}} placeholders. */
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  subject: string;
+  body: string;
+  version: number;
+  updatedAt: string;
+}
+
+/**
+ * A placeholder a template may use. `needs` says what the sender must name for
+ * it to resolve: a job, a customer (a job supplies its own), the sender, or
+ * nothing at all.
+ */
+export interface MergeField {
+  key: string;
+  label: string;
+  description: string;
+  needs: 'job' | 'customer' | 'always' | 'sender';
+}
+
+export interface EmailTemplates {
+  templates: EmailTemplate[];
+  mergeFields: MergeField[];
+  canManage: boolean;
+  /** The mailbox everything is sent FROM. Null when none is configured. */
+  sendingMailbox: string | null;
+  /** Where replies land, when it differs from the sending mailbox. */
+  replyTo: string | null;
+  /** FN-24. False means the screen may compose but nothing will leave. */
+  canSend: boolean;
+}
+
+export interface EmailRecipient {
+  name?: string | null;
+  email: string;
+}
+
+/** One email received at the office mailbox and forwarded in. */
+export interface InboundEmail {
+  id: string;
+  fromAddress: string;
+  fromName: string | null;
+  subject: string | null;
+  /** The first part of the plain-text body, for the list. */
+  preview: string;
+  receivedAt: string;
+  /** The message this replies to, when one could be established. */
+  communicationId: string | null;
+  /** How that link was made: an exact tag, a likely sender match, or neither. */
+  matchedBy: 'Tag' | 'Sender' | 'None';
+  handledAt: string | null;
+  attachmentCount: number;
+}

@@ -475,7 +475,12 @@ await refuses(
 );
 
 // ---------------------------------------------------------------------------
-// 10. Tagging a task: the client says what it MEANT, the server decides
+// 10. Tagging the work: the client says what it MEANT, the server decides
+//
+// Six kinds travel the same road now - job, task, form, form_submission,
+// work_package, scaffold_booking - so these assertions are mostly about ONE
+// rule applied six times: a tag the author cannot read is dropped at send, and
+// the same rule runs again for the reader at read.
 // ---------------------------------------------------------------------------
 // A task Tanya owns, and one she does not.
 const mine = (
@@ -493,6 +498,10 @@ const theirs = (
   )
 ).id;
 
+const tag = (kind, id) => ({ kind, id });
+const kinds = (tags) => tags.map((t) => t.kind).sort();
+const ids = (tags) => tags.map((t) => t.id).sort();
+
 // Tanya is Office, which holds task.read.all, so both are hers to tag.
 r = ok(
   await cmd(
@@ -500,16 +509,31 @@ r = ok(
     C('CHAT_SEND', {
       conversation_id: direct,
       body: 'look at these',
-      mention_task_ids: [mine, theirs]
+      tags: [tag('task', mine), tag('task', theirs)]
     })
   ),
   'tag tasks'
 );
 assert.deepEqual(
-  [...r.task_ids].sort(),
+  ids(r.tags),
   [mine, theirs].sort(),
   'an office actor may tag any task they can read'
 );
+
+// The older payload still works, so a client that has not caught up keeps
+// sending tasks the way it always did.
+r = ok(
+  await cmd(
+    'tanya',
+    C('CHAT_SEND', {
+      conversation_id: direct,
+      body: 'the old way',
+      mention_task_ids: [mine]
+    })
+  ),
+  'legacy task payload'
+);
+assert.deepEqual(r.tags, [{ kind: 'task', id: mine }]);
 
 // An installer may read only their own. Tagging somebody else's must drop it
 // rather than refuse: tagging can never become a way to discover a task.
@@ -524,13 +548,13 @@ r = ok(
     C('CHAT_SEND', {
       conversation_id: direct,
       body: 'and these',
-      mention_task_ids: [mine, theirs]
+      tags: [tag('task', mine), tag('task', theirs)]
     })
   ),
   'installer tags'
 );
 assert.deepEqual(
-  r.task_ids,
+  ids(r.tags),
   [theirs],
   'only the task the author may read survives'
 );
@@ -542,23 +566,190 @@ r = ok(
     C('CHAT_SEND', {
       conversation_id: direct,
       body: 'junk',
-      mention_task_ids: ['not-a-uuid', id()]
+      tags: [
+        tag('task', 'not-a-uuid'),
+        tag('task', id()),
+        tag('nonsense', mine),
+        'not even an object'
+      ]
     })
   ),
-  'junk task ids'
+  'junk tags'
 );
-assert.deepEqual(r.task_ids, [], 'unknown and malformed ids are dropped');
+assert.deepEqual(
+  r.tags,
+  [],
+  'malformed ids, unknown ids and unknown kinds are all dropped'
+);
 
-// The READER's visibility applies again on the way out.
+// ---------------------------------------------------------------------------
+// 10b. A typed job reference tags itself
+// ---------------------------------------------------------------------------
+r = ok(
+  await cmd(
+    'tanya',
+    C('CHAT_SEND', {
+      conversation_id: direct,
+      body: `while you are there, ${job.job_ref}`
+    })
+  ),
+  'job ref'
+);
+assert.deepEqual(
+  r.tags,
+  [{ kind: 'job', id: job.id }],
+  'the reference in the sentence also becomes a card'
+);
+const jobMsg = r.message_id;
+
+// Editing the reference out takes the card with it: the message must not show
+// a job it no longer mentions.
+ok(
+  await cmd(
+    'tanya',
+    C('CHAT_EDIT', { message_id: jobMsg, body: 'never mind' })
+  ),
+  'edit the reference away'
+);
+assert.equal(
+  (
+    await one(
+      `select count(*)::int n from public.chat_message_tags where message_id=$1`,
+      [jobMsg]
+    )
+  ).n,
+  0,
+  'the derived job tag went with the wording'
+);
+
+// ---------------------------------------------------------------------------
+// 10c. Forms, responses, scheduled work and scaffold
+// ---------------------------------------------------------------------------
+const form = (
+  await one(
+    `insert into public.forms (kind, title, status) values ('form','Pre-install survey','published') returning id`
+  )
+).id;
+const revision = (
+  await one(
+    `insert into public.form_revisions (form_id, revision_number, title, definition)
+     values ($1, 1, 'Pre-install survey', '{"fields": []}'::jsonb) returning id`,
+    [form]
+  )
+).id;
+const submission = id();
+await db.query(
+  `insert into public.form_submissions (id, form_id, revision_id, answers, source, submitted_by)
+   values ($1,$2,$3,'{}'::jsonb,'Staff',$4)`,
+  [submission, form, revision, people.tanya]
+);
+// Work packages appear at booking intake, which this fixture stops short of,
+// so the scheduled visit is made here directly.
+const wp = await one(
+  `insert into public.work_packages (job_id, trade, required, planned_start, planned_end,
+                                     status, commissioning_required, sequence, revision)
+   values ($1,'Roof',true,current_date + 7,current_date + 7,'Scheduled',false,1,1)
+   returning id, trade`,
+  [job.id]
+);
+const scaffolder = (
+  await one(
+    `insert into public.companies (name, type) values ('Acme Scaffolding','Scaffolder') returning id`
+  )
+).id;
+const scaffold = (
+  await one(
+    `insert into public.scaffold_bookings (job_id, company_id, erect_planned_at, status, revision)
+     values ($1,$2,current_date + 7,'Planned',1) returning id`,
+    [job.id, scaffolder]
+  )
+).id;
+
+r = ok(
+  await cmd(
+    'tanya',
+    C('CHAT_SEND', {
+      conversation_id: direct,
+      body: 'everything about this one',
+      tags: [
+        tag('form', form),
+        tag('form_submission', submission),
+        tag('work_package', wp.id),
+        tag('scaffold_booking', scaffold)
+      ]
+    })
+  ),
+  'tag the rest'
+);
+assert.deepEqual(
+  kinds(r.tags),
+  ['form', 'form_submission', 'scaffold_booking', 'work_package'],
+  'Office holds forms.read, forms.responses.read and job.read.all'
+);
+const everything = r.message_id;
+
+// Store holds none of those permissions and is on no task for this job, so
+// every one of the same four is dropped - without the send failing.
+await db.query(
+  `insert into public.chat_members (conversation_id, person_id) values ($1,$2)
+  on conflict do nothing`,
+  [direct, people.store]
+);
+r = ok(
+  await cmd(
+    'store',
+    C('CHAT_SEND', {
+      conversation_id: direct,
+      body: 'me too',
+      tags: [
+        tag('job', job.id),
+        tag('form', form),
+        tag('form_submission', submission),
+        tag('work_package', wp.id),
+        tag('scaffold_booking', scaffold)
+      ]
+    })
+  ),
+  'store tags'
+);
+assert.deepEqual(r.tags, [], 'nothing this actor cannot read survives');
+
+// Forms being switched off takes the form cards with it, for everybody.
+await db.query(
+  `update public.release_modes set mode = 'Disabled' where function_id = 'FN-21'`
+);
+r = ok(
+  await cmd(
+    'tanya',
+    C('CHAT_SEND', {
+      conversation_id: direct,
+      body: 'forms off',
+      tags: [tag('form', form), tag('form_submission', submission)]
+    })
+  ),
+  'forms off'
+);
+assert.deepEqual(r.tags, [], 'a disabled module cannot be tagged');
+await db.query(
+  `update public.release_modes set mode = 'Manual' where function_id = 'FN-21'`
+);
+
+// ---------------------------------------------------------------------------
+// 10d. The READER's visibility applies again on the way out
+// ---------------------------------------------------------------------------
 read = await opread('tanya', {
   read_type: 'CHAT_MESSAGES',
   conversation_id: direct
 });
 const tagged = read.data.messages.find((m) => m.body === 'look at these');
-assert.equal(tagged.tasks.length, 2, 'Tanya sees both tagged tasks');
+assert.equal(tagged.tags.length, 2, 'Tanya sees both tagged tasks');
 assert.ok(
-  tagged.tasks.every((t) => t.job_ref === job.job_ref),
+  tagged.tags.every((t) => t.job_ref === job.job_ref),
   'each carries its job reference'
+);
+assert.ok(
+  tagged.tags.every((t) => t.title && t.status),
+  'and enough to draw a card without a second read'
 );
 
 read = await opread('inst_a', {
@@ -569,9 +760,79 @@ const seenByInstaller = read.data.messages.find(
   (m) => m.body === 'look at these'
 );
 assert.deepEqual(
-  seenByInstaller.tasks.map((t) => t.task_id),
+  seenByInstaller.tags.map((t) => t.id),
   [theirs],
   "the installer sees only the task they may read, in somebody else's message"
+);
+
+// The store's reader view of Tanya's four-card message: nothing at all, from a
+// message that shows four cards to her.
+read = await opread('store', {
+  read_type: 'CHAT_MESSAGES',
+  conversation_id: direct
+});
+const seenByStore = read.data.messages.find((m) => m.message_id === everything);
+assert.deepEqual(
+  seenByStore.tags,
+  [],
+  'a tag placed by wider access does not leak through the message'
+);
+
+// RLS says the same thing as the read does, for a direct table select.
+assert.equal(
+  await asUser(
+    'store',
+    async () =>
+      (
+        await all(
+          `select target_id from public.chat_message_tags where message_id=$1`,
+          [everything]
+        )
+      ).length
+  ),
+  0,
+  'and a direct select agrees with the read'
+);
+assert.equal(
+  await asUser(
+    'tanya',
+    async () =>
+      (
+        await all(
+          `select target_id from public.chat_message_tags where message_id=$1`,
+          [everything]
+        )
+      ).length
+  ),
+  4
+);
+
+// A tag whose target has gone renders as nothing rather than as a broken chip.
+await db.query(`delete from public.scaffold_bookings where id=$1`, [scaffold]);
+read = await opread('tanya', {
+  read_type: 'CHAT_MESSAGES',
+  conversation_id: direct
+});
+assert.deepEqual(
+  kinds(read.data.messages.find((m) => m.message_id === everything).tags),
+  ['form', 'form_submission', 'work_package'],
+  'the booking that no longer exists simply stops appearing'
+);
+
+// Deleting a message takes its cards with it.
+ok(
+  await cmd('tanya', C('CHAT_DELETE', { message_id: everything })),
+  'delete a tagged message'
+);
+assert.equal(
+  (
+    await one(
+      `select count(*)::int n from public.chat_message_tags where message_id=$1`,
+      [everything]
+    )
+  ).n,
+  0,
+  'a blanked message shows nothing it was about'
 );
 
 console.log('t_chat: ok');
