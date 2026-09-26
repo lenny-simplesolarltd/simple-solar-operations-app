@@ -1,3 +1,4 @@
+import { renderStoredReport } from '@/features/programmes/report-render';
 import type { EmailToSend, EmailTransport } from './transport';
 
 // The email worker: claim, send, record. It is the ONLY thing in the system
@@ -209,12 +210,22 @@ function toEmail(work: Json): EmailToSend | null {
   // Absent on rows queued before reply-to existed; the transport then sends
   // none and a reply goes to the from address, exactly as it used to.
   const replyTo = str(work.reply_to);
+  const body = str(work.body) ?? '';
+
+  // A report is stored as DATA and rendered here. Without this the recipient
+  // gets the JSON itself - which is what a client's weekly report looked like
+  // until this existed. An unrecognised payload falls through to the stored
+  // body rather than being guessed at.
+  const rendered =
+    str(work.type) === 'ScheduledReport' ? renderStoredReport(body) : null;
+
   return {
     from,
     ...(replyTo ? { replyTo } : {}),
     to,
     subject,
-    body: str(work.body) ?? '',
+    body: rendered?.text ?? body,
+    ...(rendered?.html ? { html: rendered.html } : {}),
     dedupeTag: str(work.dedupe_tag) ?? ''
   };
 }

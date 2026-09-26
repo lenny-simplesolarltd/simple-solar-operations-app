@@ -32,6 +32,8 @@ export interface EmailToSend {
   to: string[];
   subject: string;
   body: string;
+  /** Formatted alternative. Clients that cannot show it fall back to `body`. */
+  html?: string;
   /** '[SSO-COMM:<id>]' - findable in the sending mailbox, so a human can reconcile. */
   dedupeTag: string;
 }
