@@ -32,7 +32,33 @@ const clearReports = async () => {
   await service.from('report_runs').delete().neq('id', randomUUID());
   await service.from('report_subscriptions').delete().neq('id', randomUUID());
   await service.from('communications').delete().eq('type', 'ScheduledReport');
+  await service.from('outbox').delete().eq('action_type', 'EmailReport');
 };
+
+/** FN-23 gates emailing a report. Disabled is how it ships. */
+const setReportGate = async (mode) => {
+  const { error } = await service
+    .from('release_modes')
+    .update({
+      mode,
+      authorised_job_scope: mode === 'Disabled' ? 'None' : 'All'
+    })
+    .eq('function_id', 'FN-23');
+  assert.ifError(error);
+};
+
+const lastRun = async () =>
+  (
+    await service
+      .from('report_runs')
+      .select('status, detail')
+      .order('created_at', { ascending: false })
+      .limit(1)
+  ).data?.[0];
+
+const emailRows = async () =>
+  (await service.from('outbox').select('id, status').eq('action_type', 'EmailReport'))
+    .data ?? [];
 
 before(async () => {
   await ensureLogin(email('lenny'));
@@ -58,6 +84,88 @@ before(async () => {
 });
 
 after(clearReports);
+
+describe('a built report reaches the outbox, and only through its own gate', () => {
+  const subscribe = () =>
+    command(lenny, 'REPORT_SUBSCRIPTION_SET', {
+      source_kind: 'Programme',
+      source_id: programmeId,
+      report_type: 'Daily',
+      enabled: true,
+      send_hour: 0,
+      recipients: [{ name: 'Me', email: 'gate@test.local' }]
+    });
+
+  test('with FN-23 shut, the run says which gate stopped it and queues nothing', async () => {
+    await clearReports();
+    await setReportGate('Disabled');
+    ok(await subscribe());
+
+    // Not a failed command: the sweep runs unattended and must not abandon a
+    // batch because one gate is shut, and a person pressing Send now is owed
+    // the reason rather than an error.
+    ok(
+      await command(lenny, 'REPORT_SEND', {
+        source_kind: 'Programme',
+        source_id: programmeId,
+        report_type: 'Daily'
+      })
+    );
+    const run = await lastRun();
+    assert.equal(run.status, 'Refused');
+    assert.match(run.detail, /MODE_DENIED/);
+    assert.deepEqual(await emailRows(), [], 'nothing queued');
+  });
+
+  test('with FN-23 open it queues, and Programmes is not disturbed', async () => {
+    await clearReports();
+    await setReportGate('Automated');
+    ok(await subscribe());
+    ok(
+      await command(lenny, 'REPORT_SEND', {
+        source_kind: 'Programme',
+        source_id: programmeId,
+        report_type: 'Daily'
+      })
+    );
+
+    const run = await lastRun();
+    assert.equal(run.status, 'Queued');
+    const rows = await emailRows();
+    assert.equal(rows.length, 1, 'one outbox row');
+    assert.equal(rows[0].status, 'Pending', 'queued, not sent');
+
+    const comm = (
+      await service
+        .from('communications')
+        .select('status, outbox_id, sent_at')
+        .eq('type', 'ScheduledReport')
+        .limit(1)
+    ).data[0];
+    assert.equal(comm.status, 'Queued');
+    assert.ok(comm.outbox_id, 'linked to the outbox row');
+    assert.equal(comm.sent_at, null, 'queued is not sent');
+
+    // The reason FN-23 exists. app.mode_available is an exact match, so
+    // gating EmailReport on FN-22 meant reports could only be switched on by
+    // switching the whole Programmes module off.
+    const fn22 = (
+      await service
+        .from('release_modes')
+        .select('mode')
+        .eq('function_id', 'FN-22')
+        .single()
+    ).data.mode;
+    assert.equal(fn22, 'Manual', 'Programmes stays on its own mode');
+    assert.equal(
+      (await service.rpc('programmes_enabled')).data,
+      true,
+      'and stays switched on'
+    );
+
+    await setReportGate('Disabled');
+  });
+});
 
 describe('a schedule reports each period once', () => {
   test('a repeated sweep in the same period builds nothing more', async () => {

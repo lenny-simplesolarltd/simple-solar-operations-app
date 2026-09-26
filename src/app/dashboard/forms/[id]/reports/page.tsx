@@ -186,9 +186,10 @@ export default async function FormReportsPage({
             subscriptions={schedules.subscriptions}
             runs={schedules.runs}
             canManage={permissions.has('forms.send')}
-            previewHref={(type) =>
-              type === 'Weekly' ? '?period=weekly' : '?period=daily'
-            }
+            previewHrefs={{
+              Daily: '?period=daily',
+              Weekly: '?period=weekly'
+            }}
           />
         )}
       </div>

@@ -79,7 +79,7 @@ export function ReportSchedules({
   subscriptions,
   runs,
   canManage,
-  previewHref
+  previewHrefs
 }: {
   sourceKind: ReportSourceKind;
   sourceId: string;
@@ -87,8 +87,16 @@ export function ReportSchedules({
   runs: ReportRun[];
   /** programme.manage for a programme, forms.send for a form. */
   canManage: boolean;
-  /** Where "Preview" goes. Omitted when the source has no preview screen. */
-  previewHref?: (reportType: 'Daily' | 'Weekly') => string;
+  /**
+   * Where "Preview" goes, per report type. Omitted when the source has no
+   * preview screen.
+   *
+   * A plain map rather than a function of the type: this is a client
+   * component, and both callers are server components, so a function prop
+   * cannot cross that boundary - React refuses to serialise it and the page
+   * throws before it renders.
+   */
+  previewHrefs?: { Daily: string; Weekly: string };
 }) {
   const [editing, setEditing] = useState<'Daily' | 'Weekly' | null>(null);
   const [deleting, setDeleting] = useState<'Daily' | 'Weekly' | null>(null);
@@ -188,9 +196,9 @@ export function ReportSchedules({
                     )}
                     {sub ? 'Change' : 'Set up'}
                   </Button>
-                  {previewHref && (
+                  {previewHrefs && (
                     <Button size='sm' variant='outline' asChild>
-                      <a href={previewHref(type)}>Preview</a>
+                      <a href={previewHrefs[type]}>Preview</a>
                     </Button>
                   )}
                   {sub && (

@@ -106,9 +106,10 @@ export default async function ProgrammeReportPage({
               subscriptions={schedules.subscriptions}
               runs={schedules.runs}
               canManage={session.access.manage}
-              previewHref={(type) =>
-                type === 'Weekly' ? `?period=weekly` : `?period=daily`
-              }
+              previewHrefs={{
+                Daily: '?period=daily',
+                Weekly: '?period=weekly'
+              }}
             />
           )}
         </div>
