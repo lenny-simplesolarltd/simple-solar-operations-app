@@ -26,6 +26,11 @@ const ok = (r) => {
   assert.ifError(r.error);
   return r.result;
 };
+/** For a plain supabase-js write rather than a command. */
+const ok2 = (r) => {
+  assert.ifError(r.error);
+  return r.data;
+};
 const refusal = (r) => r.error?.message?.match(/[A-Z][A-Z0-9_]{3,}/)?.[0];
 
 const clearReports = async () => {
@@ -57,8 +62,12 @@ const lastRun = async () =>
   ).data?.[0];
 
 const emailRows = async () =>
-  (await service.from('outbox').select('id, status').eq('action_type', 'EmailReport'))
-    .data ?? [];
+  (
+    await service
+      .from('outbox')
+      .select('id, status')
+      .eq('action_type', 'EmailReport')
+  ).data ?? [];
 
 before(async () => {
   await ensureLogin(email('lenny'));
@@ -324,6 +333,100 @@ describe('sending by hand is not sending twice', () => {
     await setReportGate('Automated');
     const sent = ok(await send());
     assert.equal(sent.status, 'Queued');
+    await setReportGate('Disabled');
+  });
+
+  test('a delivered period can be sent again, but only on purpose', async () => {
+    // The refusal used to be the end of the road: a report that HAD gone could
+    // never be sent again, however good the reason - a recipient added after
+    // the fact, a mailbox that bounced it. Forcing is the way through, and it
+    // is never automatic.
+    await clearReports();
+    await setReportGate('Automated');
+    ok(await subscribe());
+
+    const first = ok(await send());
+    assert.equal(first.status, 'Queued');
+
+    // Pretend the worker got it away: only a message that reached the
+    // transport is protected by idempotency.
+    ok2(
+      await service
+        .from('communications')
+        .update({ status: 'Sent' })
+        .eq('id', first.communication_id)
+    );
+
+    const refused = ok(await send());
+    assert.equal(refused.already_reported, true, 'still refused by default');
+    assert.equal(refused.delivered, true, 'and it says the email went');
+    assert.equal(refused.can_force, true, 'so the caller can offer a re-send');
+
+    const forced = ok(
+      await command(lenny, 'REPORT_SEND', {
+        source_kind: 'Programme',
+        source_id: programmeId,
+        report_type: 'Daily',
+        to: '2026-09-20',
+        force: true
+      })
+    );
+    assert.notEqual(forced.already_reported, true, 'forcing gets through');
+    assert.equal(forced.status, 'Queued');
+    assert.equal(forced.resent, true, 'and knows it is a second copy');
+    assert.equal(forced.run_id, first.run_id, 'one period, one history entry');
+
+    // The first email is untouched: what went out on the day happened.
+    const comms = await service
+      .from('communications')
+      .select('id, subject, status')
+      .eq('type', 'ScheduledReport')
+      .order('created_at', { ascending: true });
+    assert.equal(comms.data.length, 2, 'a second email, not an edited first');
+    assert.equal(comms.data[0].status, 'Sent');
+    assert.ok(
+      !comms.data[0].subject.includes('re-sent'),
+      'the original subject is left alone'
+    );
+    assert.match(
+      comms.data[1].subject,
+      /\(re-sent\)$/,
+      'the copy says so on the envelope'
+    );
+    await setReportGate('Disabled');
+  });
+
+  test('the sweep cannot force, whatever a period has done', async () => {
+    // force exists for a person who was shown the refusal. No clock may set
+    // it, or a client gets Monday's figures twice every hour.
+    await clearReports();
+    await setReportGate('Automated');
+    ok(await subscribe());
+    const first = ok(await send());
+    ok2(
+      await service
+        .from('communications')
+        .update({ status: 'Sent' })
+        .eq('id', first.communication_id)
+    );
+
+    const before = await service
+      .from('report_runs')
+      .select('id', { count: 'exact', head: true });
+    const sweep = await service.rpc('run_reports_at', {
+      p_at: '2026-09-21T09:00:00Z'
+    });
+    assert.ifError(sweep.error);
+    const after = await service
+      .from('report_runs')
+      .select('id', { count: 'exact', head: true });
+    assert.equal(after.count, before.count, 'the sweep added nothing');
+
+    const comms = await service
+      .from('communications')
+      .select('id', { count: 'exact', head: true })
+      .eq('type', 'ScheduledReport');
+    assert.equal(comms.count, 1, 'and prepared no second email');
     await setReportGate('Disabled');
   });
 

@@ -715,11 +715,18 @@ export async function setReportSubscriptionAction(
 }
 
 /**
- * Builds and queues one report now, for a period that has closed.
+ * Builds and queues one report now, for a period that has closed, and drives
+ * the email worker for it before returning.
  *
  * The same builder the scheduler uses, so a manual send and a scheduled one
- * cannot drift - and the same run table, so sending manually for a period that
- * has already been reported does nothing rather than sending it twice.
+ * cannot drift - and the same run table, so the sweep can never report a
+ * period twice. `force` is the one way past that, and only a person can set
+ * it: they are shown "already sent" first and ask for it anyway.
+ *
+ * The worker is driven here rather than left to the sweep. Without it "Send
+ * now" meant "some time before tomorrow", and because the caller reads
+ * `delivery` to decide what to say, a send that worked reported itself as
+ * merely queued.
  */
 export async function sendReportAction(
   input: {
@@ -728,6 +735,7 @@ export async function sendReportAction(
     reportType: 'Daily' | 'Weekly';
     from?: string;
     to?: string;
+    force?: boolean;
   },
   commandId: string
 ): Promise<CommandResponse> {
@@ -738,7 +746,8 @@ export async function sendReportAction(
       sourceId: uuid,
       reportType: z.enum(['Daily', 'Weekly']),
       from: date.optional(),
-      to: date.optional()
+      to: date.optional(),
+      force: z.boolean().optional()
     })
     .safeParse(input);
   if (!parsed.success || !uuid.safeParse(commandId).success) return invalid;
@@ -752,11 +761,27 @@ export async function sendReportAction(
       source_id: d.sourceId,
       report_type: d.reportType,
       ...(d.from ? { from: d.from } : {}),
-      ...(d.to ? { to: d.to } : {})
+      ...(d.to ? { to: d.to } : {}),
+      ...(d.force ? { force: true } : {})
     }
   });
-  if (response.ok && d.sourceKind === 'Programme') refresh(d.sourceId);
-  return response;
+  if (!response.ok) return response;
+
+  // Nothing was built, so there is nothing waiting for the worker: driving it
+  // would claim whatever else happened to be in the outbox and report that
+  // back as if it were this report.
+  const built = response.result as { already_reported?: boolean } | null;
+  if (built?.already_reported) {
+    if (d.sourceKind === 'Programme') refresh(d.sourceId);
+    return response;
+  }
+
+  const { sendQueuedNow } = await import(
+    '@/features/communications/server/send-now'
+  );
+  const delivery = await sendQueuedNow('EmailReport');
+  if (d.sourceKind === 'Programme') refresh(d.sourceId);
+  return { ...response, result: { ...response.result, delivery } };
 }
 
 /**

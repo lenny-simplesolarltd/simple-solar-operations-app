@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -364,7 +374,15 @@ export function ReportSchedules({
   );
 }
 
-/** Builds and queues the last closed period, through the canonical path. */
+/**
+ * Builds, queues and sends the last closed period, through the canonical path.
+ *
+ * A period that already went is a refusal, not a dead end: the database says
+ * so, and the person who pressed the button is offered the one thing they
+ * actually wanted - send it again. Forcing is never automatic. It costs a
+ * second, deliberate press, because the only thing standing between a client
+ * and two copies of Monday's figures is that press.
+ */
 function SendNow({
   sourceKind,
   sourceId,
@@ -377,61 +395,111 @@ function SendNow({
   onDone(): void;
 }) {
   const [busy, setBusy] = useState(false);
-  return (
-    <Button
-      size='sm'
-      variant='outline'
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        const result = await sendReportAction(
-          { sourceKind, sourceId, reportType },
-          crypto.randomUUID()
-        );
-        setBusy(false);
-        if (!result.ok) return toast.error(result.outcome.message);
-        const r = result.result as {
-          status?: string;
-          already_reported?: boolean;
-          delivered?: boolean;
-          detail?: string;
-          delivery?: { sent: number; failed: number; reason?: string };
-        };
+  const [confirmResend, setConfirmResend] = useState(false);
 
-        if (r.already_reported) {
-          // Only a period that actually went is refused now, so say which.
-          toast.success(
-            r.delivered
-              ? 'That period has already been sent. Nothing was sent again.'
-              : 'That period is already on its way. Nothing was sent again.'
-          );
-        } else if (r.status === 'Refused') {
-          // The gate, or the missing recipients, in the words the database used.
-          toast.error(
-            r.detail
-              ? `Not sent: ${r.detail}`
-              : 'The report was built, but nothing was queued.'
-          );
-        } else if (r.delivery?.sent) {
-          toast.success('Sent.');
-        } else {
-          // Queued but not away: say why, rather than leaving it looking sent.
-          toast.warning(
-            r.delivery?.reason
-              ? `Queued, not sent: ${r.delivery.reason}`
-              : 'Queued. It will go with the next scheduled send.'
-          );
-        }
-        onDone();
-      }}
-    >
-      {busy ? (
-        <IconLoader2 aria-hidden className='animate-spin' />
-      ) : (
-        <IconSend aria-hidden />
-      )}
-      Send now
-    </Button>
+  type SendResult = {
+    status?: string;
+    already_reported?: boolean;
+    delivered?: boolean;
+    can_force?: boolean;
+    resent?: boolean;
+    detail?: string;
+    delivery?: { sent: number; failed: number; reason?: string };
+  };
+
+  async function send(force: boolean) {
+    setBusy(true);
+    const result = await sendReportAction(
+      { sourceKind, sourceId, reportType, ...(force ? { force: true } : {}) },
+      crypto.randomUUID()
+    );
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.outcome.message);
+      return;
+    }
+    const r = result.result as SendResult;
+
+    if (r.already_reported) {
+      // Offer the way out rather than only naming the wall. Without can_force
+      // the server would refuse a second time, so do not promise otherwise.
+      if (r.can_force) {
+        setConfirmResend(true);
+        return;
+      }
+      toast.success(
+        r.delivered
+          ? 'That period has already been sent. Nothing was sent again.'
+          : 'That period is already on its way. Nothing was sent again.'
+      );
+    } else if (r.status === 'Refused') {
+      // The gate, or the missing recipients, in the words the database used.
+      toast.error(
+        r.detail
+          ? `Not sent: ${r.detail}`
+          : 'The report was built, but nothing was queued.'
+      );
+    } else if (r.delivery?.sent) {
+      toast.success(r.resent ? 'Sent again.' : 'Sent.');
+    } else {
+      // Queued but not away: say why, rather than leaving it looking sent.
+      toast.warning(
+        r.delivery?.reason
+          ? `Queued, not sent: ${r.delivery.reason}`
+          : 'Queued. It will go with the next scheduled send.'
+      );
+    }
+    onDone();
+  }
+
+  return (
+    <>
+      <Button
+        size='sm'
+        variant='outline'
+        disabled={busy}
+        onClick={() => void send(false)}
+      >
+        {busy ? (
+          <IconLoader2 aria-hidden className='animate-spin' />
+        ) : (
+          <IconSend aria-hidden />
+        )}
+        Send now
+      </Button>
+      <AlertDialog open={confirmResend} onOpenChange={setConfirmResend}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send this period again?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The {reportType.toLowerCase()} report for that period has already
+              gone to its recipients. Sending again delivers a second copy of
+              the same figures, marked “(re-sent)” in the subject. The schedule
+              itself never repeats a period.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Leave it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(event) => {
+                // The dialog closes itself on action; keep it open while the
+                // send runs so the spinner has somewhere to live.
+                event.preventDefault();
+                void send(true).then(() => setConfirmResend(false));
+              }}
+            >
+              {busy ? (
+                <IconLoader2 aria-hidden className='animate-spin' />
+              ) : (
+                <IconSend aria-hidden />
+              )}
+              Send it again
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
