@@ -2,7 +2,9 @@ import {
   PublicNotice,
   PublicShell
 } from '@/features/forms/components/public-shell';
+import { PublicViewOnly } from '@/features/forms/components/public-view-only';
 import { openPublicForm } from '@/features/forms/server/public';
+import { getCurrentUser } from '@/lib/auth';
 import type { Metadata } from 'next';
 import { PublicFormClient } from './public-form-client';
 
@@ -26,6 +28,24 @@ export default async function PublicFormPage({
 }) {
   const { token } = await params;
   const form = await openPublicForm(token);
+
+  // A form whose questions need an account is shown rather than asked. The
+  // route comes from the database, which resolved it for whoever is reading -
+  // so the link can never offer somebody work they may not do.
+  if (form.state === 'open' && form.definition && form.viewOnly) {
+    const user = await getCurrentUser();
+    return (
+      <PublicShell>
+        <PublicViewOnly
+          title={form.title ?? 'Form'}
+          description={form.description ?? null}
+          definition={form.definition}
+          signedIn={Boolean(user)}
+          route={form.completionRoute ?? null}
+        />
+      </PublicShell>
+    );
+  }
 
   if (form.state === 'open' && form.definition) {
     return (

@@ -23,12 +23,28 @@ export type PublicFormState =
   /** Forms is switched off (release gate): nothing is shown or accepted. */
   | 'unavailable';
 
+/** Where the person reading a view link would actually complete it. */
+export interface CompletionRoute {
+  kind: 'programme' | 'direct';
+  href: string;
+  context: string;
+  programmeName?: string;
+}
+
 export interface PublicForm {
   state: PublicFormState;
   title?: string;
   description?: string | null;
   definition?: FormDefinition | null;
   submittedAt?: string | null;
+  /**
+   * The questions need an account, so the link shows them and does not ask
+   * them. Anyone may read it; only a signed-in person with the work can
+   * record it, and the database refuses a submission through this route.
+   */
+  viewOnly?: boolean;
+  /** Null for a visitor with no account, and for staff without this work. */
+  completionRoute?: CompletionRoute | null;
 }
 
 export async function openPublicForm(token: string): Promise<PublicForm> {
@@ -44,13 +60,33 @@ export async function openPublicForm(token: string): Promise<PublicForm> {
     description?: string | null;
     definition?: FormDefinition | null;
     submitted_at?: string | null;
+    view_only?: boolean;
+    completion_route?: {
+      kind?: string;
+      href?: string;
+      context?: string;
+      programme_name?: string;
+    } | null;
   };
+  const route = d.completion_route;
   return {
     state: d.state,
     title: d.title,
     description: d.description,
     definition: d.definition,
-    submittedAt: d.submitted_at
+    submittedAt: d.submitted_at,
+    viewOnly: d.view_only === true,
+    completionRoute:
+      route && route.href
+        ? {
+            kind: route.kind === 'programme' ? 'programme' : 'direct',
+            href: route.href,
+            context: route.context ?? '',
+            ...(route.programme_name
+              ? { programmeName: route.programme_name }
+              : {})
+          }
+        : null
   };
 }
 

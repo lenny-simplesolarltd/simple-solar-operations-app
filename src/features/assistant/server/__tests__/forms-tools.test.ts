@@ -465,17 +465,28 @@ describe('Forms release gate', () => {
     // The model is told they are planned, not available.
     expect(off.planned().map((t) => t.name)).toContain('create_form');
   });
-  it('refuses a link to a form a recipient could never complete, before asking anyone to confirm', async () => {
-    // The programme installer visit form carries photo questions. A recipient
-    // has no account, so they can own no upload: the command refuses the link
-    // outright. Refusing at proposal time is the point - a confirmation card
-    // whose only possible outcome is that refusal spends a decision on nothing.
+  it('makes a VIEW link for a form whose questions need an account, rather than refusing', async () => {
+    // The PCH installer visit form: photo and lookup questions, so nobody can
+    // answer it from a link. It is still worth sharing - there was previously
+    // no URL anybody could send - so the link is created and reads as view
+    // only. The database refuses an anonymous submission through it, which is
+    // what actually keeps this safe.
     service.getForm.mockResolvedValue(
       form({ status: 'published', revision: 2, linkable: false })
     );
-    const { out } = await propose('create_form_link', { form_id: FORM_ID });
-    expect(out.ofType('tool_result')[0].error?.code).toBe('FORMS_NOT_LINKABLE');
-    expect(service.createInvitation).not.toHaveBeenCalled();
+    service.createInvitation.mockResolvedValue({
+      ok: true,
+      result: { invitation_id: 'inv-view', revision: 2, expires_at: null }
+    });
+    service.getInvitation.mockResolvedValue(null);
+
+    const { proposal } = await propose('create_form_link', {
+      form_id: FORM_ID
+    });
+    // The card says what kind of link it is before anything runs.
+    expect(JSON.stringify(proposal.action)).toMatch(
+      /read|view|signed in|account/i
+    );
   });
 
   it('makes a link without asking who it is for', async () => {

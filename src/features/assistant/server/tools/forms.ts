@@ -721,10 +721,6 @@ export const createFormLinkTool: MutationTool<z.infer<typeof linkInput>> = {
     if (!form) return refuse('FORMS_NOT_FOUND');
     if (form.kind === 'template') return refuse('FORMS_TEMPLATE_NOT_SENDABLE');
     if (form.status !== 'published') return refuse('FORMS_NOT_PUBLISHED');
-    // The same refusal the command raises, reached before a confirmation is
-    // put in front of anyone: proposing a link that can only be refused wastes
-    // the staff member's decision.
-    if (form.linkable === false) return refuse('FORMS_NOT_LINKABLE');
     const who = await resolveRecipient(input);
     if (!who.ok) return who;
     const days = input.expires_in_days ?? 30;
@@ -733,7 +729,9 @@ export const createFormLinkTool: MutationTool<z.infer<typeof linkInput>> = {
       preview: {
         title: `Create a link to "${form.title}"`,
         summary:
-          'A secure link for one recipient. It is not sent anywhere: you copy it and share it yourself.',
+          form.linkable === false
+            ? 'A link anyone may open and read. Its questions need an account, so it shows what is asked and is recorded in the app by somebody signed in. It is not sent anywhere: you copy it and share it yourself.'
+            : 'A secure link for one recipient. It is not sent anywhere: you copy it and share it yourself.',
         changes: [
           { label: 'Form', to: `${form.title} (version ${form.revision})` },
           {

@@ -94,7 +94,7 @@ export function ShareLinks({
         {canSend && (
           <Button
             onClick={() => setOpen(true)}
-            disabled={formStatus !== 'published' || linkable === false}
+            disabled={formStatus !== 'published'}
           >
             <IconLink aria-hidden />
             Create link{revision > 0 ? ` (v${revision})` : ''}
@@ -110,8 +110,9 @@ export function ShareLinks({
       ) : (
         linkable === false && (
           <p className='text-muted-foreground text-sm'>
-            {formsMessage('FORMS_NOT_LINKABLE')} Send people to it in the app
-            instead.
+            This form asks for photographs or a record lookup, so a link to it
+            is <strong>view only</strong>: anyone may open it and read the
+            questions, and it is recorded in the app by somebody signed in.
           </p>
         )
       )}
@@ -176,6 +177,7 @@ export function ShareLinks({
         <CreateLinkDialog
           formId={formId}
           revision={revision}
+          viewOnly={linkable === false}
           defaultJob={defaultJob ?? null}
           linkCount={links.length}
           onClose={() => {
@@ -276,12 +278,15 @@ const EXPIRY = [
 function CreateLinkDialog({
   formId,
   revision,
+  viewOnly,
   defaultJob,
   linkCount,
   onClose
 }: {
   formId: string;
   revision: number;
+  /** The questions need an account, so the link will be readable, not answerable. */
+  viewOnly: boolean;
   defaultJob: { id: string; jobRef: string } | null;
   linkCount: number;
   onClose(): void;
@@ -335,7 +340,9 @@ function CreateLinkDialog({
           <DialogDescription>
             {created
               ? 'Simple Solar does not send email or SMS from here yet. Copy the link and send it to the recipient yourself.'
-              : 'Only someone with this link can open the form. It works once: after they submit, it closes.'}
+              : viewOnly
+                ? 'Anyone with this link can read the questions. Answering happens in the app: signing in is what decides whether the person can record it, so the link is safe to pass around.'
+                : 'Only someone with this link can open the form. It works once: after they submit, it closes.'}
           </DialogDescription>
         </DialogHeader>
         {created ? (

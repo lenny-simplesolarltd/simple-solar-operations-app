@@ -11,9 +11,16 @@
 //
 // Named to sort after preview-dev.test.mjs (which counts rows).
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { before, describe, test } from 'node:test';
-import { email, ensureLogin, person, service, signInAs } from './helpers.mjs';
+import {
+  anon,
+  email,
+  ensureLogin,
+  person,
+  service,
+  signInAs
+} from './helpers.mjs';
 
 const hasStorage = !!(await service.storage.getBucket('evidence')).data;
 const skip = hasStorage ? false : 'this local stack runs without Storage';
@@ -656,15 +663,72 @@ describe('the installer form', { skip }, () => {
     });
   });
 
-  test('a form using photo or lookup questions cannot be sent as a recipient link', async () => {
-    const r = await command(lucy, 'FORMS_INVITATION_CREATE', {
-      invitation_id: randomUUID(),
-      token_hash: 'a'.repeat(64),
-      form_id: formId,
-      recipient_type: 'other',
-      recipient_label: 'Someone'
-    });
-    assert.equal(refusal(r), 'FORMS_NOT_LINKABLE');
+  test('a link to it is view only: readable by anyone, answerable by nobody', async () => {
+    // It used to be refused outright, which left no URL anybody could send -
+    // not to a subcontractor, not to a new starter, not to the office. The
+    // link is now created and the refusal moved to where it belongs: the act
+    // of submitting.
+    const token = 'v'.repeat(43);
+    const hash = createHash('sha256').update(token).digest('hex');
+    const made = ok(
+      await command(lucy, 'FORMS_INVITATION_CREATE', {
+        invitation_id: randomUUID(),
+        token_hash: hash,
+        form_id: formId,
+        recipient_type: 'other',
+        recipient_label: 'Someone outside'
+      })
+    );
+    assert.equal(made.view_only, true, 'created, and says what kind it is');
+
+    // 1. Nobody signed in: the questions, and no way through.
+    const open = await anon.rpc('forms_public_open', { p_token: token });
+    assert.ifError(open.error);
+    assert.equal(open.data.state, 'open');
+    assert.equal(open.data.view_only, true);
+    assert.ok(open.data.definition, 'the blank questions are readable');
+    assert.equal(
+      open.data.completion_route,
+      null,
+      'a visitor with no account is offered nowhere to go'
+    );
+    // And it carries no customer data - only the questions themselves.
+    assert.equal(JSON.stringify(open.data).includes('Fixture Terrace'), false);
+
+    // 2. Signed in WITHOUT the work: still no route, so the page says to ask.
+    const unassigned = await rick.rpc('forms_public_open', { p_token: token });
+    assert.ifError(unassigned.error);
+    assert.equal(unassigned.data.completion_route, null);
+
+    // 3. Signed in WITH the work: sent to where it is actually recorded.
+    const assigned = await john.rpc('forms_public_open', { p_token: token });
+    assert.ifError(assigned.error);
+    assert.equal(assigned.data.completion_route.kind, 'programme');
+    assert.equal(
+      assigned.data.completion_route.href,
+      `/dashboard/operations/programmes/${programmeId}/visit`
+    );
+
+    // The link is a signpost, never a second way in - for anyone, signed in
+    // or not. This is the check that actually keeps the photos and the
+    // property register behind an account.
+    for (const [who, client] of [
+      ['anon', anon],
+      ['assigned installer', john]
+    ]) {
+      const sent = await client.rpc('forms_public_submit', {
+        p_token: token,
+        p_submission_id: randomUUID(),
+        p_answers: {}
+      });
+      assert.ok(sent.error, `${who}: submitting through the link is refused`);
+      assert.match(sent.error.message, /FORMS_NOT_LINKABLE/, who);
+    }
+
+    // Refused means refused: nothing was recorded and the link stays open.
+    const after = await anon.rpc('forms_public_open', { p_token: token });
+    assert.equal(after.data.state, 'open');
+    assert.equal(after.data.submitted_at, null);
   });
 });
 

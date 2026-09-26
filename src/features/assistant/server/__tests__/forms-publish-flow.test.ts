@@ -425,14 +425,19 @@ describe('edit, publish, then link - the whole sequence', () => {
     ]);
   });
 
-  it('will not offer a link for a form that needs a signed-in person', async () => {
+  it('offers a VIEW link for a form that needs a signed-in person', async () => {
     // A published form carrying a photo or lookup question can be completed in
-    // the app but never by a recipient on a link. Refused at prepare, so
-    // nobody is asked to confirm something that can only fail.
+    // the app but never answered from a link. It used to be refused outright,
+    // which left no URL anybody could send. It is now offered as a link that
+    // shows the questions; the database refuses an answer through it, so the
+    // confirmation says plainly what kind of link it is about to make.
     state = { ...liveForm(), linkable: false };
-    const { out } = await propose('create_form_link', { form_id: FORM_ID });
-    expect(out.ofType('tool_result')[0].error?.code).toBe('FORMS_NOT_LINKABLE');
-    expect(service.createInvitation).not.toHaveBeenCalled();
+    const { proposal } = await propose('create_form_link', {
+      form_id: FORM_ID
+    });
+    expect(JSON.stringify(proposal.action)).toMatch(
+      /read|view|signed in|account/i
+    );
   });
 
   it('ties a link to a customer only when the staff member says so', async () => {
