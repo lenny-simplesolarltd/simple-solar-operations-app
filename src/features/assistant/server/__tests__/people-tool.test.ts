@@ -80,3 +80,56 @@ describe('listing colleagues', () => {
     expect(await run({})).toMatchObject({ ok: false, code: 'NOT_FOUND' });
   });
 });
+
+describe('messaging a colleague', () => {
+  it('proposes the exact words, to one resolved person', async () => {
+    // "josh email" used to search JOBS for Josh. Knowing who somebody is and
+    // being able to reach them were two different things.
+    const { messageColleagueTool } = await import('../tools/chat');
+    listChatPeople.mockResolvedValue({
+      ok: true,
+      data: [person('Josh Lewis', ['Installer'])]
+    });
+
+    const proposed = await messageColleagueTool.prepare(
+      { person: 'Josh Lewis', message: 'The meter serial did not match.' },
+      { actor: makeActor(), threadId: THREAD }
+    );
+    expect(proposed).toMatchObject({ ok: true });
+    const preview = (proposed as { preview: { changes: unknown[] } }).preview;
+    // The person confirming is agreeing to these words going out under their
+    // own name, so the card shows them in full.
+    expect(JSON.stringify(preview.changes)).toContain(
+      'The meter serial did not match.'
+    );
+    expect(JSON.stringify(preview.changes)).toContain('Josh Lewis');
+  });
+
+  it('asks which one rather than guessing between two people', async () => {
+    const { messageColleagueTool } = await import('../tools/chat');
+    listChatPeople.mockResolvedValue({
+      ok: true,
+      data: [
+        person('Dan Barnes', ['Director']),
+        person('Dan Anderson', ['Installer'])
+      ]
+    });
+    expect(
+      await messageColleagueTool.prepare(
+        { person: 'Dan', message: 'hello' },
+        { actor: makeActor(), threadId: THREAD }
+      )
+    ).toMatchObject({ ok: false, code: 'AMBIGUOUS' });
+  });
+
+  it('refuses a name nobody has, rather than sending to the nearest match', async () => {
+    const { messageColleagueTool } = await import('../tools/chat');
+    listChatPeople.mockResolvedValue({ ok: true, data: [] });
+    expect(
+      await messageColleagueTool.prepare(
+        { person: 'Nobody At All', message: 'hello' },
+        { actor: makeActor(), threadId: THREAD }
+      )
+    ).toMatchObject({ ok: false, code: 'NOT_FOUND' });
+  });
+});

@@ -117,6 +117,7 @@ describe('the production registry', () => {
       'discard_programme_import',
       'edit_form_draft',
       'generate_document_pack',
+      'message_colleague',
       'move_files_to_folder',
       'move_job',
       'override_complete_tasks',
@@ -149,6 +150,9 @@ describe('the production registry', () => {
         'customers',
         'jobs',
         'calendar',
+        // Messaging a colleague: CHAT_START + CHAT_SEND, the same commands
+        // the chat screen calls. Internal only - it cannot leave the company.
+        'communications',
         'presales',
         // Programme review, the installer's visit workflow, and applying a
         // staged property import - each the same command the screens call.
