@@ -91,20 +91,19 @@ export function AssistantDrawer() {
       <AssistantPanel
         conversation={conversation.state}
         overrideMode={shell.overrideMode}
-        // Only for staff the server says may override (task.override_complete,
-        // and never in preview, which is read-only). Withheld rather than shown
-        // and ignored: a switch that does nothing reads as a broken feature.
+        // Offered to everyone except in preview, which is read-only and so
+        // cannot honour it.
         //
-        // If capabilities could not be read at all, the switch is offered
-        // anyway. Not knowing is not the same as being refused, and silently
-        // withholding a control somebody does have is the worse mistake: the
-        // server re-checks the permission on every turn, so the most an
-        // unentitled person gets here is a refusal they would have got anyway.
+        // Deliberately NOT gated on the server's canOverride. Hiding the
+        // switch makes "we could not ask" - capabilities are null until that
+        // fetch resolves, and stay null when it fails - look exactly like "you
+        // are refused", and it took the control away from people who do hold
+        // task.override_complete. The permission is re-checked on the server
+        // for every turn regardless, so the worst an unentitled person gets
+        // here is the refusal they would have got anyway; that is a better
+        // failure than a missing control nobody can explain.
         onOverrideModeChange={
-          shell.capabilities?.canOverride ||
-          (shell.capabilitiesError && !shell.capabilities)
-            ? shell.setOverrideMode
-            : undefined
+          shell.capabilities?.preview ? undefined : shell.setOverrideMode
         }
         page={shell.page}
         capabilities={shell.capabilities}
