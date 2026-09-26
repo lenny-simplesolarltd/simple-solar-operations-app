@@ -9,7 +9,7 @@ routes: ["/dashboard/forms"]
 tools: ["list_forms", "get_form", "list_form_responses", "get_form_response"]
 keywords: ["forms", "form builder", "templates", "responses", "links", "survey", "questionnaire", "switched off", "customer form", "surveyor form"]
 aliases: ["forms", "where is forms", "forms menu missing", "cant see forms", "forms switched off", "online form", "customer questionnaire", "send a survey", "form builder", "who can use forms", "forms not working"]
-related: ["build-a-form", "send-a-form", "form-templates", "switched-off-features", "staff-roles", "what-simplebot-can-do"]
+related: ["build-a-form", "send-a-form", "form-templates", "automated-reports", "switched-off-features", "staff-roles", "what-simplebot-can-do"]
 common_task: false
 sort: 10
 sources: ["docs/forms/ARCHITECTURE.md", "src/app/dashboard/forms/page.tsx", "src/features/forms/components/forms-not-enabled.tsx", "src/components/layout/nav-visibility.ts (forms: hidden unless released and forms.read)", "supabase/migrations/20260919190000_forms.sql (role_permissions: Admin/Manager/Office all forms.*; Director forms.read + forms.responses.read; FN-21 Disabled)"]

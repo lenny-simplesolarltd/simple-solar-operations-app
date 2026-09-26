@@ -9,6 +9,7 @@ export const HELP_CATEGORY_CODES = [
   'planning',
   'installation',
   'commissioning',
+  'programmes',
   'materials',
   'cancellations',
   'files',

@@ -19,11 +19,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const articlesDir = path.join(root, 'supabase/help-seed/articles');
-const SEED_VERSION = 2;
+const SEED_VERSION = 3;
 const DEFAULT_OUT = path.join(root, 'supabase/migrations/20260920100100_help_center_seed.sql');
 
 const CATEGORIES = ['getting-started', 'tasks', 'jobs', 'sales', 'booking', 'planning', 'installation',
-  'commissioning', 'materials', 'cancellations', 'files', 'forms', 'simplebot', 'administration'];
+  'commissioning', 'programmes', 'materials', 'cancellations', 'files', 'forms', 'simplebot',
+  'administration'];
 const ROLES = ['Admin', 'Manager', 'Director', 'Office', 'VariationApprover', 'Surveyor', 'Finance', 'Store',
   'Installer', 'Scaffolder', 'ReadOnly'];
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;

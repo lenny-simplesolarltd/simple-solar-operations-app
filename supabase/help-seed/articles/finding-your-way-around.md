@@ -9,7 +9,7 @@ routes: ["/dashboard"]
 tools: []
 keywords: ["menu", "sidebar", "navigation", "shortcuts", "keyboard", "command bar", "dark mode", "theme"]
 aliases: ["where is the menu", "cant find a page", "missing menu item", "menu item missing", "why cant I see", "keyboard shortcuts", "hide sidebar", "dark mode", "light mode", "how do I get to", "where do I find"]
-related: ["office-home", "searching", "staff-roles", "switched-off-features"]
+related: ["office-home", "searching", "staff-roles", "switched-off-features", "programmes-overview"]
 common_task: false
 sort: 30
 sources: ["src/constants/data.ts", "src/components/layout/nav-visibility.ts", "src/components/layout/app-sidebar.tsx", "src/components/layout/header.tsx", "src/components/kbar/index.tsx", "src/components/kbar/use-theme-switching.tsx", "src/components/ui/sidebar.tsx", "supabase/migrations/20260919120000_restore_identity_and_job_sold.sql (role_permissions)", "supabase/migrations/20260919190000_forms.sql (forms permissions)"]

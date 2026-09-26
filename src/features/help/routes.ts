@@ -20,6 +20,7 @@ export const APP_ROUTES = [
   '/dashboard/forms/[id]',
   '/dashboard/forms/[id]/fill',
   '/dashboard/forms/[id]/preview',
+  '/dashboard/forms/[id]/reports',
   '/dashboard/forms/responses/[id]',
   '/dashboard/goods-in',
   '/dashboard/goods-in/[deliveryId]',

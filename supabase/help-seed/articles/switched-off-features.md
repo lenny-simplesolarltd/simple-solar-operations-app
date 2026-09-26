@@ -9,7 +9,7 @@ routes: []
 tools: []
 keywords: ["switched off", "not switched on", "disabled", "release", "feature", "not available", "rollout", "greyed out"]
 aliases: ["switched off", "not switched on yet", "this action is switched off", "feature not working", "button greyed out", "feature disabled", "why cant I use this", "not available yet", "ask an administrator", "forms missing"]
-related: ["release-controls", "task-blocked", "finding-your-way-around", "system-health"]
+related: ["release-controls", "task-blocked", "finding-your-way-around", "system-health", "programmes-overview"]
 common_task: true
 sort: 60
 sources: ["src/lib/backend/read-failures.ts", "src/components/read-failure.tsx", "src/features/tasks/components/task-actions.tsx (MODE_UNAVAILABLE)", "src/features/booking/components/booking-actions.tsx (MODE_UNAVAILABLE)", "src/features/forms/components/forms-not-enabled.tsx", "src/components/layout/nav-visibility.ts (forms hidden)", "supabase/migrations/20260919149000_s17_reads_rls.sql (result_message MODE)", "supabase/migrations/20260919142000_reference_config.sql (release modes seeded Disabled)", "src/app/dashboard/system/page.tsx"]
