@@ -1,4 +1,5 @@
 import PageContainer from '@/components/layout/page-container';
+import { FormattedText } from '@/features/assistant/components/formatted-text';
 import { readSharedConversation } from '@/features/assistant/server/conversations/shares';
 import { getCurrentUser } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
@@ -71,14 +72,19 @@ export default async function SharedConversationPage({
                 <div
                   className={
                     mine
-                      ? 'bg-secondary text-secondary-foreground max-w-[88%] rounded-lg rounded-br-sm px-3 py-2 text-sm whitespace-pre-wrap'
-                      : 'max-w-[88%] text-sm whitespace-pre-wrap'
+                      ? 'bg-secondary text-secondary-foreground max-w-[88%] rounded-lg rounded-br-sm px-3 py-2 text-sm'
+                      : 'max-w-[88%] text-sm'
                   }
                 >
                   <span className='text-muted-foreground mb-0.5 block text-xs font-medium'>
                     {mine ? (shared.sharedBy ?? 'They') : 'SimpleBot'}
                   </span>
-                  {message.text}
+                  {/* The same renderer the drawer uses. Without it a shared
+                      conversation showed the model's Markdown raw - "**Dan
+                      Barnes**", "###" and a table as a row of pipes - which is
+                      the one page most likely to be read by somebody who was
+                      not in the conversation. */}
+                  <FormattedText text={message.text} />
                 </div>
               </li>
             );
