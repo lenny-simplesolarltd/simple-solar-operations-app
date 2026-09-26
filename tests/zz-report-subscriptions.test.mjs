@@ -248,24 +248,27 @@ describe('deleting a schedule keeps what it already reported', () => {
 });
 
 describe('sending by hand is not sending twice', () => {
-  test('the same period, sent again, produces no second report', async () => {
+  const subscribe = () =>
+    command(lenny, 'REPORT_SUBSCRIPTION_SET', {
+      source_kind: 'Programme',
+      source_id: programmeId,
+      report_type: 'Daily',
+      enabled: true,
+      recipients: [{ name: 'Office', email: 'office@example.test' }]
+    });
+  const send = () =>
+    command(lenny, 'REPORT_SEND', {
+      source_kind: 'Programme',
+      source_id: programmeId,
+      report_type: 'Daily',
+      to: '2026-09-20'
+    });
+
+  test('a period that reached the transport is never repeated', async () => {
     await clearReports();
-    ok(
-      await command(lenny, 'REPORT_SUBSCRIPTION_SET', {
-        source_kind: 'Programme',
-        source_id: programmeId,
-        report_type: 'Daily',
-        enabled: true,
-        recipients: [{ name: 'Office', email: 'office@example.test' }]
-      })
-    );
-    const send = () =>
-      command(lenny, 'REPORT_SEND', {
-        source_kind: 'Programme',
-        source_id: programmeId,
-        report_type: 'Daily',
-        to: '2026-09-20'
-      });
+    await setReportGate('Automated');
+    ok(await subscribe());
+
     const first = ok(await send());
     const second = ok(await send());
     const third = ok(await send());
@@ -286,6 +289,63 @@ describe('sending by hand is not sending twice', () => {
       .select('id', { count: 'exact', head: true })
       .eq('type', 'ScheduledReport');
     assert.equal(comms.count, 1, 'one period, one email prepared');
+    await setReportGate('Disabled');
+  });
+
+  test('a period that never sent can be asked for again', async () => {
+    // Idempotency is about not DELIVERING twice. A run stopped by a shut gate
+    // delivered nothing, and used to leave the period permanently unsendable:
+    // "Send now" answered "already reported" about an email that did not
+    // exist.
+    await clearReports();
+    await setReportGate('Disabled');
+    ok(await subscribe());
+
+    const refused = ok(await send());
+    assert.equal(refused.status, 'Refused');
+    assert.match(refused.detail, /MODE_DENIED/);
+
+    const retried = ok(await send());
+    assert.notEqual(
+      retried.already_reported,
+      true,
+      'a failed period is not treated as already reported'
+    );
+
+    // Still one entry in the history: a retry rebuilds the run rather than
+    // adding one row per attempt.
+    const runs = await service
+      .from('report_runs')
+      .select('id', { count: 'exact', head: true })
+      .eq('period_end', '2026-09-20');
+    assert.equal(runs.count, 1, 'one period, one history entry');
+
+    // And once the gate opens, the same period finally goes.
+    await setReportGate('Automated');
+    const sent = ok(await send());
+    assert.equal(sent.status, 'Queued');
+    await setReportGate('Disabled');
+  });
+
+  test('the scheduled sweep never retries a broken period', async () => {
+    // A sweep that retried would re-attempt a broken period every hour for
+    // ever. A person deciding to try again is the right trigger.
+    await clearReports();
+    await setReportGate('Disabled');
+    ok(await subscribe());
+    ok(await send());
+
+    const before = await service
+      .from('report_runs')
+      .select('id', { count: 'exact', head: true });
+    const sweep = await service.rpc('run_reports_at', {
+      p_at: '2026-09-21T09:00:00Z'
+    });
+    assert.ifError(sweep.error);
+    const after = await service
+      .from('report_runs')
+      .select('id', { count: 'exact', head: true });
+    assert.equal(after.count, before.count, 'the sweep added nothing');
   });
 });
 

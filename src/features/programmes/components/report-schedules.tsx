@@ -286,7 +286,13 @@ export function ReportSchedules({
                 <span className='text-muted-foreground block text-xs'>
                   {run.manual ? 'Sent by hand' : 'Scheduled'} ·{' '}
                   {formatDate(run.createdAt)}
-                  {run.detail && ` · ${run.detail}`}
+                  {/* run.detail records what happened when the report was
+                      BUILT. Once it has moved on, saying "queued for the
+                      email worker; nothing sent yet" beside a Sent badge
+                      contradicts it, so the lifecycle has the last word. */}
+                  {run.detail &&
+                    reportLifecycle(run).state !== 'Sent' &&
+                    ` · ${run.detail}`}
                 </span>
               </span>
               <span
