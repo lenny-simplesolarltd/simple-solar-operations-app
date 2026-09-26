@@ -228,7 +228,16 @@ describe('configuration', { skip }, () => {
       .eq('id', data.visit_form_id)
       .single();
     assert.equal(form.status, 'published');
-    assert.equal(form.current_revision_number, 1);
+    // Derived, not pinned: 20260925140000 republished this form to reword the
+    // installer's outcome options, and any later wording change will do the
+    // same. What must hold is that the programme serves the NEWEST published
+    // revision - pinning the number just breaks every time the words improve.
+    const { count } = await service
+      .from('form_revisions')
+      .select('id', { count: 'exact', head: true })
+      .eq('form_id', data.visit_form_id);
+    assert.ok(form.current_revision_number >= 1);
+    assert.equal(form.current_revision_number, count);
   });
 
   test('the unresolved CSQ boundary is recorded as configuration, not decided in code', async () => {
@@ -1438,7 +1447,19 @@ describe('the server does not trust the form', { skip }, () => {
         .eq('id', visit.form_revision_id)
         .single()
     ).data;
-    assert.equal(rev.revision_number, 1);
+    // Not pinned to 1: the form has been republished since (20260925140000
+    // reworded the outcomes). What this test is about is that the submitted
+    // visit kept the revision it was answered on - so it must be OLDER than
+    // whatever the form now serves, and its wording must be unchanged.
+    const current = (
+      await service
+        .from('forms')
+        .select('current_revision_number')
+        .eq('id', formId)
+        .single()
+    ).data;
+    assert.ok(rev.revision_number >= 1);
+    assert.ok(rev.revision_number < current.current_revision_number);
     assert.equal(
       rev.definition.fields.find((f) => f.id === 'csq_reading').label,
       'CSQ reading'

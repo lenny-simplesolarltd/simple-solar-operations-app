@@ -111,6 +111,14 @@ const METER_MAP = {
 before(async () => {
   await ensureLogin(email('lenny'));
   lenny = await signInAs(email('lenny'));
+  // This file sets up its own preconditions rather than inheriting them from
+  // whichever suite happened to run first: FN-22 gates every programme command,
+  // and a test that only passes in one file order is not a passing test.
+  const modes = await service
+    .from('release_modes')
+    .update({ mode: 'Manual', authorised_job_scope: 'Pilot' })
+    .eq('function_id', 'FN-22');
+  assert.ifError(modes.error);
 });
 
 after(async () => {
