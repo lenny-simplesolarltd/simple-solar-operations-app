@@ -700,6 +700,102 @@ export async function listInstallers(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export interface ProgrammeAssignee {
+  assignmentId: string;
+  personId: string;
+  name: string;
+  /** Set when the person is assigned to one property rather than the whole programme. */
+  propertyId: string | null;
+  note: string | null;
+}
+
+/**
+ * Who is assigned to this programme, with the assignment's own id.
+ *
+ * listInstallers answers a different question - who to offer in a filter - and
+ * deliberately returns only person ids. Ending an assignment needs the
+ * assignment, so this read carries it.
+ */
+export async function listAssignees(
+  programmeId: string
+): Promise<ProgrammeAssignee[]> {
+  const supabase = await programmeDb();
+  const { data, error } = await supabase
+    .from('programme_assignments')
+    .select(
+      'id, person_id, property_id, note, people!programme_assignments_person_id_fkey(display_name, active)'
+    )
+    .eq('programme_id', programmeId)
+    .eq('active', true);
+  if (error) throw new Error(`assignees: ${error.message}`);
+  return (data ?? [])
+    .map((row) => {
+      const r = row as unknown as {
+        id: string;
+        person_id: string;
+        property_id: string | null;
+        note: string | null;
+        people: { display_name: string | null; active: boolean } | null;
+      };
+      return {
+        assignmentId: r.id,
+        personId: r.person_id,
+        name: r.people?.display_name ?? 'Unknown',
+        propertyId: r.property_id,
+        note: r.note,
+        active: r.people?.active ?? false
+      };
+    })
+    .filter((p) => p.active)
+    .map(({ active: _active, ...rest }) => rest)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * The people who could be assigned: active staff holding a role that may
+ * record a visit.
+ *
+ * Read from role_permissions rather than from a hard-coded list of roles, so
+ * that granting programme.visit.submit to another role makes those people
+ * assignable without a code change - and so this screen can never offer
+ * somebody the command would then refuse.
+ */
+export async function listAssignablePeople(): Promise<
+  { id: string; name: string; roles: string[] }[]
+> {
+  const supabase = await programmeDb();
+  const { data: permitted, error: permError } = await supabase
+    .from('role_permissions')
+    .select('role_code')
+    .eq('permission_code', 'programme.visit.submit');
+  if (permError) return [];
+  const roles = (permitted ?? []).map(
+    (r) => (r as { role_code: string }).role_code
+  );
+  if (roles.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('people')
+    .select('id, display_name, person_roles(role_code, active)')
+    .eq('active', true)
+    .order('display_name')
+    .limit(500);
+  if (error) return [];
+  return (data ?? [])
+    .map((row) => {
+      const r = row as unknown as {
+        id: string;
+        display_name: string | null;
+        person_roles: { role_code: string; active: boolean }[] | null;
+      };
+      const held = (r.person_roles ?? [])
+        .filter((pr) => pr.active && roles.includes(pr.role_code))
+        .map((pr) => pr.role_code);
+      return { id: r.id, name: r.display_name ?? 'Unnamed', roles: held };
+    })
+    .filter((p) => p.roles.length > 0);
+}
+
 /**
  * The filter keys app.programme_visit_filter will accept.
  *

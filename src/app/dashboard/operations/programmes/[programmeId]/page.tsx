@@ -9,6 +9,7 @@ import {
   ProgressPanel,
   StatGrid
 } from '@/features/programmes/components/dashboard-panels';
+import { AssigneesPanel } from '@/features/programmes/components/assignees-panel';
 import {
   ExportDailyReportButton,
   ExportVisitsButton
@@ -23,6 +24,8 @@ import {
   currentAccess,
   getDashboard,
   getProgramme,
+  listAssignablePeople,
+  listAssignees,
   listInstallers,
   programmesEnabled
 } from '@/features/programmes/server/queries';
@@ -56,9 +59,14 @@ export default async function ProgrammeOverviewPage({
   if (!programme) notFound();
 
   const filters = filtersFromParams(await searchParams);
-  const [data, installers] = await Promise.all([
+  // Who is assigned is read for anyone who can see the programme: an empty
+  // list is the reason installers cannot reach it, so hiding it would hide
+  // the diagnosis. Only a manager is offered the controls.
+  const [data, installers, assignees, assignable] = await Promise.all([
     getDashboard(programmeId, filters),
-    session.access.readAll ? listInstallers(programmeId) : []
+    session.access.readAll ? listInstallers(programmeId) : [],
+    session.access.readAll ? listAssignees(programmeId) : [],
+    session.access.manage ? listAssignablePeople() : []
   ]);
 
   return (
@@ -97,6 +105,14 @@ export default async function ProgrammeOverviewPage({
               <NeedsActionPanel
                 data={data}
                 basePath={programmePath(programmeId)}
+              />
+            )}
+            {session.access.readAll && (
+              <AssigneesPanel
+                programmeId={programmeId}
+                assignees={assignees}
+                assignable={assignable}
+                canManage={session.access.manage}
               />
             )}
             <ProgressPanel data={data} />

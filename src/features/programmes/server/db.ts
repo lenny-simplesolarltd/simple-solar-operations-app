@@ -192,6 +192,26 @@ type PersonRow = {
   active: boolean;
 };
 
+/** Which roles a person holds. Read to decide who may be offered an assignment. */
+type PersonRoleRow = {
+  person_id: Uuid;
+  role_code: string;
+  active: boolean;
+};
+
+/**
+ * The permission catalogue, read-only.
+ *
+ * Here so the assignment screen can ask which roles may record a visit rather
+ * than hard-coding them: granting programme.visit.submit to another role then
+ * makes those people assignable without a code change, and the screen can
+ * never offer somebody the command would refuse.
+ */
+type RolePermissionRow = {
+  role_code: string;
+  permission_code: string;
+};
+
 /**
  * The generated shape. Insert/Update are declared because the client type
  * requires them, NOT because a client may write: RLS grants SELECT only and
@@ -215,6 +235,8 @@ export type ProgrammeDatabase = {
       programme_import_rows: Relation<ProgrammeImportRowRow>;
       evidence: Relation<EvidenceRow>;
       people: Relation<PersonRow>;
+      person_roles: Relation<PersonRoleRow>;
+      role_permissions: Relation<RolePermissionRow>;
     };
     Views: { [_ in never]: never };
     Functions: {

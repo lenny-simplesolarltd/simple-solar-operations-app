@@ -537,6 +537,57 @@ describe('the installer form', { skip }, () => {
       );
     });
 
+    test('the completion surface is what assignment actually controls', async () => {
+      // MY_FORMS is where an installer looks for the form they are expected to
+      // fill in. For a Workflow-owned form the programme decides, so an
+      // unassigned installer sees NOTHING here - no error, no empty programme,
+      // just a form that is not listed. That silence is why a fully configured
+      // programme with no assignments looked like a broken link to the office:
+      // everything read as set up, and the installers simply had nowhere to go.
+      const listed = async (client) => {
+        const { data, error } = await read(client, 'MY_FORMS', {});
+        assert.ifError(error);
+        return (data.forms ?? []).find((f) => f.form_id === formId) ?? null;
+      };
+
+      const assignment = (
+        await service
+          .from('programme_assignments')
+          .select('id')
+          .eq('programme_id', programmeId)
+          .eq('person_id', johnRow.id)
+          .single()
+      ).data;
+      ok(
+        await command(lenny, 'PROGRAMME_UNASSIGN', {
+          assignment_id: assignment.id
+        })
+      );
+      assert.equal(
+        await listed(john),
+        null,
+        'unassigned: the form is not offered at all'
+      );
+
+      ok(
+        await command(lenny, 'PROGRAMME_ASSIGN', {
+          programme_id: programmeId,
+          person_id: johnRow.id
+        })
+      );
+      const row = await listed(john);
+      assert.ok(row, 'assigned: the form is offered');
+      assert.equal(row.access_mode, 'Workflow');
+      // And it routes into the programme, never to a generic form page: the
+      // visit is recorded against a property, so the property picker is the
+      // only honest entry point.
+      assert.equal(row.route.kind, 'programme');
+      assert.equal(
+        row.route.href,
+        `/dashboard/operations/programmes/${programmeId}/visit`
+      );
+    });
+
     test('a programme cannot be pointed at a template or an unpublished form', async () => {
       const template = ok(
         await command(lucy, 'FORMS_CREATE', {
