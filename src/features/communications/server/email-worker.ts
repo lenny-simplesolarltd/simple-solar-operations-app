@@ -20,8 +20,22 @@ import type { EmailToSend, EmailTransport } from './transport';
 // shipped this worker claims nothing and sends nothing - it is safe to deploy
 // and schedule long before anyone decides to go live.
 
-/** The action types this worker is responsible for. Calendar has its own. */
-export const EMAIL_ACTION_TYPES = ['EmailOrder', 'EmailScaffold'] as const;
+/**
+ * The action types this worker is responsible for. Calendar has its own.
+ *
+ * A type registered in app.outbox_action_types but missing here is invisible:
+ * its rows queue correctly, pass every gate, and then sit Pending for ever
+ * because nothing ever claims them. EmailReport was added to the database and
+ * not to this list, so scheduled reports could never have been sent no matter
+ * how the gates were set - which looks exactly like a gate being shut, and is
+ * the hardest kind of fault to find. The test below compares this list against
+ * the database's own registry so the next one cannot be missed the same way.
+ */
+export const EMAIL_ACTION_TYPES = [
+  'EmailOrder',
+  'EmailScaffold',
+  'EmailReport'
+] as const;
 
 type Json = Record<string, unknown>;
 

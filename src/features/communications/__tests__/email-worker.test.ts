@@ -205,7 +205,11 @@ describe('the recipients it sends to', () => {
 });
 
 describe('the claim request', () => {
-  it('asks only for the two email action types', async () => {
+  it('asks for the email action types and nothing else', async () => {
+    // Calendar and Xero have their own workers; claiming their rows here
+    // would strand them. EmailReport belongs in this list - it was registered
+    // in the database without being added here, so scheduled reports queued
+    // correctly, passed every gate, and were then never claimed by anything.
     const { client, calls } = fakeClient([]);
     await runEmailWorker({
       client,
@@ -214,7 +218,8 @@ describe('the claim request', () => {
 
     expect(find(calls, 'outbox_claim')?.args.p_action_types).toEqual([
       'EmailOrder',
-      'EmailScaffold'
+      'EmailScaffold',
+      'EmailReport'
     ]);
   });
 });

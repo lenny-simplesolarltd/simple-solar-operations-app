@@ -5,6 +5,8 @@
 // The point of most of these assertions is that NOTHING IS SENT and that each
 // of the four independent doors refuses on its own.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { setup, readyToBook } from './fixtures.mjs';
 const f = await setup();
 const { db, one, all, people, cmd, id, ok, as } = f;
@@ -678,5 +680,42 @@ for (const who of ['inst_a', 'sam', 'store'])
     'R1A_ROLE_DENIED',
     who
   );
+
+// ---------------------------------------------------------------------------
+// The worker claims every email type the database registers
+//
+// A type registered in app.outbox_action_types but absent from the worker's
+// list is invisible: its rows queue, pass every gate, and sit Pending for
+// ever, which looks exactly like a shut gate. EmailReport was added to the
+// database and not to the worker, so scheduled reports could never have been
+// sent. Read from the code rather than restated here, so adding the next type
+// fails this test until the worker knows about it.
+// ---------------------------------------------------------------------------
+const workerTypes = Array.from(
+  fs
+    .readFileSync(
+      fileURLToPath(
+        new URL(
+          '../../src/features/communications/server/email-worker.ts',
+          import.meta.url
+        )
+      ),
+      'utf8'
+    )
+    .match(/EMAIL_ACTION_TYPES = \[([^\]]*)\]/)[1]
+    .matchAll(/'([A-Za-z]+)'/g),
+  (m) => m[1]
+);
+assert.deepEqual(
+  workerTypes.slice().sort(),
+  (
+    await all(
+      `select action_type from app.outbox_action_types where service = 'EmailService'`
+    )
+  )
+    .map((r) => r.action_type)
+    .sort(),
+  'every EmailService action type is claimed by the email worker'
+);
 
 console.log('t_communications ok');
