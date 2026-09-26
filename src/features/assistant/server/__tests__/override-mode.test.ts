@@ -2,9 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-import { createToolRegistry } from '../tools';
+import { runAssistantTurn } from '../orchestrator';
+import { canUseOverrideMode, ToolRegistry } from '../registry';
 import { volatileSystemPrompt } from '../system-prompt';
-import { makeActor } from './helpers';
+import { createToolRegistry } from '../tools';
+import {
+  collector,
+  makeActor,
+  makePendingActions,
+  scriptedProvider,
+  silentAudit,
+  THREAD
+} from './helpers';
 
 /**
  * Override mode removes a click, not a check.
@@ -124,5 +133,100 @@ describe('what the model is told when the mode is on', () => {
     const previewing = makeActor();
     previewing.previewing = true;
     expect(prompt(true, previewing)).not.toMatch(/override mode is on/i);
+  });
+});
+
+// -- Who may switch it on ------------------------------------------------------
+
+/**
+ * The toggle used to be shown to everybody. For most people it did nothing -
+ * override_complete_tasks needs task.override_complete, so the tool was never
+ * offered - which is the worst of both worlds: it looks like a switch that is
+ * broken rather than a boundary that is deliberate.
+ *
+ * It is now gated on that same permission, on the server, because the flag
+ * arrives in the request body.
+ */
+describe('who may use override mode', () => {
+  const holder = () =>
+    makeActor({
+      roles: ['Office'],
+      permissions: ['task.read.all', 'task.override_complete']
+    });
+
+  it('allows the roles that already hold the override permission', () => {
+    expect(canUseOverrideMode(holder())).toBe(true);
+  });
+
+  it('refuses anyone without it, however senior their role sounds', () => {
+    for (const actor of [
+      makeActor({ roles: ['Installer'], permissions: [] }),
+      makeActor({ roles: ['Surveyor'], permissions: [] }),
+      makeActor({ roles: ['Finance'], permissions: [] }),
+      // Reading every task queue is not the same authority as closing a task
+      // while recording nothing.
+      makeActor({ roles: ['Office'], permissions: ['task.read.all'] })
+    ]) {
+      expect(canUseOverrideMode(actor), actor.user.roles.join()).toBe(false);
+    }
+  });
+
+  it('refuses a developer previewing as somebody who does hold it', () => {
+    const previewing = holder();
+    previewing.previewing = true;
+    expect(canUseOverrideMode(previewing)).toBe(false);
+  });
+
+  it('is the permission the override tool itself asks for', () => {
+    const tool = createToolRegistry({ forms: true }).get(
+      'override_complete_tasks'
+    );
+    const permissions =
+      tool && 'authorization' in tool ? tool.authorization.permissions : [];
+    // One permission, not two lists that can drift apart.
+    expect(permissions).toContain('task.override_complete');
+    expect(canUseOverrideMode(holder())).toBe(true);
+  });
+});
+
+describe('the browser cannot switch it on by itself', () => {
+  /** Runs one turn with overrideMode asked for, and returns what the model was sent. */
+  async function turn(actor: ReturnType<typeof makeActor>) {
+    const { provider, requests } = scriptedProvider([
+      { text: 'Right you are.' }
+    ]);
+    const out = collector();
+    await runAssistantTurn({
+      actor,
+      threadId: THREAD,
+      message: 'close it anyway',
+      transcript: [],
+      provider,
+      registry: new ToolRegistry(),
+      pendingActions: makePendingActions(),
+      overrideMode: true,
+      audit: silentAudit().sink,
+      emit: out.emit
+    });
+    return requests[0].system.volatile;
+  }
+
+  it('tells the model the mode is on for somebody who may use it', async () => {
+    const volatile = await turn(
+      makeActor({
+        roles: ['Office'],
+        permissions: ['task.read.all', 'task.override_complete']
+      })
+    );
+    expect(volatile).toMatch(/override mode is on/i);
+  });
+
+  it('ignores the flag from somebody who may not - the turn reads as mode off', async () => {
+    // The request body said overrideMode: true. It is re-decided on the
+    // server, so a crafted request buys nothing.
+    const volatile = await turn(
+      makeActor({ roles: ['Installer'], permissions: [] })
+    );
+    expect(volatile).not.toMatch(/override mode is on/i);
   });
 });

@@ -46,6 +46,7 @@ import {
   type ModelMessage
 } from './providers/types';
 import {
+  canUseOverrideMode,
   resolveToolCall,
   toolInputJsonSchema,
   type ToolActor,
@@ -88,10 +89,14 @@ export interface AssistantTurnInput {
   /** Null when proposals cannot be signed; mutation requests are then refused, never executed. */
   pendingActions: PendingActionService | null;
   /**
-   * Override mode. Removes the confirmation click for AUTO_CONFIRM_TOOLS only.
-   * It is a preference, not a permission: the action still goes through the
-   * ordinary confirmation path, so every gate, the version check, idempotency
-   * and the audit trail are identical to a human pressing Confirm.
+   * Override mode, as the BROWSER asked for it. Removes the confirmation click
+   * for AUTO_CONFIRM_TOOLS only, and only for somebody canUseOverrideMode()
+   * allows - it is a permission as well as a preference, and this field is
+   * request input, so it is re-decided here rather than trusted.
+   *
+   * Even then the action still goes through the ordinary confirmation path, so
+   * every gate, the version check, idempotency and the audit trail are
+   * identical to a human pressing Confirm.
    */
   overrideMode?: boolean;
   audit?: AssistantAuditSink;
@@ -151,13 +156,17 @@ export async function runAssistantTurn(
   const audit = input.audit ?? consoleAuditSink;
 
   const tools = registry.availableFor(actor);
+  // The browser sends the flag; the server decides whether it counts. Anyone
+  // who may not override is answered exactly as if the switch were off, rather
+  // than being told about a mode they cannot use.
+  const overrideMode = input.overrideMode === true && canUseOverrideMode(actor);
   const system = {
     stable: stableSystemPrompt(registry.planned()),
     volatile: volatileSystemPrompt(
       actor,
       input.context,
       new Date(),
-      input.overrideMode === true
+      overrideMode
     )
   };
   const toolSpecs = tools.map((tool) => ({
@@ -422,7 +431,7 @@ export async function runAssistantTurn(
         // task override qualifies - choosing it is already the deliberate act,
         // and it is the one mutation whose purpose is to be the escape hatch.
         // Everything irreversible still asks, whatever the mode says.
-        if (turnInput.overrideMode && AUTO_CONFIRM_TOOLS.has(tool.name)) {
+        if (overrideMode && AUTO_CONFIRM_TOOLS.has(tool.name)) {
           const settled = await resolvePendingAction({
             actor,
             decision: 'confirm',

@@ -62,6 +62,13 @@ export interface ClaimedAction {
   threadId: string;
 }
 
+/** A proposal still waiting for the person who was shown it. */
+export interface OpenPendingAction {
+  payload: PendingActionPayload;
+  /** What they were shown when it was proposed, stored verbatim. */
+  preview: unknown;
+}
+
 export type ClaimResult =
   | { outcome: 'ok'; action: ClaimedAction }
   | { outcome: 'already_used' | 'expired' | 'unknown' };
@@ -85,6 +92,14 @@ export interface PendingActionStore {
   release(id: string): Promise<void>;
   /** Records the terminal outcome of a claimed action. */
   complete(id: string, succeeded: boolean, code?: string): Promise<void>;
+  /**
+   * Proposals on this thread that are still open and unexpired.
+   *
+   * A proposal outlives the page that showed it. Without this, a reload left
+   * the person told to press a Confirm button that no longer existed while the
+   * proposal sat here, claimable, until it quietly expired.
+   */
+  openFor(threadId: string, now?: number): Promise<OpenPendingAction[]>;
 }
 
 export class MemoryPendingActionStore implements PendingActionStore {
@@ -92,16 +107,34 @@ export class MemoryPendingActionStore implements PendingActionStore {
   readonly durable = false;
   private readonly actions = new Map<
     string,
-    { payload: PendingActionPayload; used: boolean; done: boolean }
+    {
+      payload: PendingActionPayload;
+      preview: unknown;
+      used: boolean;
+      done: boolean;
+    }
   >();
 
-  async register(payload: PendingActionPayload) {
+  async register(payload: PendingActionPayload, preview?: unknown) {
     this.sweep();
     this.actions.set(payload.id, {
       payload: structuredClone(payload),
+      preview,
       used: false,
       done: false
     });
+  }
+
+  async openFor(threadId: string, now = Date.now()) {
+    this.sweep();
+    const open: OpenPendingAction[] = [];
+    for (const entry of Array.from(this.actions.values())) {
+      if (entry.used || entry.done) continue;
+      if (entry.payload.threadId !== threadId) continue;
+      if (entry.payload.expiresAt <= now) continue;
+      open.push({ payload: entry.payload, preview: entry.preview });
+    }
+    return open.sort((a, b) => a.payload.issuedAt - b.payload.issuedAt);
   }
 
   async claim(id: string): Promise<ClaimResult> {

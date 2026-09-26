@@ -166,7 +166,13 @@ export const getQuoteVersionsTool: ReadTool<{ job: string }> = {
   status: 'available',
   inputSchema: z.strictObject({ job: jobInput }),
   authorization: {
-    permissions: ['job.read'],
+    // No permission code: reading a job's quote versions is part of reading
+    // the job, and PRESALE_VERSIONS applies the job's own visibility rules.
+    // This asked for `job.read`, which is not a permission this application
+    // has - role_permissions holds job.read.all / job.read.own - so nobody
+    // held it and the tool was never offered to anyone.
+    permissions: [],
+    roles: ['Admin', 'Manager', 'Director', 'Office', 'Surveyor', 'Finance'],
     enforcedBy:
       'app.read_presale_versions via public.execute_operations_read - job visibility is the database’s'
   },
@@ -242,7 +248,12 @@ export const revisePresaleTool: MutationTool<ReviseInput> = {
     electrical_notes: z.string().trim().max(2000).optional()
   }),
   authorization: {
-    permissions: ['presale.revise'],
+    // `presale.revise` was never a permission this application defines, so
+    // this asked for something nobody holds and the tool was never offered.
+    // PRESALE_REVISE is gated by ROLE in app.command_registry, and the
+    // registry can express that; the command re-decides it regardless.
+    permissions: [],
+    roles: ['Admin', 'Manager', 'Director', 'Office', 'Surveyor'],
     enforcedBy:
       'app.cmd_presale_revise via public.execute_command - role, job assignment and the historical-import refusal are the database’s'
   },

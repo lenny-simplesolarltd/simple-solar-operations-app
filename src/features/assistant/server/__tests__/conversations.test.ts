@@ -721,20 +721,33 @@ describe('history cannot change authorization', () => {
         .map((t) => t.name)
         .sort()
     ).toEqual([
+      // Role-gated rather than permission-gated, because the commands behind
+      // them are: app.is_office for the contract attach, and the command
+      // registry's own role list for generating a document and revising a
+      // quote. There is no permission code that stands in for any of them.
+      'attach_task_evidence',
       'complete_tasks',
+      'generate_document_pack',
       'move_job',
       'raise_issue',
       'reopen_tasks',
-      'retry_operation'
+      'retry_operation',
+      'revise_quote'
     ]);
     expect(officeOnly.map((t) => t.name).sort()).toEqual([
+      'attach_task_evidence',
+      'compare_quote_revisions',
       'complete_tasks',
+      'find_customer',
       'find_job',
+      'generate_document_pack',
+      'get_current_quote',
       // A read, permissioned by the job's own visibility: seeing the number on
       // file is not the same as being allowed to change it, and the two
       // contact mutations are absent here because this actor lacks
       // customer.edit / job.sale.edit.
       'get_customer_contact',
+      'get_generated_documents',
       'get_help_article',
       'get_help_for_route',
       'get_job',
@@ -744,6 +757,7 @@ describe('history cannot change authorization', () => {
       'get_my_tasks',
       'get_operation_status',
       'get_presale_workflow',
+      'get_quote_versions',
       'get_related_help',
       'get_team_tasks',
       'list_file_folders',
@@ -754,6 +768,7 @@ describe('history cannot change authorization', () => {
       'raise_issue',
       'reopen_tasks',
       'retry_operation',
+      'revise_quote',
       'search_files',
       'search_help_articles'
     ]);

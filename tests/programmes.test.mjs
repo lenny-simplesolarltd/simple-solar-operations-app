@@ -209,7 +209,11 @@ before(async () => {
   revisionId = form.data.current_revision_id;
 
   await loadProperties();
-  assert.equal(Object.keys(properties).length, 10, 'run against a freshly reset database');
+  assert.equal(
+    Object.keys(properties).length,
+    10,
+    'run against a freshly reset database'
+  );
 });
 
 describe('configuration', { skip }, () => {
@@ -400,9 +404,7 @@ describe('the installer form', { skip }, () => {
           .order('revision_number')
       ).data;
       if (revisions.length > 1) {
-        const older = revisions.find(
-          (r) => r.id !== form.current_revision_id
-        );
+        const older = revisions.find((r) => r.id !== form.current_revision_id);
         assert.ok(older, 'an older revision exists');
         assert.notEqual(served.revision_id, older.id);
       }
@@ -461,7 +463,9 @@ describe('the installer form', { skip }, () => {
 
     test('it grants no Forms access of any kind', async () => {
       // Reading the programme's form does not make Forms readable afterwards.
-      ok(await john.rpc('programme_visit_form', { p_programme_id: programmeId }));
+      ok(
+        await john.rpc('programme_visit_form', { p_programme_id: programmeId })
+      );
       assert.equal((await john.from('forms').select('id')).data.length, 0);
       assert.equal(
         (await john.from('form_revisions').select('id')).data.length,
@@ -492,8 +496,11 @@ describe('the installer form', { skip }, () => {
       assert.ifError(director.error);
       // Rick has no programme capability at all.
       assert.ok(
-        (await rick.rpc('programme_visit_form', { p_programme_id: programmeId }))
-          .error
+        (
+          await rick.rpc('programme_visit_form', {
+            p_programme_id: programmeId
+          })
+        ).error
       );
       // An installer removed from the programme loses it, without losing the role.
       const assignment = (
@@ -522,8 +529,11 @@ describe('the installer form', { skip }, () => {
         })
       );
       assert.ifError(
-        (await john.rpc('programme_visit_form', { p_programme_id: programmeId }))
-          .error
+        (
+          await john.rpc('programme_visit_form', {
+            p_programme_id: programmeId
+          })
+        ).error
       );
     });
 
@@ -615,7 +625,14 @@ describe('property import', { skip }, () => {
     ['DEV-2002', '22 Import Row', 'Exeter', 'EX2 2AA', 'MTR-2002', 'dup'],
     ['', '23 Import Row', 'Exeter', 'EX2 2AB', 'MTR-2003', 'dup'], // no reference
     ['DEV-2001', '24 Import Row', 'Exeter', 'EX2 2AB', 'MTR-2004', 'dup'], // repeated in file
-    ['DEV-0001', '1 Fixture Terrace (corrected)', 'Exeter', 'EX1 1AA', 'MTR-1001-A', 'dup'] // update
+    [
+      'DEV-0001',
+      '1 Fixture Terrace (corrected)',
+      'Exeter',
+      'EX1 1AA',
+      'MTR-1001-A',
+      'dup'
+    ] // update
   ];
 
   test('stages a file positionally, so repeated header names do not lose a column', async () => {
@@ -881,10 +898,11 @@ describe('the happy path: SIM changed, good CSQ, portal live', { skip }, () => {
       .select('*')
       .eq('programme_visit_id', visitId);
     assert.equal(data.length, 3);
-    assert.deepEqual(
-      data.map((e) => e.category).sort(),
-      ['CsqPhoto', 'MeterPhoto', 'SimSerialPhoto']
-    );
+    assert.deepEqual(data.map((e) => e.category).sort(), [
+      'CsqPhoto',
+      'MeterPhoto',
+      'SimSerialPhoto'
+    ]);
     for (const e of data) {
       assert.equal(e.scope, 'Programme');
       assert.equal(e.job_id, null);
@@ -977,7 +995,9 @@ describe('the happy path: SIM changed, good CSQ, portal live', { skip }, () => {
   test('the review transition is in the audit log, with before and after', async () => {
     const { data } = await service
       .from('audit_events')
-      .select('action, before_json, after_json, initiating_person_id, command_id')
+      .select(
+        'action, before_json, after_json, initiating_person_id, command_id'
+      )
       .eq('entity_type', 'programme_visit')
       .eq('entity_id', visitId)
       .order('occurred_at');
@@ -995,14 +1015,12 @@ describe('the happy path: SIM changed, good CSQ, portal live', { skip }, () => {
   });
 
   test('no client can write a visit row directly', async () => {
-    const insert = await lucy
-      .from('programme_visits')
-      .insert({
-        id: randomUUID(),
-        programme_id: programmeId,
-        property_id: properties['DEV-0010'].id,
-        installer_id: johnRow.id
-      });
+    const insert = await lucy.from('programme_visits').insert({
+      id: randomUUID(),
+      programme_id: programmeId,
+      property_id: properties['DEV-0010'].id,
+      installer_id: johnRow.id
+    });
     assert.ok(insert.error);
     const update = await lucy
       .from('programme_visits')
@@ -1147,27 +1165,47 @@ describe('the other outcomes', { skip }, () => {
 
   test('advisory and bad CSQ are classified and recommended for action', async () => {
     const advisory = ok(
-      await recordVisit(john, 'DEV-0006', simChanged(9, 'MTR-1006-A'), SIM_PHOTOS)
+      await recordVisit(
+        john,
+        'DEV-0006',
+        simChanged(9, 'MTR-1006-A'),
+        SIM_PHOTOS
+      )
     );
     assert.equal(advisory.signal_classification, 'Advisory');
     assert.equal(advisory.recommended_disposition, 'ActionRequired');
     assert.ok(advisory.review_reasons.includes('AdvisorySignal'));
 
     const bad = ok(
-      await recordVisit(john, 'DEV-0007', simChanged(1, 'MTR-1007-A'), SIM_PHOTOS)
+      await recordVisit(
+        john,
+        'DEV-0007',
+        simChanged(1, 'MTR-1007-A'),
+        SIM_PHOTOS
+      )
     );
     assert.equal(bad.signal_classification, 'Bad');
     assert.ok(bad.review_reasons.includes('BadSignal'));
 
     const boundary = ok(
-      await recordVisit(john, 'DEV-0008', simChanged(4, 'MTR-1008-A'), SIM_PHOTOS)
+      await recordVisit(
+        john,
+        'DEV-0008',
+        simChanged(4, 'MTR-1008-A'),
+        SIM_PHOTOS
+      )
     );
     assert.equal(boundary.signal_classification, 'Bad'); // the configured answer
   });
 
   test('no expected serial recorded: not comparable, and said so', async () => {
     const r = ok(
-      await recordVisit(john, 'DEV-0009', simChanged(22, 'MTR-WHATEVER'), SIM_PHOTOS)
+      await recordVisit(
+        john,
+        'DEV-0009',
+        simChanged(22, 'MTR-WHATEVER'),
+        SIM_PHOTOS
+      )
     );
     assert.equal(r.meter_serial_matches, null);
     assert.ok(r.review_reasons.includes('MeterSerialNotComparable'));
@@ -1247,7 +1285,10 @@ describe('the server does not trust the form', { skip }, () => {
         form_id: formId,
         revision_id: revisionId,
         submission_id: randomUUID(),
-        answers: { property: properties['DEV-0010'].id, visit_outcome: 'made_up' }
+        answers: {
+          property: properties['DEV-0010'].id,
+          visit_outcome: 'made_up'
+        }
       },
       { expectedVersion: version }
     );
@@ -1321,7 +1362,9 @@ describe('the server does not trust the form', { skip }, () => {
           property: properties['DEV-0010'].id,
           ...simChanged(20, 'MTR-1010-A'),
           meter_photo: [csq], // registered as CsqPhoto, offered as the meter photo
-          sim_serial_photo: [await uploadPhoto(john, visitId, 'SimSerialPhoto')],
+          sim_serial_photo: [
+            await uploadPhoto(john, visitId, 'SimSerialPhoto')
+          ],
           csq_photo: [csq]
         }
       },

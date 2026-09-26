@@ -91,10 +91,11 @@ export function AssistantDrawer() {
       <AssistantPanel
         conversation={conversation.state}
         overrideMode={shell.overrideMode}
-        // Preview is read-only, so the mode would promise something it cannot
-        // deliver: the control is withheld rather than shown and ignored.
+        // Only for staff the server says may override (task.override_complete,
+        // and never in preview, which is read-only). Withheld rather than shown
+        // and ignored: a switch that does nothing reads as a broken feature.
         onOverrideModeChange={
-          shell.capabilities?.preview ? undefined : shell.setOverrideMode
+          shell.capabilities?.canOverride ? shell.setOverrideMode : undefined
         }
         page={shell.page}
         capabilities={shell.capabilities}

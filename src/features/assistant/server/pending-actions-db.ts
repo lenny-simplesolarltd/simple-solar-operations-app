@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { previewWriteBlock } from '@/lib/preview/guard';
+import type { OpenPendingAction } from './pending-actions';
 import { createClient } from '@/lib/supabase/server';
 import type {
   ClaimResult,
@@ -65,6 +66,45 @@ export class SupabasePendingActionStore implements PendingActionStore {
       p_preview: preview ?? {},
       p_expires_at: new Date(action.expiresAt).toISOString()
     });
+  }
+
+  /**
+   * Proposals on this thread still waiting for an answer.
+   *
+   * A plain select, not an RPC: the table grants select to authenticated behind
+   * an owner-only policy, so this returns the caller's own open proposals and
+   * nobody else's without a function having to decide that again.
+   */
+  async openFor(
+    threadId: string,
+    now = Date.now()
+  ): Promise<OpenPendingAction[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('assistant_pending_actions')
+      .select(
+        'id, tool, args, args_hash, expected_version, preview, created_at, expires_at, person_id'
+      )
+      .eq('thread_id', threadId)
+      .eq('status', 'Open')
+      .gt('expires_at', new Date(now).toISOString())
+      .order('created_at');
+    if (error) throw new Error(`open pending actions: ${error.message}`);
+    return (data ?? []).map((row) => ({
+      payload: {
+        v: 1 as const,
+        id: row.id,
+        tool: row.tool,
+        args: row.args,
+        argsHash: row.args_hash,
+        actorPersonId: row.person_id,
+        threadId,
+        expectedVersion: row.expected_version,
+        issuedAt: new Date(row.created_at).getTime(),
+        expiresAt: new Date(row.expires_at).getTime()
+      },
+      preview: row.preview
+    }));
   }
 
   async claim(

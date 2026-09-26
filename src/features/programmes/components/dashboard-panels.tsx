@@ -140,7 +140,7 @@ export function DeliveryPanel({
         <h3 className='text-sm font-semibold tracking-wide uppercase'>
           Delivery
         </h3>
-        <dl className='grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3'>
+        <dl className='grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr_auto_1fr] lg:grid-cols-[auto_1fr_auto_1fr_auto_1fr]'>
           <dt className='text-muted-foreground'>Programme target</dt>
           <dd className='font-medium tabular-nums'>
             {target === null ? 'Not recorded' : n(target)}
@@ -195,7 +195,7 @@ export function DeliveryPanel({
       <h3 className='text-sm font-semibold tracking-wide uppercase'>
         Delivery
       </h3>
-      <dl className='grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3'>
+      <dl className='grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr_auto_1fr] lg:grid-cols-[auto_1fr_auto_1fr_auto_1fr]'>
         <dt className='text-muted-foreground'>Programme target</dt>
         <dd className='font-medium tabular-nums'>
           {target === null ? 'Not recorded' : n(target)}

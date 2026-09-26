@@ -5,10 +5,13 @@ import {
   ProgrammeShell,
   ProgrammesNotEnabled
 } from '@/features/programmes/components/shell';
+import { ReportSchedules } from '@/features/programmes/components/report-schedules';
 import {
   currentAccess,
   getDailyReport,
   getProgramme,
+  getReportSubscriptions,
+  getWeeklyReport,
   programmesEnabled
 } from '@/features/programmes/server/queries';
 import type { Metadata } from 'next';
@@ -54,10 +57,23 @@ export default async function ProgrammeReportPage({
   if (!programme) notFound();
   if (!session.access.report) redirect('/dashboard');
 
-  const raw = (await searchParams).date;
-  const wanted = (Array.isArray(raw) ? raw[0] : raw) ?? '';
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(wanted) ? wanted : undefined;
-  const report = await getDailyReport(programmeId, date);
+  const query = await searchParams;
+  const one = (v: string | string[] | undefined) =>
+    (Array.isArray(v) ? v[0] : v) ?? '';
+  const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const date = isDate(one(query.date)) ? one(query.date) : undefined;
+  // ?period=weekly previews exactly what the weekly email would carry, from the
+  // same canonical read - so what is previewed and what is sent cannot differ.
+  const weekly = one(query.period) === 'weekly';
+  const from = isDate(one(query.from)) ? one(query.from) : undefined;
+  const to = isDate(one(query.to)) ? one(query.to) : undefined;
+
+  const [report, schedules] = await Promise.all([
+    weekly
+      ? getWeeklyReport(programmeId, { from, to })
+      : getDailyReport(programmeId, date),
+    getReportSubscriptions('Programme', programmeId)
+  ]);
 
   return (
     <PageContainer>
@@ -65,18 +81,37 @@ export default async function ProgrammeReportPage({
         programme={programme}
         access={session.access}
         current='/report'
-        description='The day as the client would read it. Nothing on this page is sent anywhere.'
+        description={
+          weekly
+            ? 'The week as the client would read it, exactly as the weekly email carries it.'
+            : 'The day as the client would read it. Nothing on this page is sent unless a schedule below says so.'
+        }
         actions={
           <ExportDailyReportButton programmeId={programmeId} date={date} />
         }
       >
-        {!report ? (
-          <p className='text-muted-foreground text-sm'>
-            You do not have access to this programme&rsquo;s reporting.
-          </p>
-        ) : (
-          <DailyReportView report={report} />
-        )}
+        <div className='flex flex-col gap-8'>
+          {!report ? (
+            <p className='text-muted-foreground text-sm'>
+              You do not have access to this programme&rsquo;s reporting.
+            </p>
+          ) : (
+            <DailyReportView report={report} />
+          )}
+
+          {schedules && (
+            <ReportSchedules
+              sourceKind='Programme'
+              sourceId={programmeId}
+              subscriptions={schedules.subscriptions}
+              runs={schedules.runs}
+              canManage={session.access.manage}
+              previewHref={(type) =>
+                type === 'Weekly' ? `?period=weekly` : `?period=daily`
+              }
+            />
+          )}
+        </div>
       </ProgrammeShell>
     </PageContainer>
   );

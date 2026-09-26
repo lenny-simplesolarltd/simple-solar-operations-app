@@ -31,9 +31,13 @@ assert.match(
   'local database only'
 );
 const sql = (statement) =>
-  execFileSync('psql', [DB_URL, '-XAtq', '-v', 'ON_ERROR_STOP=1', '-c', statement], {
-    encoding: 'utf8'
-  }).trim();
+  execFileSync(
+    'psql',
+    [DB_URL, '-XAtq', '-v', 'ON_ERROR_STOP=1', '-c', statement],
+    {
+      encoding: 'utf8'
+    }
+  ).trim();
 
 let tanya, casey;
 const jobs = {};
@@ -215,7 +219,9 @@ describe('an imported record is never operational', () => {
       'job_in_scope must stay false'
     );
     assert.equal(
-      sql(`select app.job_actionable(j) from public.jobs j where j.id = '${id}'`),
+      sql(
+        `select app.job_actionable(j) from public.jobs j where j.id = '${id}'`
+      ),
       'f',
       'job_actionable must stay false'
     );
@@ -430,11 +436,7 @@ describe('history never becomes work to do', () => {
     });
     const him = assess.candidates.find((c) => c.person_id === casey_.id);
     assert.ok(him, 'Casey is assessed');
-    assert.equal(
-      him.load,
-      0,
-      'a historical record must not load an installer'
-    );
+    assert.equal(him.load, 0, 'a historical record must not load an installer');
     assert.equal(
       him.reasons.includes('CAPACITY_CONFLICT'),
       false,
@@ -586,6 +588,9 @@ describe('live planner behaviour is unchanged', () => {
       }
     });
     assert.ok(error, 'a historical job cannot be planned');
-    assert.match(error.message, /HISTORICAL_IMPORT|NOT_ACTIONABLE|OUTSIDE_PILOT/);
+    assert.match(
+      error.message,
+      /HISTORICAL_IMPORT|NOT_ACTIONABLE|OUTSIDE_PILOT/
+    );
   });
 });

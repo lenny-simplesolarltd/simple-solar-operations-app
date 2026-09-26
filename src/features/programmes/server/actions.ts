@@ -630,3 +630,154 @@ export async function exportDailyReportAction(
 export async function programmeWriteBlocked() {
   return previewWriteBlock();
 }
+
+// -- Scheduled reports -----------------------------------------------------------
+
+const recipientSchema = z.strictObject({
+  name: z.string().trim().max(200).nullish(),
+  email: z.email().max(320)
+});
+
+/**
+ * Sets (or creates) one standing report instruction.
+ *
+ * Recipients are whole addresses, validated here and again in the database.
+ * Being listed grants nothing: outbound.allowed_recipients still decides
+ * whether a single byte leaves, and every schedule starts disabled.
+ */
+export async function setReportSubscriptionAction(
+  input: {
+    sourceKind: 'Programme' | 'Form';
+    sourceId: string;
+    reportType: 'Daily' | 'Weekly';
+    enabled?: boolean;
+    sendHour?: number;
+    weekStartsOn?: number;
+    timezone?: string;
+    recipients?: { name?: string | null; email: string }[];
+  },
+  commandId: string
+): Promise<CommandResponse> {
+  const parsed = z
+    .strictObject({
+      sourceKind: z.enum(['Programme', 'Form']),
+      sourceId: uuid,
+      reportType: z.enum(['Daily', 'Weekly']),
+      enabled: z.boolean().optional(),
+      sendHour: z.number().int().min(0).max(23).optional(),
+      weekStartsOn: z.number().int().min(1).max(7).optional(),
+      timezone: z.string().trim().min(1).max(64).optional(),
+      recipients: z.array(recipientSchema).max(50).optional()
+    })
+    .safeParse(input);
+  if (!parsed.success || !uuid.safeParse(commandId).success) return invalid;
+  const d = parsed.data;
+
+  const response = await runCommand({
+    command_id: commandId,
+    command_type: 'REPORT_SUBSCRIPTION_SET',
+    payload: {
+      source_kind: d.sourceKind,
+      source_id: d.sourceId,
+      report_type: d.reportType,
+      ...(d.enabled !== undefined ? { enabled: d.enabled } : {}),
+      ...(d.sendHour !== undefined ? { send_hour: d.sendHour } : {}),
+      ...(d.weekStartsOn !== undefined
+        ? { week_starts_on: d.weekStartsOn }
+        : {}),
+      ...(d.timezone ? { timezone: d.timezone } : {}),
+      ...(d.recipients
+        ? {
+            recipients: d.recipients.map((r) => ({
+              name: r.name?.trim() || null,
+              email: r.email.trim().toLowerCase()
+            }))
+          }
+        : {})
+    }
+  });
+  if (response.ok && d.sourceKind === 'Programme') refresh(d.sourceId);
+  return response;
+}
+
+/**
+ * Builds and queues one report now, for a period that has closed.
+ *
+ * The same builder the scheduler uses, so a manual send and a scheduled one
+ * cannot drift - and the same run table, so sending manually for a period that
+ * has already been reported does nothing rather than sending it twice.
+ */
+export async function sendReportAction(
+  input: {
+    sourceKind: 'Programme' | 'Form';
+    sourceId: string;
+    reportType: 'Daily' | 'Weekly';
+    from?: string;
+    to?: string;
+  },
+  commandId: string
+): Promise<CommandResponse> {
+  const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+  const parsed = z
+    .strictObject({
+      sourceKind: z.enum(['Programme', 'Form']),
+      sourceId: uuid,
+      reportType: z.enum(['Daily', 'Weekly']),
+      from: date.optional(),
+      to: date.optional()
+    })
+    .safeParse(input);
+  if (!parsed.success || !uuid.safeParse(commandId).success) return invalid;
+  const d = parsed.data;
+
+  const response = await runCommand({
+    command_id: commandId,
+    command_type: 'REPORT_SEND',
+    payload: {
+      source_kind: d.sourceKind,
+      source_id: d.sourceId,
+      report_type: d.reportType,
+      ...(d.from ? { from: d.from } : {}),
+      ...(d.to ? { to: d.to } : {})
+    }
+  });
+  if (response.ok && d.sourceKind === 'Programme') refresh(d.sourceId);
+  return response;
+}
+
+/**
+ * Removes the standing instruction. The run history stays.
+ *
+ * What was reported, to whom and when is a record of something that happened;
+ * deleting the schedule does not unhappen it.
+ */
+export async function deleteReportSubscriptionAction(
+  input: {
+    sourceKind: 'Programme' | 'Form';
+    sourceId: string;
+    reportType: 'Daily' | 'Weekly';
+  },
+  commandId: string
+): Promise<CommandResponse> {
+  const parsed = z
+    .strictObject({
+      sourceKind: z.enum(['Programme', 'Form']),
+      sourceId: uuid,
+      reportType: z.enum(['Daily', 'Weekly'])
+    })
+    .safeParse(input);
+  if (!parsed.success || !uuid.safeParse(commandId).success) return invalid;
+  const d = parsed.data;
+
+  const response = await runCommand({
+    command_id: commandId,
+    command_type: 'REPORT_SUBSCRIPTION_DELETE',
+    payload: {
+      source_kind: d.sourceKind,
+      source_id: d.sourceId,
+      report_type: d.reportType
+    }
+  });
+  if (response.ok && d.sourceKind === 'Programme') refresh(d.sourceId);
+  return response;
+}

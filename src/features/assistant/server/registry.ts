@@ -197,6 +197,35 @@ export class ToolRegistry {
   }
 }
 
+/**
+ * The permission that opens override mode.
+ *
+ * Override mode removes the confirmation click for a task override, so the
+ * person switching it on is standing behind an action that records NOTHING -
+ * no invoice, no bank confirmation, no evidence. That is the same authority
+ * `override_complete_tasks` itself asks for, so it is gated by the same
+ * permission rather than by a second list that could drift away from it.
+ *
+ * On the seeded roles that is Admin, Manager, Director and Office. An
+ * Installer, Surveyor, Scaffolder, Store or Finance user is not offered the
+ * toggle at all: before this, the switch was shown to everyone and did nothing
+ * for most of them, which reads as a broken feature rather than as a boundary.
+ */
+export const OVERRIDE_MODE_PERMISSION = 'task.override_complete';
+
+/**
+ * May this person use override mode?
+ *
+ * Checked on the SERVER for every turn, not just in the browser: the flag
+ * arrives in the request body, so a crafted request would otherwise switch it
+ * on for somebody who may not have it. A developer previewing as another
+ * staff member is refused whatever that person holds - a preview is read-only.
+ */
+export function canUseOverrideMode(actor: ToolActor): boolean {
+  if (actor.previewing) return false;
+  return actor.permissions.has(OVERRIDE_MODE_PERMISSION);
+}
+
 export function isPermitted(tool: AvailableTool, actor: ToolActor): boolean {
   const { permissions, roles } = tool.authorization;
   if (!permissions.every((p) => actor.permissions.has(p))) return false;

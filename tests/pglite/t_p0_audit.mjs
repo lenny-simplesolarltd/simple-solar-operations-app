@@ -266,14 +266,23 @@ r = await staff(
   `update public.release_modes set scope_boundary_notes = 'reviewed' where id = $1`,
   [fn20.id]
 );
-assert.match(r.error ?? '', /permission denied/, 'direct staff write to release_modes');
+assert.match(
+  r.error ?? '',
+  /permission denied/,
+  'direct staff write to release_modes'
+);
 const setMode = (mode, version) =>
   staff('ben', `select public.execute_command($1::jsonb) r`, [
     {
       command_id: crypto.randomUUID(),
       command_type: 'RELEASE_MODE_SET',
       expected_version: version,
-      payload: { function_id: 'FN-20', mode, scope: 'Pilot', reason: 'audit test' }
+      payload: {
+        function_id: 'FN-20',
+        mode,
+        scope: 'Pilot',
+        reason: 'audit test'
+      }
     }
   ]);
 r = await setMode('Disabled', fn20.version);
@@ -284,7 +293,12 @@ assert.equal(ev.before_json.mode, fn20.mode);
 assert.equal(ev.after_json.mode, 'Disabled');
 assert.equal(ev.reason, 'audit test');
 assert.equal(
-  (await one(`select count(*)::int n from public.audit_events where command_id = $1`, [ev.command_id])).n,
+  (
+    await one(
+      `select count(*)::int n from public.audit_events where command_id = $1`,
+      [ev.command_id]
+    )
+  ).n,
   1,
   'one audit event per release change'
 );
@@ -305,7 +319,11 @@ r = await staff(
   'tanya',
   `update public.release_modes set mode = 'Automated', authorised_job_scope = 'All' where function_id = 'FN-20' returning id`
 );
-assert.match(r.error ?? '', /permission denied/, 'no staff write path to release_modes');
+assert.match(
+  r.error ?? '',
+  /permission denied/,
+  'no staff write path to release_modes'
+);
 assert.equal(
   (
     await one(

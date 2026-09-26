@@ -2,18 +2,31 @@
 
 Discovered while building the assistant foundation. **Nothing here was created or changed** by the
 assistant workstream: no tables, migrations, seeds, RLS, functions or hosted-database changes. Each
-item unblocks planned tools registered in `src/features/assistant/server/tools/planned.ts`.
+item unblocked planned tools registered in `src/features/assistant/server/tools/planned.ts`.
+
+**Every one is now closed**, and `PLANNED_TOOLS` is empty: no capability is waiting on a backend.
+What the model is still told it cannot do is either release-gated (Forms FN-21, Programmes FN-22)
+or a deliberate product boundary - uploading a file, redesigning a system, changing a sale's agreed
+terms. Two entries closed by turning out not to be backend gaps at all (BD-01, and half of BD-05),
+which is worth remembering the next time something is deferred: the question to ask first is
+whether the policy the tool needs is already in the database.
 
 Conventions the assistant relies on for every future **command**: derive the actor from `auth.uid()`
 (never a parameter); accept `p_command_id uuid` and use the existing `commands` table for
 idempotency; accept `p_expected_version` where a row is updated; raise business rejections as
 `P0001` with a stable code, as `submit_presale` does.
 
-## BD-01 Customer search
+## BD-01 Customer search (CLOSED)
 
-- **Required capability:** find customers independently of a job (name, postcode, phone, email).
-- **Proposed interface:** `searchCustomers(query): {id, displayName, postcode, jobCount}[]` under RLS.
-- **Why:** `find_customer`. Today customers are only reachable through `find_job`.
+It turned out not to be a backend dependency at all. `public.customers` already carries
+`customers_select` - a customer is readable when a job of theirs is - and `public.jobs` carries its
+own visibility policy, so a session-bound query over both returns exactly the customers this person
+may see, with exactly the jobs of theirs they may see. No read model, no grant, no migration.
+
+- **Implemented as:** `searchVisibleCustomers()` in `src/features/customers/server/search.ts`
+  (name, postcode, address, town, phone, email; a phone number is matched both as typed and
+  compacted, because the column holds it either way).
+- **Tool:** `find_customer` (read).
 
 ## BD-02 Job timeline read model (CLOSED)
 
@@ -37,27 +50,57 @@ stay unbuilt for product reasons, not backend ones, and `planned.ts` now says wh
 - `complete_task` - most task types ask for a file or extra fields that only the task screen can
   collect; a note-only variant is designed and not built.
 - `reopen_task` - undoes recorded work; belongs where the person can see what they are undoing.
-- `attach_task_evidence` - a file is uploaded from the browser straight to storage and the person
-  attests to it. The assistant cannot hold a file, and a path it supplied would be an unattested
-  record. This one is permanently **app-only**, not planned.
+- `attach_task_evidence` - **built, narrowed.** The objection stands and shaped the tool: a file is
+  uploaded from the browser straight to storage and the person attests to it, so a path the model
+  supplied would be an unattested record. The tool therefore cannot upload and takes no path. It
+  links a file a PERSON has ALREADY stored on the job to the PRE02 contract task that has none -
+  the attestation already happened, and what was missing was only the link. The model names the
+  file by the id `list_job_files` gave it, or by filename; the storage path is looked up on the
+  server under this person's session and never leaves it. `app.evidence_attach` resolves a
+  registered path back to the same evidence row, so nothing is duplicated.
 
-## BD-05 Quote revisions (owned by the quote/document workstream)
+## BD-05 Quote revisions (CLOSED, and half of it was the wrong shape)
 
-- **Required capability:** immutable quote snapshots per job, a diff, and amendment/approval commands.
-- **Proposed interface:** `getCurrentQuote(jobId)`, `getQuoteHistory(jobId)`,
-  `compareQuoteRevisions(a, b): {path, label, from, to}[]`, and
-  `create_quote_amendment(p_command_id, p_job_id, p_base_revision_id, p_expected_version, p_changes jsonb)`
-  which returns a **preview without writing** when `p_dry_run = true` (the assistant's `prepare()` needs
-  the recalculated price for the confirmation card), plus `approve_quote_revision(...)`.
-- **Why:** `get_current_quote`, `get_quote_history`, `compare_quote_revisions`, `create_quote_amendment`,
-  `update_quote_draft`, `approve_quote_revision`.
+The quote workstream supplied the snapshots, and shipped the OPPOSITE model to the one proposed
+here. `presales` is append-only and immutable (migration `20260920300000`): a revision writes a new
+version and supersedes the old one, with `quote_number` for what the customer sees and
+`correction_number` for what the office sees behind it. `PRESALE_VERSIONS` reads them with the job's
+own visibility rules; `PRESALE_REVISE` writes one.
 
-## BD-06 Generated documents
+- **Built:** `get_current_quote` and `compare_quote_revisions`
+  (`src/features/assistant/server/tools/quotes.ts`), over `getQuoteVersions()` in
+  `src/features/presale/server/versions.ts` - the read model for labels, order and which version is
+  current, joined to `public.presales` under the session for the notes and the price breakdown.
+- **Already existed:** `get_quote_history` was `get_quote_versions` all along. Listing it as
+  unavailable told staff the opposite of the truth.
+- **Retired, not built:** `create_quote_amendment`, `update_quote_draft`, `approve_quote_revision`.
+  They describe a draft-then-approve workflow this application does not have: there is no draft to
+  edit, because a presale row cannot be updated, and no approval gate, because a version is current
+  the moment it is written. `revise_quote` IS the amendment - `new_version` when what is being sold
+  changes, `correction` when what was recorded was wrong.
+- **Fixed while here:** `get_quote_versions` and `revise_quote` asked for the permission codes
+  `job.read` and `presale.revise`. Neither exists in `role_permissions` (it holds `job.read.all` /
+  `job.read.own`, and nothing for presale revision), so nobody held them and neither tool had ever
+  been offered to anyone. Both are gated by ROLE in the read/command registry, which the tool
+  registry can express; they now name those roles.
 
-- **Required capability:** list generated documents for a job; (re)generate a document pack.
-- **Proposed interface:** `getGeneratedDocuments(jobId)`,
-  `generate_document_pack(p_command_id, p_job_id, p_quote_revision_id, p_template_codes)`.
-- **Why:** `get_generated_documents`, `generate_document_pack`.
+## BD-06 Generated documents (CLOSED)
+
+Supplied by migration `20260920280000`: `JOB_DOCUMENTS` (current revision per type plus history,
+job visibility applied in the handler) and `DOCUMENT_GENERATE` (queues a revision; the worker
+renders it from a frozen snapshot, in its own transaction).
+
+- **Tools:** `get_generated_documents` (read) and `generate_document_pack` (mutation), in
+  `src/features/assistant/server/tools/documents.ts`. The mutation runs the same command the
+  Documents card's Generate button runs and kicks the worker the same way, so a person who confirms
+  sees it start.
+- **Two things the model is made to say honestly**, because both are easy to get wrong: generating
+  QUEUES, so the answer after a confirmation is "queued", never "here is the document"; and a
+  generation never rewrites a Ready revision - it makes a new one and supersedes the old file, which
+  is kept, because an email sent last week points at exactly those bytes.
+- **No revision id in the interface.** The proposal had the caller name a quote revision to generate
+  from. The command derives it from the job's current presale instead, which is the only answer that
+  cannot be stale by the time somebody presses Confirm.
 
 ## BD-07 Durable pending actions (IMPLEMENTED on feature/simplebot-conversations)
 

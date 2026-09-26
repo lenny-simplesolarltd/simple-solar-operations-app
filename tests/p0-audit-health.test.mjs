@@ -140,7 +140,12 @@ describe('restored audit triggers', () => {
           command_id: randomUUID(),
           command_type: 'RELEASE_MODE_SET',
           expected_version: version,
-          payload: { function_id: 'FN-14', mode: to, scope: 'Pilot', reason: 'reviewed by test' }
+          payload: {
+            function_id: 'FN-14',
+            mode: to,
+            scope: 'Pilot',
+            reason: 'reviewed by test'
+          }
         }
       });
     const on = await set(

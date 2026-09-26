@@ -20,7 +20,9 @@ export function PublicShell({
   return (
     <div className={cn('bg-muted/40', !embedded && 'min-h-dvh')}>
       <header className='bg-background border-b'>
-        <div className='mx-auto flex h-14 max-w-2xl items-center px-4'>
+        {/* Padded rather than h-14 + items-center: BrandLogo's wrapper sets
+            self-start, so a centring flex line would still pin it to the top. */}
+        <div className='mx-auto flex max-w-2xl px-4 py-4'>
           <BrandLogo className='h-6' />
         </div>
       </header>

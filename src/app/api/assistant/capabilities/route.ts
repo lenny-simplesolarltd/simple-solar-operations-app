@@ -3,6 +3,7 @@ import { resolveAssistantActor } from '@/features/assistant/server/actor';
 import { openConversationStore } from '@/features/assistant/server/conversations/store';
 import { resolvePendingActions } from '@/features/assistant/server/pending-actions-config';
 import { resolveProvider } from '@/features/assistant/server/providers';
+import { canUseOverrideMode } from '@/features/assistant/server/registry';
 import { createRequestToolRegistry } from '@/features/assistant/server/tools';
 
 export const runtime = 'nodejs';
@@ -34,6 +35,7 @@ export async function GET() {
     preview: actor.previewing
       ? { name: actor.user.fullName ?? 'Staff member', roles: actor.user.roles }
       : undefined,
+    canOverride: canUseOverrideMode(actor),
     tools: registry
       .availableFor(actor)
       .map(({ name, kind, summary }) => ({ name, kind, summary })),

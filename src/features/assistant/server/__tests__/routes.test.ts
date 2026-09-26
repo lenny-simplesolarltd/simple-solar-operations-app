@@ -60,6 +60,18 @@ describe('unauthenticated access', () => {
   });
 });
 
+import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from '../tools/forms';
+import {
+  PROGRAMME_IMPORT_MUTATION_TOOLS,
+  PROGRAMME_IMPORT_READ_TOOLS
+} from '../tools/programme-imports';
+import {
+  PROGRAMME_OPERATION_MUTATION_TOOLS,
+  PROGRAMME_OPERATION_READ_TOOLS
+} from '../tools/programme-operations';
+import { PROGRAMME_READ_TOOLS } from '../tools/programmes';
+import { REPORT_MUTATION_TOOLS, REPORT_READ_TOOLS } from '../tools/reports';
+
 describe('signed in', () => {
   beforeEach(() => resolveAssistantActor.mockResolvedValue(makeActor()));
 
@@ -72,7 +84,7 @@ describe('signed in', () => {
     expect(error.message).toMatch(/not switched on/i);
   });
 
-  it('reports an unconfigured assistant through capabilities, with real and planned tools', async () => {
+  it('reports an unconfigured assistant through capabilities, listing what this staff member can actually use', async () => {
     vi.stubEnv('ASSISTANT_PROVIDER', '');
     const body = await (await capabilities()).json();
     expect(body.configured).toBe(false);
@@ -86,9 +98,17 @@ describe('signed in', () => {
       'list_job_operations',
       'get_my_tasks',
       'get_presale_workflow',
+      'find_customer',
       'get_customer_contact',
       'move_job',
       'raise_issue',
+      'get_quote_versions',
+      'revise_quote',
+      'get_current_quote',
+      'compare_quote_revisions',
+      'get_generated_documents',
+      'generate_document_pack',
+      'attach_task_evidence',
       'list_job_files',
       'search_files',
       'list_file_folders',
@@ -97,9 +117,43 @@ describe('signed in', () => {
       'get_help_for_route',
       'get_related_help'
     ]);
-    expect(body.planned.map((t: { name: string }) => t.name)).toContain(
-      'create_quote_amendment'
-    );
+    // No backend gap is left. What is still listed as unavailable here is
+    // release-gated - Forms (FN-21) and Programmes (FN-22) are switched off in
+    // this test environment - not a capability waiting on a backend, so no
+    // quote or document tool appears.
+    const plannedNames = body.planned.map((t: { name: string }) => t.name);
+    for (const name of [
+      'find_customer',
+      'get_current_quote',
+      'compare_quote_revisions',
+      'get_generated_documents',
+      'generate_document_pack',
+      'attach_task_evidence',
+      'create_quote_amendment',
+      'update_quote_draft',
+      'approve_quote_revision'
+    ]) {
+      expect(plannedNames, name).not.toContain(name);
+    }
+    // Everything still listed says it is switched off, not that it is waiting
+    // on a backend.
+    for (const tool of body.planned) {
+      expect(
+        [...FORMS_READ_TOOLS, ...FORMS_MUTATION_TOOLS].some(
+          (t) => t.name === tool.name
+        ) ||
+          [
+            ...PROGRAMME_READ_TOOLS,
+            ...PROGRAMME_IMPORT_READ_TOOLS,
+            ...PROGRAMME_IMPORT_MUTATION_TOOLS,
+            ...REPORT_READ_TOOLS,
+            ...REPORT_MUTATION_TOOLS,
+            ...PROGRAMME_OPERATION_READ_TOOLS,
+            ...PROGRAMME_OPERATION_MUTATION_TOOLS
+          ].some((t) => t.name === tool.name),
+        tool.name
+      ).toBe(true);
+    }
   });
 
   it('offers team tasks only to staff who hold task.read.all', async () => {
@@ -110,6 +164,20 @@ describe('signed in', () => {
     expect(body.tools.map((t: { name: string }) => t.name)).toContain(
       'get_team_tasks'
     );
+  });
+
+  it('tells the browser whether the override switch may be shown at all', async () => {
+    // Nobody is offered the toggle by default; it appears only for the
+    // permission the override tool itself asks for.
+    resolveAssistantActor.mockResolvedValue(
+      makeActor({ permissions: ['task.read.all'] })
+    );
+    expect((await (await capabilities()).json()).canOverride).toBe(false);
+
+    resolveAssistantActor.mockResolvedValue(
+      makeActor({ permissions: ['task.read.all', 'task.override_complete'] })
+    );
+    expect((await (await capabilities()).json()).canOverride).toBe(true);
   });
 
   it('rejects identity fields and malformed bodies', async () => {

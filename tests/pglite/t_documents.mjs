@@ -109,10 +109,10 @@ const test = (name, fn) => tests.push([name, fn]);
 test('submitting a presale queues both documents', async () => {
   const rows = await revisions();
   assert.equal(rows.length, 2, 'one revision per document type');
-  assert.deepEqual(
-    rows.map((r) => r.document_type).sort(),
-    ['QuotationContract', 'ROI']
-  );
+  assert.deepEqual(rows.map((r) => r.document_type).sort(), [
+    'QuotationContract',
+    'ROI'
+  ]);
   for (const r of rows) {
     assert.equal(r.status, 'Queued');
     assert.equal(r.revision_number, 1);
@@ -231,7 +231,11 @@ test('a failure schedules a retry and keeps the reason', async () => {
   );
   assert.ok(!r.error, r.error);
   const after = await revision(roi.id);
-  assert.equal(after.status, 'Queued', 'retryable failures go back in the queue');
+  assert.equal(
+    after.status,
+    'Queued',
+    'retryable failures go back in the queue'
+  );
   assert.equal(after.error_code, 'MISSING_CONSUMPTION');
   assert.ok(after.next_attempt, 'with a backoff');
   assert.equal(after.claimed_at, null);
@@ -272,7 +276,11 @@ test('a failed revision can be asked for again, as a new attempt', async () => {
   const rows = await revisions('ROI');
   assert.equal(rows.length, 2, 'a new revision, not a resurrected one');
   assert.equal(rows[1].revision_number, 2);
-  assert.equal(rows[0].status, 'Failed', 'the failed attempt is still on record');
+  assert.equal(
+    rows[0].status,
+    'Failed',
+    'the failed attempt is still on record'
+  );
 });
 
 // --- Regeneration ------------------------------------------------------------
@@ -417,7 +425,11 @@ test('the worker functions are closed to ordinary sessions', async () => {
   );
   assert.equal(granted.length, 4);
   for (const g of granted) {
-    assert.equal(g.auth_ok, false, `${g.proname} must not be callable by a session`);
+    assert.equal(
+      g.auth_ok,
+      false,
+      `${g.proname} must not be callable by a session`
+    );
   }
 });
 
@@ -516,10 +528,9 @@ test('a customer email can never be queued for automatic dispatch', async () => 
 });
 
 test('a newer revision does not rewrite an earlier email', async () => {
-  const before = await one(
-    `select * from public.communications where id=$1`,
-    [composed.communicationId]
-  );
+  const before = await one(`select * from public.communications where id=$1`, [
+    composed.communicationId
+  ]);
   // Generate R3 of the quotation.
   const r = await cmd('tanya', {
     command_id: id(),

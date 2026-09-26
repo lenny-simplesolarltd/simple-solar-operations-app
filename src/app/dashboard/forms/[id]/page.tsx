@@ -5,6 +5,8 @@ import { AssistantPageContext } from '@/features/assistant/components/page-conte
 import { FormAccess } from '@/features/forms/components/form-access';
 import { FormBuilder } from '@/features/forms/components/form-builder';
 import { ShareLinks } from '@/features/forms/components/share-links';
+import { Button } from '@/components/ui/button';
+import { getReportSubscriptions } from '@/features/programmes/server/queries';
 import { getFormAccess } from '@/features/forms/server/access';
 import { listRoleMembers } from '@/features/people/server/queries';
 import { getForm, listInvitations } from '@/features/forms/server/service';
@@ -38,6 +40,9 @@ export default async function FormPage({
     form.kind === 'form' ? await listInvitations({ formId: form.id }) : [];
   // Templates are never completed by anybody: a form is made from one first.
   const access = form.kind === 'form' ? await getFormAccess(form.id) : null;
+  // A template collects nothing, so it has nothing to report on.
+  const reports =
+    form.kind === 'form' ? await getReportSubscriptions('Form', form.id) : null;
   // Who holds each role, so choosing an audience shows the people in it. Read
   // under this person's own RLS, so it is empty for anyone who may not see the
   // directory and the section simply appears without faces.
@@ -96,6 +101,23 @@ export default async function FormPage({
                 : null
             }
           />
+        )}
+        {reports && (
+          <section className='flex flex-wrap items-center gap-3 rounded-lg border p-4'>
+            <div className='min-w-0 flex-1'>
+              <h2 className='font-semibold'>Automated reports</h2>
+              <p className='text-muted-foreground text-sm'>
+                {reports.subscriptions.filter((s) => s.enabled).length > 0
+                  ? `${reports.subscriptions.filter((s) => s.enabled).length} scheduled. Responses are emailed once the period has finished.`
+                  : 'Email these responses to people on a schedule. Nothing is set up yet.'}
+              </p>
+            </div>
+            <Button asChild variant='outline'>
+              <Link href={`/dashboard/forms/${form.id}/reports`}>
+                Responses &amp; reports
+              </Link>
+            </Button>
+          </section>
         )}
         {form.revisions.length > 0 && (
           <section

@@ -4,7 +4,7 @@ vi.mock('server-only', () => ({}));
 
 import { runAssistantTurn } from '../orchestrator';
 import { AssistantProviderError } from '../providers/types';
-import { ToolRegistry } from '../registry';
+import { ToolRegistry, type PlannedTool } from '../registry';
 import { PLANNED_TOOLS } from '../tools/planned';
 import {
   collector,
@@ -78,7 +78,21 @@ describe('tool gating', () => {
 
   it('never offers or executes a planned (unavailable) tool', async () => {
     const registry = new ToolRegistry();
-    for (const tool of PLANNED_TOOLS) registry.register(tool);
+    // PLANNED_TOOLS is empty now that the last one was built, so this uses a
+    // stand-in: the gate is what is under test, not any particular capability,
+    // and it has to keep working the next time something is deferred.
+    for (const tool of [
+      ...PLANNED_TOOLS,
+      {
+        name: 'create_quote_amendment',
+        summary: 'Prepare an amended quote as a new revision',
+        domain: 'quotes',
+        kind: 'mutation',
+        status: 'planned',
+        dependsOn: 'a backend that does not exist'
+      } satisfies PlannedTool
+    ])
+      registry.register(tool);
     const { provider, requests } = scriptedProvider([
       {
         toolCalls: [

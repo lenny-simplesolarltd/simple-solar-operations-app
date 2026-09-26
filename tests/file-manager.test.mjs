@@ -43,7 +43,11 @@ const call = (client, fn, request) => client.rpc(fn, { p_request: request });
 
 /** The refusal code a command raised, or null when it succeeded. */
 const codeOf = (error) =>
-  error ? String(error.message ?? '').split(':')[0].trim() : null;
+  error
+    ? String(error.message ?? '')
+        .split(':')[0]
+        .trim()
+    : null;
 
 async function newFolder(client, request) {
   const { data, error } = await call(client, 'file_folder_create', request);
@@ -52,7 +56,8 @@ async function newFolder(client, request) {
 }
 
 before(async () => {
-  for (const name of ['lenny', 'tanya', 'angel']) await ensureLogin(email(name));
+  for (const name of ['lenny', 'tanya', 'angel'])
+    await ensureLogin(email(name));
   lenny = await signInAs(email('lenny')); // Admin: file.manage + file.purge
   tanya = await signInAs(email('tanya')); // Office: file.manage
   angel = await signInAs(email('angel')); // Installer: neither
@@ -216,7 +221,11 @@ describe('folders', () => {
   });
 
   test('moving a folder rebuilds the whole subtree, not just the folder', async () => {
-    const a = await newFolder(lenny, { scope: 'Job', job_id: jobId, name: 'A' });
+    const a = await newFolder(lenny, {
+      scope: 'Job',
+      job_id: jobId,
+      name: 'A'
+    });
     const b = await newFolder(lenny, {
       scope: 'Job',
       job_id: jobId,
@@ -288,7 +297,11 @@ describe('documents: filing is logical', () => {
       before.storage_path,
       'the stored object never moves'
     );
-    assert.equal(after.category, before.category, 'still the same kind of document');
+    assert.equal(
+      after.category,
+      before.category,
+      'still the same kind of document'
+    );
     assert.equal(after.filing_version, before.filing_version + 1);
   });
 
@@ -388,8 +401,13 @@ describe('trash and retention', () => {
 
     const restored = await call(lenny, 'file_restore', { file_ids: [fileId] });
     assert.ifError(restored.error);
-    const { data: back } = await call(lenny, 'list_evidence', { job_id: jobId });
-    assert.ok(back.evidence.some((e) => e.id === fileId), 'and comes back');
+    const { data: back } = await call(lenny, 'list_evidence', {
+      job_id: jobId
+    });
+    assert.ok(
+      back.evidence.some((e) => e.id === fileId),
+      'and comes back'
+    );
   });
 
   test('a document a task relies on cannot be trashed at all', async () => {
@@ -543,7 +561,10 @@ describe('search and audit', () => {
       name: `Where ${Date.now()}`
     });
     const fileId = await makeFile('findable-report.pdf');
-    await call(lenny, 'file_move', { file_ids: [fileId], folder_id: folder.id });
+    await call(lenny, 'file_move', {
+      file_ids: [fileId],
+      folder_id: folder.id
+    });
 
     const { data, error } = await call(lenny, 'file_search', {
       q: 'findable-report'
@@ -570,7 +591,10 @@ describe('search and audit', () => {
       name: `Audited ${Date.now()}`
     });
     const fileId = await makeFile('audited.pdf');
-    await call(lenny, 'file_move', { file_ids: [fileId], folder_id: folder.id });
+    await call(lenny, 'file_move', {
+      file_ids: [fileId],
+      folder_id: folder.id
+    });
     await call(lenny, 'file_rename', { file_id: fileId, name: 'Audited.pdf' });
     await call(lenny, 'file_trash', { file_ids: [fileId] });
     await call(lenny, 'file_restore', { file_ids: [fileId] });

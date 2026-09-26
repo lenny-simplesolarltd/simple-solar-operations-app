@@ -84,7 +84,9 @@ test('a sale starts at Quote 1', async () => {
 // --- Correcting ---------------------------------------------------------------
 
 test('a correction keeps the quote number and moves the revision', async () => {
-  const r = await revise('correction', { roof_notes: 'south-facing, corrected' });
+  const r = await revise('correction', {
+    roof_notes: 'south-facing, corrected'
+  });
   assert.ok(r.ok, JSON.stringify(r));
   assert.equal(r.result.quote_number, 1, 'the customer still has Quote 1');
   assert.equal(r.result.correction_number, 2);
@@ -92,7 +94,11 @@ test('a correction keeps the quote number and moves the revision', async () => {
 
   const rows = await versions();
   assert.equal(rows.length, 2, 'a new row, not an edited one');
-  assert.equal(rows[0].superseded_by, rows[1].id, 'the old one points at the new');
+  assert.equal(
+    rows[0].superseded_by,
+    rows[1].id,
+    'the old one points at the new'
+  );
   assert.ok(rows[0].superseded_at);
   assert.equal(rows[1].roof_notes, 'south-facing, corrected');
 });
@@ -106,7 +112,11 @@ test('the superseded version is byte-for-byte what it always was', async () => {
 
 test('unchanged fields carry forward', async () => {
   const c = await current();
-  assert.equal(Number(c.agreed_price_pence), 500000, 'price was not in the payload');
+  assert.equal(
+    Number(c.agreed_price_pence),
+    500000,
+    'price was not in the payload'
+  );
   assert.equal(c.net_panels, 12);
 });
 

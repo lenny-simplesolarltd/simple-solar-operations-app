@@ -953,16 +953,22 @@ function CapabilityList({
           </li>
         ))}
       </ul>
-      <p className='text-muted-foreground mt-3 text-xs font-medium'>
-        Not available yet
-      </p>
-      <ul className='text-muted-foreground mt-1 flex flex-col gap-1'>
-        {capabilities.planned.map((tool) => (
-          <li key={tool.name} className='text-xs'>
-            {tool.summary}
-          </li>
-        ))}
-      </ul>
+      {/* Nothing here is the normal state. An empty heading reads like a
+          list that failed to load. */}
+      {capabilities.planned.length > 0 && (
+        <>
+          <p className='text-muted-foreground mt-3 text-xs font-medium'>
+            Not available yet
+          </p>
+          <ul className='text-muted-foreground mt-1 flex flex-col gap-1'>
+            {capabilities.planned.map((tool) => (
+              <li key={tool.name} className='text-xs'>
+                {tool.summary}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </details>
   );
 }

@@ -35,9 +35,13 @@ assert.match(
   'local database only'
 );
 const sql = (statement) =>
-  execFileSync('psql', [DB_URL, '-XAtq', '-v', 'ON_ERROR_STOP=1', '-c', statement], {
-    encoding: 'utf8'
-  }).trim();
+  execFileSync(
+    'psql',
+    [DB_URL, '-XAtq', '-v', 'ON_ERROR_STOP=1', '-c', statement],
+    {
+      encoding: 'utf8'
+    }
+  ).trim();
 
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 const bucket = (client) => client.storage.from('evidence');
@@ -66,7 +70,9 @@ const day = (offset) => {
 
 async function run(client, request) {
   const req = { command_id: randomUUID(), ...request };
-  const { data, error } = await client.rpc('execute_command', { p_request: req });
+  const { data, error } = await client.rpc('execute_command', {
+    p_request: req
+  });
   return { req, data, error, result: data?.result };
 }
 async function ok(client, request, label) {
@@ -75,7 +81,8 @@ async function ok(client, request, label) {
   assert.equal(r.data.ok, true, label);
   return r;
 }
-const auditCount = () => Number(sql('select count(*) from public.audit_events'));
+const auditCount = () =>
+  Number(sql('select count(*) from public.audit_events'));
 /** A refusal returns the reference code and writes nothing at all. */
 async function refuse(client, request, code, label = code) {
   const before = auditCount();
@@ -96,7 +103,11 @@ async function refuse(client, request, code, label = code) {
  */
 async function needsReview(client, request, reason, label = reason) {
   const r = await ok(client, request, label);
-  assert.equal(r.result.status, 'NeedsReview', `${label}: ${JSON.stringify(r.result)}`);
+  assert.equal(
+    r.result.status,
+    'NeedsReview',
+    `${label}: ${JSON.stringify(r.result)}`
+  );
   assert.equal(r.result.reason, reason, label);
   return r;
 }
@@ -141,7 +152,9 @@ async function upload(client, contextType, contextId, filename) {
     }
   });
   assert.ifError(reg.error);
-  const ticket = await bucket(client).createSignedUploadUrl(reg.data.storage_path);
+  const ticket = await bucket(client).createSignedUploadUrl(
+    reg.data.storage_path
+  );
   assert.ifError(ticket.error);
   assert.ifError(
     (
@@ -306,11 +319,16 @@ async function bookedJob(tag) {
   j = await job(id);
   await ok(
     tanya,
-    { command_type: 'CONFIRM_BOOKING', job_id: id, expected_version: j.version },
+    {
+      command_type: 'CONFIRM_BOOKING',
+      job_id: id,
+      expected_version: j.version
+    },
     'CONFIRM_BOOKING'
   );
-  const pkgs = (await service.from('work_packages').select('*').eq('job_id', id))
-    .data;
+  const pkgs = (
+    await service.from('work_packages').select('*').eq('job_id', id)
+  ).data;
   return {
     id,
     roof: pkgs.find((p) => p.trade === 'Roof'),
@@ -378,7 +396,11 @@ describe('the windowed calendar read', { skip }, () => {
     assert.ok(Array.isArray(data.scaffold));
     assert.ok(Array.isArray(data.holidays));
     for (const row of data.rows) {
-      assert.match(row.start_at, /^\d{4}-\d{2}-\d{2}$/, 'dates are days, not timestamps');
+      assert.match(
+        row.start_at,
+        /^\d{4}-\d{2}-\d{2}$/,
+        'dates are days, not timestamps'
+      );
       assert.match(row.end_at, /^\d{4}-\d{2}-\d{2}$/);
     }
   });
@@ -613,7 +635,11 @@ describe('moving work from the planner', { skip }, () => {
        where entity_type = 'WorkPackages' and entity_id = '${pkg.id}' and action = 'Move'
        order by occurred_at desc limit 1`
     );
-    assert.equal(audit, `${day(0)} -> ${day(7)}`, 'the audit carries old and new dates');
+    assert.equal(
+      audit,
+      `${day(0)} -> ${day(7)}`,
+      'the audit carries old and new dates'
+    );
 
     // And the planner read now shows it where it was moved to.
     const data = await readOk(tanya, {
@@ -806,7 +832,10 @@ describe('reassigning work from the team view', { skip }, () => {
       old_allocation_id: alloc.id
     });
     assert.ok(Array.isArray(data.candidates));
-    assert.ok(data.candidates.length > 0, 'there are installers to choose from');
+    assert.ok(
+      data.candidates.length > 0,
+      'there are installers to choose from'
+    );
     for (const c of data.candidates) {
       assert.equal(typeof c.ready, 'boolean');
       assert.ok(Array.isArray(c.reasons), 'an unready candidate can say why');

@@ -60,12 +60,16 @@ describe('the production registry', () => {
         .map((t) => t.name)
         .sort()
     ).toEqual([
+      'compare_quote_revisions',
       'explain_programme_import',
+      'find_customer',
       'find_job',
+      'get_current_quote',
       'get_customer_contact',
       'get_form',
       'get_form_access',
       'get_form_response',
+      'get_generated_documents',
       'get_help_article',
       'get_help_for_route',
       'get_job',
@@ -95,12 +99,15 @@ describe('the production registry', () => {
       'programme_visit_get',
       'programme_visit_search',
       'programme_visit_submit_status',
+      'report_preview',
+      'report_schedule',
       'search_files',
       'search_help_articles'
     ]);
     const mutations = available.filter((t) => t.kind === 'mutation');
     expect(mutations.map((t) => t.name).sort()).toEqual([
       'apply_programme_import',
+      'attach_task_evidence',
       'complete_tasks',
       'create_file_folder',
       'create_form',
@@ -108,6 +115,7 @@ describe('the production registry', () => {
       'create_presale',
       'discard_programme_import',
       'edit_form_draft',
+      'generate_document_pack',
       'move_files_to_folder',
       'move_job',
       'override_complete_tasks',
@@ -116,6 +124,10 @@ describe('the production registry', () => {
       'publish_form',
       'raise_issue',
       'reopen_tasks',
+      'report_recipients_change',
+      'report_schedule_delete',
+      'report_schedule_set',
+      'report_send',
       'retry_operation',
       'revise_quote',
       'revoke_form_link',
@@ -139,7 +151,15 @@ describe('the production registry', () => {
         'presales',
         // Programme review, the installer's visit workflow, and applying a
         // staged property import - each the same command the screens call.
-        'programmes'
+        'programmes',
+        // Scheduling a report and sending one by hand: REPORT_SUBSCRIPTION_SET
+        // and REPORT_SEND, the same commands the reports screen calls. Neither
+        // delivers anything - the outbox and its gates still decide that.
+        'reporting',
+        // Generating a customer document: DOCUMENT_GENERATE, the same command
+        // the Documents card's Generate button calls. It queues a revision and
+        // sends nothing to anyone.
+        'documents'
       ]).toContain(tool.domain);
       // Correcting contact details and lead source is CUSTOMER_UPDATE /
       // JOB_SALE_UPDATE (migration 20260920270000). Each asks for its own
@@ -156,9 +176,17 @@ describe('the production registry', () => {
         expect(tool.authorization.permissions).toEqual(['presale.submit']);
       }
       if (tool.domain === 'evidence') {
-        // Filing only. Nothing that removes a document is offered to the model.
-        expect(tool.authorization.permissions).toContain('file.manage');
+        // Nothing that removes a document is offered to the model, whatever
+        // else an evidence mutation does.
         expect(tool.name).not.toMatch(/trash|delete|purge|destroy/);
+        // Filing is the file-manager commands, and asks for their permission.
+        // attach_task_evidence is not filing: it is TASK_EVIDENCE_ATTACH on
+        // PRE02, gated by role and by the task's own attachability, and it
+        // moves no file. It is named here so a NEW evidence mutation still
+        // has to argue for its exemption rather than inherit this one.
+        if (tool.name !== 'attach_task_evidence') {
+          expect(tool.authorization.permissions).toContain('file.manage');
+        }
       }
       if (tool.domain === 'forms') {
         expect(
@@ -174,23 +202,40 @@ describe('the production registry', () => {
     ).toEqual(['task.read.all', 'task.override_complete']);
   });
 
-  it('keeps every quote and document capability planned and non-executable', () => {
+  it('builds the quote and document capabilities rather than leaving them planned', () => {
+    // These were the last entries in planned.ts. Each is now a real tool over
+    // an operation the application already exposes - PRESALE_VERSIONS,
+    // JOB_DOCUMENTS, DOCUMENT_GENERATE, TASK_EVIDENCE_ATTACH - so a staff
+    // member is no longer told "not available yet" about something the app
+    // does.
     for (const name of [
-      'attach_task_evidence',
-      'create_quote_amendment',
+      'find_customer',
+      'get_current_quote',
       'compare_quote_revisions',
-      'generate_document_pack'
+      'get_generated_documents',
+      'generate_document_pack',
+      'attach_task_evidence'
     ]) {
       const tool = registry.get(name);
-      expect(tool?.status).toBe('planned');
-      expect(tool && 'execute' in tool).toBe(false);
+      expect(tool?.status, name).toBe('available');
+      expect(tool && 'execute' in tool, name).toBe(true);
+    }
+    // The draft-then-approve quote workflow BD-05 proposed is retired, not
+    // built: presales are append-only, so there is no draft to edit and no
+    // approval gate. revise_quote is the amendment.
+    for (const name of [
+      'create_quote_amendment',
+      'update_quote_draft',
+      'approve_quote_revision',
+      'get_quote_history'
+    ]) {
+      expect(registry.get(name), name).toBeUndefined();
       expect(
         resolveToolCall(registry, makeActor({ roles: ['Admin'] }), name, {})
-      ).toMatchObject({
-        ok: false,
-        code: 'TOOL_UNAVAILABLE'
-      });
+      ).toMatchObject({ ok: false, code: 'UNKNOWN_TOOL' });
     }
+    // Nothing is left claiming to be planned.
+    expect(registry.planned().map((t) => t.name)).toEqual([]);
   });
 
   it('has no tool that accepts an identity or arbitrary query', () => {

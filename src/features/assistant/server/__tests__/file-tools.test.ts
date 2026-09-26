@@ -106,16 +106,23 @@ describe('file tools are registered as read tools any staff member can use', () 
     }
   });
 
-  it('steers document questions to the file tools, not to "unavailable"', () => {
+  it('steers document questions to the file tools, and keeps stored files apart from generated ones', () => {
     const prompt = stableSystemPrompt(registry.planned());
     expect(prompt).toContain('list_job_files');
     expect(prompt).toContain('search_files');
     expect(prompt).toMatch(/signed contract/);
-    // Generating documents stays planned, and says reading files is available.
+    // Nothing about quotes or documents is planned any more. (This registry
+    // has Forms switched off, so its tools are still planned - that is a
+    // release gate, not a missing backend.)
+    expect(registry.planned().filter((t) => t.domain !== 'forms')).toEqual([]);
+    // The two kinds of document are both real and must stay distinguishable:
+    // files people uploaded, and documents the app generates from the quote.
     const generated = registry.get('get_generated_documents');
-    expect(generated?.status).toBe('planned');
-    expect(generated?.summary).toMatch(/list_job_files/);
-    expect(registry.get('attach_task_evidence')?.status).toBe('planned');
+    expect(generated).toMatchObject({ kind: 'read', status: 'available' });
+    expect(prompt).toContain('get_generated_documents');
+    expect(prompt).toContain('generate_document_pack');
+    expect(prompt).toMatch(/queued/i);
+    expect(registry.get('attach_task_evidence')?.status).toBe('available');
   });
 });
 

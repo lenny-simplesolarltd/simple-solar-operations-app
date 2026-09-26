@@ -25,7 +25,9 @@ const run = async (client, type, payload, extra = {}) => {
     }
   });
   if (error) return { ok: false, code: error.message };
-  return data?.ok ? { ok: true, result: data.result, replayed: data.replayed } : { ok: false, code: data?.outcome?.code };
+  return data?.ok
+    ? { ok: true, result: data.result, replayed: data.replayed }
+    : { ok: false, code: data?.outcome?.code };
 };
 
 /** A visit the office may still act on. */
@@ -42,21 +44,43 @@ async function anAwaitingVisit() {
 }
 
 before(async () => {
-  const was = await service.from('release_modes').select('mode, authorised_job_scope').eq('function_id', 'FN-22').single();
+  const was = await service
+    .from('release_modes')
+    .select('mode, authorised_job_scope')
+    .eq('function_id', 'FN-22')
+    .single();
   gateWas = was.data;
-  await service.from('release_modes').update({ mode: 'Manual', authorised_job_scope: 'Pilot' }).eq('function_id', 'FN-22');
+  await service
+    .from('release_modes')
+    .update({ mode: 'Manual', authorised_job_scope: 'Pilot' })
+    .eq('function_id', 'FN-22');
 
-  programmeId = (await service.from('programmes').select('id').eq('code', 'DEV-PCH-SIM').single()).data.id;
+  programmeId = (
+    await service
+      .from('programmes')
+      .select('id')
+      .eq('code', 'DEV-PCH-SIM')
+      .single()
+  ).data.id;
   await ensureLogin(email('lucy'));
   office = await signInAs(email('lucy'));
-  lucyId = (await service.from('people').select('id').eq('email', email('lucy')).single()).data.id;
+  lucyId = (
+    await service
+      .from('people')
+      .select('id')
+      .eq('email', email('lucy'))
+      .single()
+  ).data.id;
 });
 
 after(async () => {
   if (gateWas)
     await service
       .from('release_modes')
-      .update({ mode: gateWas.mode, authorised_job_scope: gateWas.authorised_job_scope })
+      .update({
+        mode: gateWas.mode,
+        authorised_job_scope: gateWas.authorised_job_scope
+      })
       .eq('function_id', 'FN-22');
 });
 
@@ -67,16 +91,31 @@ describe('command origin', () => {
     const done = await run(
       office,
       'PROGRAMME_VISIT_REVIEW',
-      { visit_id: visit.id, disposition: 'ActionRequired', action_note: 'From the review screen.' },
+      {
+        visit_id: visit.id,
+        disposition: 'ActionRequired',
+        action_note: 'From the review screen.'
+      },
       { commandId, expectedVersion: visit.version }
     );
     assert.equal(done.ok, true, `refused: ${done.code}`);
 
-    const command = await service.from('commands').select('origin, actor_person_id').eq('command_id', commandId).single();
+    const command = await service
+      .from('commands')
+      .select('origin, actor_person_id')
+      .eq('command_id', commandId)
+      .single();
     assert.equal(command.data.origin, 'UI');
-    assert.equal(command.data.actor_person_id, lucyId, 'the human must still be the actor');
+    assert.equal(
+      command.data.actor_person_id,
+      lucyId,
+      'the human must still be the actor'
+    );
 
-    const audit = await service.from('audit_events').select('origin, initiating_person_id').eq('command_id', commandId);
+    const audit = await service
+      .from('audit_events')
+      .select('origin, initiating_person_id')
+      .eq('command_id', commandId);
     assert.ok(audit.data.length > 0);
     for (const row of audit.data) {
       assert.equal(row.origin, 'UI');
@@ -104,21 +143,36 @@ describe('command origin', () => {
     const done = await run(
       office,
       'PROGRAMME_VISIT_REVIEW',
-      { visit_id: visit.id, disposition: 'ActionRequired', action_note: 'Asked SimpleBot to.' },
+      {
+        visit_id: visit.id,
+        disposition: 'ActionRequired',
+        action_note: 'Asked SimpleBot to.'
+      },
       { commandId, expectedVersion: visit.version }
     );
     assert.equal(done.ok, true, `refused: ${done.code}`);
 
-    const command = await service.from('commands').select('origin, actor_person_id').eq('command_id', commandId).single();
+    const command = await service
+      .from('commands')
+      .select('origin, actor_person_id')
+      .eq('command_id', commandId)
+      .single();
     assert.equal(command.data.origin, 'SimpleBot');
     // The accountable actor is still the human, not a bot.
     assert.equal(command.data.actor_person_id, lucyId);
 
-    const audit = await service.from('audit_events').select('origin, initiating_person_id').eq('command_id', commandId);
+    const audit = await service
+      .from('audit_events')
+      .select('origin, initiating_person_id')
+      .eq('command_id', commandId);
     assert.ok(audit.data.length > 0);
     for (const row of audit.data) {
       assert.equal(row.origin, 'SimpleBot');
-      assert.equal(row.initiating_person_id, lucyId, 'SimpleBot must never replace the person');
+      assert.equal(
+        row.initiating_person_id,
+        lucyId,
+        'SimpleBot must never replace the person'
+      );
     }
   });
 
@@ -142,7 +196,13 @@ describe('command origin', () => {
 
   test('a pending action belonging to somebody else does not make it SimpleBot', async () => {
     const visit = await anAwaitingVisit();
-    const other = (await service.from('people').select('id').eq('email', email('john')).single()).data.id;
+    const other = (
+      await service
+        .from('people')
+        .select('id')
+        .eq('email', email('john'))
+        .single()
+    ).data.id;
     const commandId = randomUUID();
     await service.from('assistant_pending_actions').insert({
       id: commandId,
@@ -163,8 +223,16 @@ describe('command origin', () => {
       { commandId, expectedVersion: visit.version }
     );
     assert.equal(done.ok, true, `refused: ${done.code}`);
-    const command = await service.from('commands').select('origin').eq('command_id', commandId).single();
-    assert.equal(command.data.origin, 'UI', "another person's pending action granted SimpleBot provenance");
+    const command = await service
+      .from('commands')
+      .select('origin')
+      .eq('command_id', commandId)
+      .single();
+    assert.equal(
+      command.data.origin,
+      'UI',
+      "another person's pending action granted SimpleBot provenance"
+    );
   });
 
   test('replaying a SimpleBot command changes nothing and writes no second audit event', async () => {
@@ -182,25 +250,46 @@ describe('command origin', () => {
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
     });
 
-    const payload = { visit_id: visit.id, disposition: 'MeterRequiresChanging' };
-    const first = await run(office, 'PROGRAMME_VISIT_REVIEW', payload, { commandId, expectedVersion: visit.version });
+    const payload = {
+      visit_id: visit.id,
+      disposition: 'MeterRequiresChanging'
+    };
+    const first = await run(office, 'PROGRAMME_VISIT_REVIEW', payload, {
+      commandId,
+      expectedVersion: visit.version
+    });
     assert.equal(first.ok, true, `refused: ${first.code}`);
     const eventsAfterFirst = await service
       .from('audit_events')
       .select('id', { count: 'exact', head: true })
       .eq('command_id', commandId);
 
-    const again = await run(office, 'PROGRAMME_VISIT_REVIEW', payload, { commandId, expectedVersion: visit.version });
+    const again = await run(office, 'PROGRAMME_VISIT_REVIEW', payload, {
+      commandId,
+      expectedVersion: visit.version
+    });
     assert.equal(again.ok, true);
-    assert.equal(again.replayed, true, 'the second call was not treated as a replay');
+    assert.equal(
+      again.replayed,
+      true,
+      'the second call was not treated as a replay'
+    );
 
     const eventsAfterReplay = await service
       .from('audit_events')
       .select('id', { count: 'exact', head: true })
       .eq('command_id', commandId);
-    assert.equal(eventsAfterReplay.count, eventsAfterFirst.count, 'the replay wrote another audit event');
+    assert.equal(
+      eventsAfterReplay.count,
+      eventsAfterFirst.count,
+      'the replay wrote another audit event'
+    );
 
-    const command = await service.from('commands').select('origin').eq('command_id', commandId).single();
+    const command = await service
+      .from('commands')
+      .select('origin')
+      .eq('command_id', commandId)
+      .single();
     assert.equal(command.data.origin, 'SimpleBot');
   });
 });

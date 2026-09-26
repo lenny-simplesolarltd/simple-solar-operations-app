@@ -28,14 +28,18 @@ async function command(client, type, payload, extra = {}) {
     }
   });
   if (error) return { ok: false, code: error.message };
-  return data?.ok ? { ok: true, result: data.result } : { ok: false, code: data?.outcome?.code ?? 'REFUSED' };
+  return data?.ok
+    ? { ok: true, result: data.result }
+    : { ok: false, code: data?.outcome?.code ?? 'REFUSED' };
 }
 
 const read = async (client, readType, payload = {}) => {
   const { data, error } = await client.rpc('execute_operations_read', {
     p_request: { read_type: readType, payload }
   });
-  return error ? { ok: false, code: error.code } : { ok: true, data: data?.data };
+  return error
+    ? { ok: false, code: error.code }
+    : { ok: true, data: data?.data };
 };
 
 before(async () => {
@@ -84,7 +88,8 @@ describe('who the assistant may act for', () => {
       .select('role_code, permission_code')
       .like('permission_code', 'programme%');
     const held = {};
-    for (const r of perms.data) (held[r.role_code] ??= new Set()).add(r.permission_code);
+    for (const r of perms.data)
+      (held[r.role_code] ??= new Set()).add(r.permission_code);
 
     // Admin administers, Office reviews and reports, Installer submits only,
     // Surveyor holds nothing at all. The assistant's tools are declared
@@ -94,9 +99,16 @@ describe('who the assistant may act for', () => {
     assert.ok(held.Office.has('programme.report'));
     assert.ok(!held.Office.has('programme.manage'), 'Office must not import');
     assert.ok(held.Installer.has('programme.visit.submit'));
-    assert.ok(!held.Installer.has('programme.review'), 'an installer must not review');
+    assert.ok(
+      !held.Installer.has('programme.review'),
+      'an installer must not review'
+    );
     assert.ok(!held.Installer.has('programme.report'));
-    assert.equal(held.Surveyor, undefined, 'a surveyor holds no programme permission');
+    assert.equal(
+      held.Surveyor,
+      undefined,
+      'a surveyor holds no programme permission'
+    );
   });
 
   test('a surveyor sees no programme rows at all, whatever id is supplied', async () => {
@@ -114,7 +126,9 @@ describe('who the assistant may act for', () => {
     assert.equal(visits.count, 0, 'RLS let a surveyor see visits');
 
     // The aggregate read is the assistant's only route to programme numbers.
-    const dashboard = await read(surveyor, 'PROGRAMME_DASHBOARD', { programme_id: programmeId });
+    const dashboard = await read(surveyor, 'PROGRAMME_DASHBOARD', {
+      programme_id: programmeId
+    });
     assert.equal(dashboard.ok, false, 'a surveyor got programme reporting');
   });
 
@@ -146,7 +160,11 @@ describe('who the assistant may act for', () => {
         },
         { expectedVersion: awaiting.data.version }
       );
-      assert.equal(refusal.ok, false, `an installer reviewed a visit as ${disposition}`);
+      assert.equal(
+        refusal.ok,
+        false,
+        `an installer reviewed a visit as ${disposition}`
+      );
     }
 
     // And nothing moved.
@@ -160,7 +178,11 @@ describe('who the assistant may act for', () => {
 
   test('an installer cannot report, and cannot import', async () => {
     assert.equal(
-      (await read(clients.john, 'PROGRAMME_DASHBOARD', { programme_id: programmeId })).ok,
+      (
+        await read(clients.john, 'PROGRAMME_DASHBOARD', {
+          programme_id: programmeId
+        })
+      ).ok,
       false
     );
     const imported = await command(clients.john, 'PROGRAMME_IMPORT_CREATE', {
@@ -175,7 +197,11 @@ describe('who the assistant may act for', () => {
 
   test('office may review and report, but may not import', async () => {
     assert.equal(
-      (await read(clients.lucy, 'PROGRAMME_DASHBOARD', { programme_id: programmeId })).ok,
+      (
+        await read(clients.lucy, 'PROGRAMME_DASHBOARD', {
+          programme_id: programmeId
+        })
+      ).ok,
       true
     );
     const imported = await command(clients.lucy, 'PROGRAMME_IMPORT_CREATE', {
@@ -185,7 +211,11 @@ describe('who the assistant may act for', () => {
       header: ['a'],
       row_count: 0
     });
-    assert.equal(imported.ok, false, 'Office imported without programme.manage');
+    assert.equal(
+      imported.ok,
+      false,
+      'Office imported without programme.manage'
+    );
   });
 
   test('a fabricated actor in the payload changes nothing', async () => {
@@ -216,7 +246,11 @@ describe('who the assistant may act for', () => {
       },
       { expectedVersion: awaiting.data.version }
     );
-    assert.equal(refusal.ok, false, 'a supplied actor id escalated an installer');
+    assert.equal(
+      refusal.ok,
+      false,
+      'a supplied actor id escalated an installer'
+    );
   });
 });
 
@@ -239,7 +273,11 @@ describe('the portal rule the assistant must not talk its way around', () => {
       { visit_id: good.data.id, disposition: 'CompleteAndWorking' },
       { expectedVersion: good.data.version }
     );
-    assert.equal(refusal.ok, false, 'a good CSQ completed a visit without the portal');
+    assert.equal(
+      refusal.ok,
+      false,
+      'a good CSQ completed a visit without the portal'
+    );
 
     const still = await service
       .from('programme_visits')
@@ -251,13 +289,144 @@ describe('the portal rule the assistant must not talk its way around', () => {
 });
 
 describe('the assistant answers at programme scale without reading the programme', () => {
+  /**
+   * This suite owns the scale it needs.
+   *
+   * It used to assert "more than a hundred properties" and rely on
+   * zz-programme-scale.test.mjs having run first to create them - but that file
+   * sorts AFTER this one, so in the documented order the data never existed and
+   * the assertion could only pass by accident. A test that passes in one file
+   * order and fails in another is not a passing test.
+   *
+   * Outstanding means "no visit that has left Draft", so properties with no
+   * visits at all are exactly the fixture required.
+   */
+  // Past the 500-row page the reads are meant to defend against, on both
+  // counts: enough unvisited properties to make "outstanding" a real number,
+  // and enough visits that a search must page rather than return everything.
+  const SCALE = 700;
+  const VISITS = 560;
+  const SCALE_REF = 'AST-SCALE-';
+  let scaleProperties = [];
+
+  before(async () => {
+    const rows = Array.from({ length: SCALE }, (_, i) => ({
+      programme_id: programmeId,
+      external_ref: `${SCALE_REF}${String(i + 1).padStart(5, '0')}`,
+      address_line1: `${i + 1} Assistant Scale Row`,
+      town: 'Exeter',
+      postcode: `EX${9 - (i % 5)} ${1 + (i % 9)}ZY`,
+      expected_meter_serial: `MTR-AST-${String(i + 1).padStart(5, '0')}`,
+      synthetic: true
+    }));
+    const inserted = await service
+      .from('programme_properties')
+      .insert(rows)
+      .select('id, external_ref');
+    assert.ifError(inserted.error);
+    scaleProperties = inserted.data.sort((a, b) =>
+      a.external_ref < b.external_ref ? -1 : 1
+    );
+
+    // A visit needs a real submission, and the programme's own form revision.
+    const programme = await service
+      .from('programmes')
+      .select('visit_form_id')
+      .eq('id', programmeId)
+      .single();
+    assert.ifError(programme.error);
+    const form = await service
+      .from('forms')
+      .select('current_revision_id')
+      .eq('id', programme.data.visit_form_id)
+      .single();
+    assert.ifError(form.error);
+    const staff = await service
+      .from('people')
+      .select('id, email')
+      .in('email', [email('john'), email('lucy')]);
+    assert.ifError(staff.error);
+    const installerId = staff.data.find((p) => p.email === email('john')).id;
+    const reviewerId = staff.data.find((p) => p.email === email('lucy')).id;
+
+    const submissions = Array.from({ length: VISITS }, () => ({
+      id: randomUUID(),
+      form_id: programme.data.visit_form_id,
+      revision_id: form.data.current_revision_id,
+      answers: { scale: true },
+      source: 'Staff',
+      submitted_by: installerId
+    }));
+    const subs = await service
+      .from('form_submissions')
+      .insert(submissions)
+      .select('id');
+    assert.ifError(subs.error);
+
+    // The LAST properties get the visits, so the first pages of "outstanding"
+    // stay unvisited and the two counts are genuinely different questions.
+    const visited = scaleProperties.slice(SCALE - VISITS);
+    const visits = visited.map((property, i) => {
+      const awaiting = i % 8 === 0;
+      return {
+        id: randomUUID(),
+        programme_id: programmeId,
+        property_id: property.id,
+        installer_id: installerId,
+        form_id: programme.data.visit_form_id,
+        form_revision_id: form.data.current_revision_id,
+        submission_id: subs.data[i].id,
+        outcome: 'SimChangedPortalWorking',
+        actual_meter_serial: `MTR-AST-${String(i + 1).padStart(5, '0')}`,
+        new_sim_serial: `SIM-AST-${String(i + 1).padStart(5, '0')}`,
+        csq: 12,
+        signal_classification: 'Good',
+        meter_serial_matches: true,
+        portal_check_required: true,
+        review_status: awaiting ? 'AwaitingReview' : 'Reviewed',
+        disposition: awaiting ? 'AwaitingReview' : 'CompleteAndWorking',
+        portal_verification: awaiting ? null : 'ConfirmedLive',
+        reviewed_by: awaiting ? null : reviewerId,
+        reviewed_at: awaiting ? null : new Date().toISOString(),
+        visit_date: new Date(Date.now() - (i % 40) * 86400000)
+          .toISOString()
+          .slice(0, 10),
+        submitted_at: new Date(Date.now() - i * 60000).toISOString(),
+        synthetic: true
+      };
+    });
+    for (let i = 0; i < visits.length; i += 200) {
+      const { error } = await service
+        .from('programme_visits')
+        .insert(visits.slice(i, i + 200));
+      assert.ifError(error);
+    }
+  });
+
+  after(async () => {
+    // Visits reference the properties, so they go first.
+    const ids = scaleProperties.map((p) => p.id);
+    for (let i = 0; i < ids.length; i += 200)
+      await service
+        .from('programme_visits')
+        .delete()
+        .in('property_id', ids.slice(i, i + 200));
+    await service
+      .from('programme_properties')
+      .delete()
+      .like('external_ref', `${SCALE_REF}%`);
+  });
+
   test('outstanding properties are counted by the database, not by listing them', async () => {
     const office = clients.lucy;
     const page = await office
       .from('programme_properties')
-      .select('id, visits:programme_visits!programme_visits_property_id_fkey!left(id)', {
-        count: 'exact'
-      })
+      .select(
+        'id, visits:programme_visits!programme_visits_property_id_fkey!left(id)',
+        {
+          count: 'exact'
+        }
+      )
       .eq('programme_id', programmeId)
       .eq('active', true)
       .neq('visits.review_status', 'Draft')
@@ -269,7 +438,10 @@ describe('the assistant answers at programme scale without reading the programme
     // A page of twenty, and a count of everything: the shape the assistant
     // needs so it never has to add rows up itself.
     assert.ok(page.data.length <= 20);
-    assert.ok(page.count > 100, `expected a large programme, got ${page.count}`);
+    assert.ok(
+      page.count > 100,
+      `expected a large programme, got ${page.count}`
+    );
 
     // The same question, answered the slow honest way.
     const all = [];
@@ -310,8 +482,14 @@ describe('the assistant answers at programme scale without reading the programme
       .neq('review_status', 'Draft')
       .range(0, 19);
     assert.ifError(error);
-    assert.ok(data.length <= 20, 'the assistant would be handed more than a page');
-    assert.ok(count > 500, `expected a programme past 500 visits, got ${count}`);
+    assert.ok(
+      data.length <= 20,
+      'the assistant would be handed more than a page'
+    );
+    assert.ok(
+      count > 500,
+      `expected a programme past 500 visits, got ${count}`
+    );
   });
 });
 
@@ -366,7 +544,10 @@ describe('who gets the credit, and the blame', () => {
     // Worth knowing: executing_service names the COMMAND, not the channel, so
     // "issued through the assistant" is not persisted anywhere yet. The human
     // actor is, which is the half that matters for accountability.
-    assert.match(audit.data[0].executing_service, /^command:PROGRAMME_VISIT_REVIEW$/);
+    assert.match(
+      audit.data[0].executing_service,
+      /^command:PROGRAMME_VISIT_REVIEW$/
+    );
 
     // Replaying the identical command id must not review it twice.
     const replay = await command(
@@ -384,6 +565,10 @@ describe('who gets the credit, and the blame', () => {
       .from('audit_events')
       .select('id', { count: 'exact', head: true })
       .eq('command_id', commandId);
-    assert.equal(events.count, audit.data.length, 'the replay wrote a second audit event');
+    assert.equal(
+      events.count,
+      audit.data.length,
+      'the replay wrote a second audit event'
+    );
   });
 });

@@ -187,7 +187,7 @@ async function main() {
 
   // --- 3. The UI would show it as in flight --------------------------------
   step(3, 'Job Detail reports work in progress');
-  let view = await readOps('tanya', {
+  const view = await readOps('tanya', {
     read_type: 'JOB_DOCUMENTS',
     job_id: JOB
   });

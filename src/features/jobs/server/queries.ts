@@ -81,6 +81,11 @@ export async function getJobDetail(jobId: string) {
     .select(
       'id, job_ref, display_name, sold_at, workflow_stage, record_class, source_system, source_reference, archived_at, finance_route, original_gross_pence, current_contract_gross_pence, lead_source, quote_reference, roof_required, electrical_required, scaffold_required, version, customers(first_name, last_name, address_line1, address_line2, town, postcode, phone, email), presales(submitted_at, system_kwp, net_panels, computed_total_pence, agreed_price_pence, price_breakdown, catalogue_version, roof_notes, electrical_notes), salesperson:people!jobs_salesperson_id_fkey(display_name)'
     )
+    // A job's presale is a history of immutable versions since 20260920300000,
+    // so the embed has to name the current one. Without this the row that came
+    // back was whichever the planner happened to return, which is how a screen
+    // ends up showing a superseded price.
+    .is('presales.superseded_by', null)
     .eq('id', jobId)
     .maybeSingle();
   if (error) throw new Error(`job: ${error.message}`);

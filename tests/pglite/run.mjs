@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const only = process.argv.slice(2);
-const suites = fs.readdirSync(here)
+const suites = fs
+  .readdirSync(here)
   .filter((f) => /^t_.+\.mjs$/.test(f))
   .filter((f) => only.length === 0 || only.some((o) => f.startsWith(o)))
   .sort();
@@ -32,7 +33,13 @@ for (const suite of suites) {
   } else {
     failed += 1;
     console.log(`FAIL   ${suite} (${secs}s)`);
-    console.log((r.stdout + r.stderr).split('\n').filter((l) => !/^\s+at /.test(l)).slice(-25).join('\n'));
+    console.log(
+      (r.stdout + r.stderr)
+        .split('\n')
+        .filter((l) => !/^\s+at /.test(l))
+        .slice(-25)
+        .join('\n')
+    );
   }
 }
 console.log(`\n${suites.length - failed}/${suites.length} suites passed`);

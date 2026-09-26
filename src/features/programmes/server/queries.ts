@@ -16,8 +16,13 @@ import type {
   VisitEvidence,
   VisitFilters,
   VisitListQuery,
-  VisitPage
+  VisitPage,
+  FormResponseReport,
+  ReportSourceKind,
+  ReportSubscriptions,
+  ReportRun
 } from '../types';
+
 import { DEFAULT_IDENTITY_KEY } from '../types';
 
 /**
@@ -885,5 +890,114 @@ export async function visitForm(programmeId: string): Promise<
     definition: row.definition as { fields: unknown[] },
     fieldMap: (row.field_map as Record<string, unknown>) ?? {},
     signalConfig: (row.signal_config as SignalConfig) ?? {}
+  };
+}
+
+// -- Scheduled reports -----------------------------------------------------------
+
+/**
+ * A form's responses over a period: counts and the fact of each one.
+ *
+ * Never the answers. A form can ask anything, and a standing subscription is
+ * not a decision about one form's contents - whoever reads the report opens the
+ * response in the app, where the permissions still apply.
+ */
+export const getFormResponseReport = (
+  formId: string,
+  period?: { from?: string; to?: string }
+) =>
+  operationsRead<FormResponseReport>('FORM_RESPONSE_REPORT', {
+    form_id: formId,
+    ...(period?.from ? { from: period.from } : {}),
+    ...(period?.to ? { to: period.to } : {})
+  });
+
+export const getWeeklyReport = (
+  programmeId: string,
+  period?: { from?: string; to?: string }
+) =>
+  operationsRead<DailyReport>('PROGRAMME_WEEKLY_REPORT', {
+    programme_id: programmeId,
+    ...(period?.from ? { from: period.from } : {}),
+    ...(period?.to ? { to: period.to } : {})
+  });
+
+type SubscriptionRow = {
+  id: string;
+  source_kind: string;
+  source_id: string;
+  report_type: string;
+  enabled: boolean;
+  timezone: string;
+  send_hour: number;
+  week_starts_on: number;
+  recipients: { name?: string | null; email: string }[];
+  last_period_end: string | null;
+  version: number;
+};
+
+type RunRow = {
+  id: string;
+  report_type: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  detail: string | null;
+  manual: boolean;
+  created_at: string;
+  communication_status: string | null;
+  outbox_status: string | null;
+  outbox_attempts: number | null;
+  delivery_detail: string | null;
+  sent_at: string | null;
+  summary: Record<string, unknown>;
+};
+
+/** What is scheduled for one source, and what has run. */
+export async function getReportSubscriptions(
+  sourceKind: ReportSourceKind,
+  sourceId: string
+): Promise<ReportSubscriptions | null> {
+  const result = await operationsRead<{
+    subscriptions: SubscriptionRow[];
+    runs: RunRow[];
+  }>('REPORT_SUBSCRIPTIONS', {
+    source_kind: sourceKind,
+    source_id: sourceId
+  });
+  if (!result) return null;
+  return {
+    subscriptions: (result.subscriptions ?? []).map((row) => ({
+      id: row.id,
+      sourceKind: row.source_kind as ReportSourceKind,
+      sourceId: row.source_id,
+      reportType: row.report_type as 'Daily' | 'Weekly',
+      enabled: row.enabled,
+      timezone: row.timezone,
+      sendHour: row.send_hour,
+      weekStartsOn: row.week_starts_on,
+      recipients: (row.recipients ?? []).map((r) => ({
+        name: r.name ?? null,
+        email: r.email
+      })),
+      lastPeriodEnd: row.last_period_end,
+      version: row.version
+    })),
+    runs: (result.runs ?? []).map((row) => ({
+      id: row.id,
+      reportType: row.report_type as 'Daily' | 'Weekly',
+      periodStart: row.period_start,
+      periodEnd: row.period_end,
+      status: row.status as ReportRun['status'],
+      detail: row.detail,
+      manual: row.manual,
+      createdAt: row.created_at,
+      communicationStatus: row.communication_status,
+      outboxStatus: row.outbox_status ?? null,
+      outboxAttempts: row.outbox_attempts ?? null,
+      deliveryDetail: row.delivery_detail ?? null,
+      sentAt: row.sent_at ?? null,
+      summary: row.summary ?? {}
+    }))
   };
 }

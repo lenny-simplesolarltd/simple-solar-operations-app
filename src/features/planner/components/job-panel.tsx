@@ -58,7 +58,8 @@ export function JobPanel({
       <SheetContent className='flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md'>
         <SheetHeader>
           <SheetTitle className='flex flex-wrap items-center gap-2'>
-            {event.jobDisplay ?? (historical ? 'Historical record' : 'Scheduled work')}
+            {event.jobDisplay ??
+              (historical ? 'Historical record' : 'Scheduled work')}
             {historical && <Badge variant='outline'>Historical</Badge>}
           </SheetTitle>
           <SheetDescription>

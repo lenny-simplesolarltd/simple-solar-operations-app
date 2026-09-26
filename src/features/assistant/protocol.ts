@@ -509,6 +509,12 @@ export interface AssistantCapabilities {
   conversations: 'persistent' | 'ephemeral';
   /** Development "View as user": who the assistant is answering AS. Read-only. */
   preview?: { name: string; roles: string[] };
+  /**
+   * Whether this staff member may use override mode. False hides the switch
+   * entirely - showing a toggle that does nothing reads as a broken feature.
+   * It is advisory: the server re-decides it on every turn.
+   */
+  canOverride: boolean;
   tools: { name: string; kind: 'read' | 'mutation'; summary: string }[];
   planned: { name: string; kind: 'read' | 'mutation'; summary: string }[];
   /** Present outside production only. Never contains credentials. */

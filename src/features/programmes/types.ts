@@ -197,6 +197,9 @@ export interface ProgrammeDashboard {
 }
 
 export interface DailyReport {
+  /** Weekly reports carry the same shape over a range; daily ones carry `date`. */
+  from?: string;
+  to?: string;
   programme: {
     id: string;
     code: string;
@@ -327,3 +330,69 @@ export const DEFAULT_IDENTITY_KEY: IdentityKey = 'external_ref';
 export const importKeyRequired = (
   identityKey: IdentityKey = DEFAULT_IDENTITY_KEY
 ): readonly ImportKey[] => [identityKey, 'address_line1'];
+
+// -- Scheduled reports -----------------------------------------------------------
+
+export const REPORT_SOURCE_KINDS = ['Programme', 'Form'] as const;
+export type ReportSourceKind = (typeof REPORT_SOURCE_KINDS)[number];
+
+export const REPORT_TYPES = ['Daily', 'Weekly'] as const;
+
+/** One standing instruction: what to report on, how often, and to whom. */
+export interface ReportSubscription {
+  id: string;
+  sourceKind: ReportSourceKind;
+  sourceId: string;
+  reportType: 'Daily' | 'Weekly';
+  enabled: boolean;
+  timezone: string;
+  sendHour: number;
+  /** ISO weekday the reporting week starts on. Weekly only. */
+  weekStartsOn: number;
+  recipients: { name: string | null; email: string }[];
+  lastPeriodEnd: string | null;
+  version: number;
+}
+
+/** One period that has been reported, whether or not anything was sent. */
+export interface ReportRun {
+  id: string;
+  reportType: 'Daily' | 'Weekly';
+  periodStart: string;
+  periodEnd: string;
+  status: 'Built' | 'Queued' | 'Refused' | 'Failed';
+  detail: string | null;
+  manual: boolean;
+  createdAt: string;
+  /** Null until the report is queued; the outbox owns delivery from there. */
+  communicationStatus: string | null;
+  outboxStatus: string | null;
+  outboxAttempts: number | null;
+  deliveryDetail: string | null;
+  sentAt: string | null;
+  summary: Record<string, unknown>;
+}
+
+export interface ReportSubscriptions {
+  subscriptions: ReportSubscription[];
+  runs: ReportRun[];
+}
+
+/** What a form collected over a period. Never the answers. */
+export interface FormResponseReport {
+  form: { id: string; title: string; status: string };
+  from: string;
+  to: string;
+  responses: number;
+  versionsAnswered: number;
+  versions: number[];
+  lines: {
+    submittedAt: string;
+    version: number;
+    recipientType: string | null;
+    recipient: string | null;
+    jobRef: string | null;
+    /** Read through the revision this response was answered on. */
+    fields: { label: string; value: string | null }[];
+  }[];
+}

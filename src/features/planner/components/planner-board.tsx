@@ -141,9 +141,7 @@ export function PlannerBoard({
           ? readTeamPlanner({ start: visible.from, weeks: 1 })
           : Promise.resolve(null),
         // Only worth asking when history is not already on screen.
-        records === 'live'
-          ? readHistoricalCount(range)
-          : Promise.resolve(null)
+        records === 'live' ? readHistoricalCount(range) : Promise.resolve(null)
       ]);
       if (!window.ok) {
         setFailure(window.error);

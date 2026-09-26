@@ -21,7 +21,11 @@ import { email, ensureLogin, service, signInAs } from './helpers.mjs';
 // Comfortably past 500 in total and in one disposition, without making the
 // suite slow.
 const PROPERTIES = 700;
-const VISITS = 640;
+// 660, not 640: the paging test reads a page of 100 at offset 550, so the
+// fixture has to carry 650 visits of its own. At 640 it only reached that far
+// when programmes.test.mjs had already added a few - which made this file pass
+// in the full suite and fail when run alone.
+const VISITS = 660;
 const REF = 'SCALE-';
 
 let programmeId, formId, revisionId, installerId, reviewerId, office;

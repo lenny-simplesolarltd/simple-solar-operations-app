@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import {
   IconArchive,
+  IconShare,
   IconArrowBackUp,
   IconDots,
   IconLoader2,
@@ -31,6 +32,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type { ConversationList } from '../hooks/use-assistant-conversation';
 import type { ConversationListItem } from '../protocol';
+import { ConversationShare } from './conversation-share';
 
 export interface ConversationHistoryProps {
   mode: 'persistent' | 'ephemeral';
@@ -262,6 +264,7 @@ function Row({
   onAskDelete(item: ConversationListItem): void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [draft, setDraft] = useState(item.title ?? '');
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -381,6 +384,10 @@ function Row({
             <IconPencil aria-hidden />
             Rename
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setSharing(true)}>
+            <IconShare aria-hidden />
+            Share…
+          </DropdownMenuItem>
           {item.archived ? (
             <DropdownMenuItem onSelect={() => void onArchive(item.id, false)}>
               <IconArrowBackUp aria-hidden />
@@ -402,6 +409,12 @@ function Row({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {sharing && (
+        <ConversationShare
+          conversationId={item.id}
+          onClose={() => setSharing(false)}
+        />
+      )}
     </li>
   );
 }

@@ -121,7 +121,10 @@ export function SourcesStrip({
                 onClick={onNavigate}
                 className='hover:bg-muted/50 flex items-center gap-2 px-3 py-2'
               >
-                <Glyph className='text-muted-foreground size-4 shrink-0' aria-hidden />
+                <Glyph
+                  className='text-muted-foreground size-4 shrink-0'
+                  aria-hidden
+                />
                 <span className='min-w-0 flex-1'>
                   <span className='block truncate text-sm font-medium'>
                     {a.title}

@@ -143,7 +143,9 @@ export function EventChip({
           />
         )}
       </span>
-      {historical && <span className='sr-only'>Historical record, read only</span>}
+      {historical && (
+        <span className='sr-only'>Historical record, read only</span>
+      )}
       {!compact && (
         <span className='block truncate opacity-80'>
           {event.jobDisplay ?? KIND_LABEL[event.kind]}
