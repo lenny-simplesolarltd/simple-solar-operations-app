@@ -478,3 +478,41 @@ describe('provider failure', () => {
     expect(out.ofType('error')).toHaveLength(0);
   });
 });
+
+describe('what the stored turn keeps of an attachment', () => {
+  it('keeps the question and the list, never the envelope or the file', async () => {
+    // The transcript used to be the MODEL's copy of the question, envelope and
+    // all: a CSV came back as a wall of markup and JSON, and the spreadsheet
+    // itself was written into the conversation table - which storable() exists
+    // to prevent and could not, because the data was already inside `text`.
+    const csv = {
+      kind: 'text' as const,
+      name: 'DEC MET Meters.csv',
+      mediaType: 'text/csv' as const,
+      data: 'Address,Meter No\n1 High Street,MTR-1'
+    };
+    const { provider } = scriptedProvider([{ text: 'Looked at it.' }]);
+    const { out, promise } = run({
+      provider,
+      registry: new ToolRegistry(),
+      message: 'Import this into PCH Meter SIM Replacement 2026.',
+      attachments: [csv]
+    });
+    await promise;
+
+    const question = out
+      .ofType('turn_end')[0]
+      .transcript.find((m: { role: string }) => m.role === 'user') as {
+      text: string;
+      attachments?: unknown[];
+    };
+
+    expect(question.text).toBe(
+      'Import this into PCH Meter SIM Replacement 2026.'
+    );
+    expect(question.text).not.toContain('<attachment');
+    expect(question.text).not.toContain('MTR-1');
+    // The list survives, so the stored note and the chip have something to say.
+    expect(question.attachments).toHaveLength(1);
+  });
+});

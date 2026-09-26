@@ -122,6 +122,38 @@ function toTranscriptMessage(message: ModelMessage): TranscriptMessage {
 }
 
 /**
+ * The turn as a PERSON should read it back, which is not what the model read.
+ *
+ * The model's copy of the question carries each text attachment inside an
+ * <attachment> envelope, because that is how it is told the contents are data
+ * rather than instructions. That envelope is not language: stored and replayed
+ * it turns somebody's question into a wall of markup and JSON, and it carried
+ * the whole file with it - so a spreadsheet really was being written into the
+ * conversation, which storable() exists to prevent and could not, because it
+ * only looks at `attachments` and the data was already inside `text`.
+ *
+ * So the transcript keeps the staff member's own words and the attachment
+ * LIST. storable() then turns that list into a short note; the browser can
+ * show it as a chip. Neither holds the file.
+ */
+function transcriptOf(
+  messages: ModelMessage[],
+  question?: { text: string; attachments: Attachment[] }
+): TranscriptMessage[] {
+  return messages.map((message, index) => {
+    if (index !== 0 || message.role !== 'user' || !question)
+      return toTranscriptMessage(message);
+    return {
+      role: 'user',
+      text: question.text,
+      ...(question.attachments.length > 0 && {
+        attachments: question.attachments
+      })
+    };
+  });
+}
+
+/**
  * Wraps tool output for the model. The envelope, not the content, carries the
  * trust label: whatever customers or staff typed into a record stays data.
  * `retrieved_at` travels with it into stored history, so a result read back
@@ -351,7 +383,10 @@ export async function runAssistantTurn(
     stopReason,
     ...(process.env.NODE_ENV !== 'production' && servedBy && { servedBy }),
     // providerRaw stays on the server: the browser only ever holds the neutral transcript.
-    transcript: turnMessages.map(toTranscriptMessage)
+    transcript: transcriptOf(turnMessages, {
+      text: input.message,
+      attachments
+    })
   });
 
   async function handleToolCall(
