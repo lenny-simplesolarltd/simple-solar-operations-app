@@ -11,6 +11,7 @@ import { FILE_MANAGEMENT_TOOLS } from './file-management';
 import { FILE_TOOLS } from './files';
 import { FORMS_MUTATION_TOOLS, FORMS_READ_TOOLS } from './forms';
 import { HELP_TOOLS } from './help';
+import { listPeopleTool } from './people';
 import { JOB_OPERATION_TOOLS } from './job-operations';
 import { findJobTool, getJobTasksTool, getJobTool } from './jobs';
 import {
@@ -61,7 +62,8 @@ export function createToolRegistry(
     .register(listJobOperationsTool)
     .register(getMyTasksTool)
     .register(getTeamTasksTool)
-    .register(getPresaleWorkflowTool);
+    .register(getPresaleWorkflowTool)
+    .register(listPeopleTool);
   // Bulk task work: the same batch command the Tasks screen submits, so the
   // permissions, the requirement policy, the idempotency and the processing
   // centre are shared rather than re-implemented for the assistant.

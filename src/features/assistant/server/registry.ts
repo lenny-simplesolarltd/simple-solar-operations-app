@@ -35,6 +35,7 @@ export type ToolDomain =
   | 'calendar'
   | 'reporting'
   | 'programmes'
+  | 'people'
   | 'help';
 
 /** Who is asking. Resolved on the server from the session - never from the model or the browser. */

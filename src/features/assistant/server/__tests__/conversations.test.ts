@@ -763,6 +763,7 @@ describe('history cannot change authorization', () => {
       'list_file_folders',
       'list_job_files',
       'list_job_operations',
+      'list_people',
       'move_job',
       'plan_task_action',
       'raise_issue',

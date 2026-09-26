@@ -98,6 +98,7 @@ describe('signed in', () => {
       'list_job_operations',
       'get_my_tasks',
       'get_presale_workflow',
+      'list_people',
       'find_customer',
       'get_customer_contact',
       'move_job',

@@ -87,6 +87,7 @@ describe('the production registry', () => {
       'list_forms',
       'list_job_files',
       'list_job_operations',
+      'list_people',
       'list_programme_imports',
       'plan_task_action',
       'programme_capabilities',
@@ -242,12 +243,15 @@ describe('the production registry', () => {
     const identity =
       /actor|person_?id|submitted_?by|permission|sql|query_text/i;
     // "role" is banned too, because a tool that accepts one could be letting
-    // the model claim the actor's authority. One tool names roles as DATA
+    // the model claim the actor's authority. Two tools name roles as DATA
     // rather than as a claim: set_form_access configures which roles a form
-    // appears for, exactly as the editor's checkboxes do. It is listed here by
-    // name so a new tool with a role field still fails this test, and so the
-    // exception has to be argued for rather than inherited.
-    const rolesAreConfiguration = new Set(['set_form_access']);
+    // appears for, exactly as the editor's checkboxes do, and list_people
+    // filters the directory by one ("who are the surveyors"). Neither says
+    // anything about who is ASKING - that stays with ctx.actor, and the
+    // database returns only what that person may see either way. They are
+    // listed here by name so a new tool with a role field still fails this
+    // test, and so the exception has to be argued for rather than inherited.
+    const rolesAreConfiguration = new Set(['set_form_access', 'list_people']);
     for (const tool of registry.all()) {
       if (tool.status !== 'available') continue;
       const schema = JSON.stringify(
