@@ -94,8 +94,17 @@ export function AssistantDrawer() {
         // Only for staff the server says may override (task.override_complete,
         // and never in preview, which is read-only). Withheld rather than shown
         // and ignored: a switch that does nothing reads as a broken feature.
+        //
+        // If capabilities could not be read at all, the switch is offered
+        // anyway. Not knowing is not the same as being refused, and silently
+        // withholding a control somebody does have is the worse mistake: the
+        // server re-checks the permission on every turn, so the most an
+        // unentitled person gets here is a refusal they would have got anyway.
         onOverrideModeChange={
-          shell.capabilities?.canOverride ? shell.setOverrideMode : undefined
+          shell.capabilities?.canOverride ||
+          (shell.capabilitiesError && !shell.capabilities)
+            ? shell.setOverrideMode
+            : undefined
         }
         page={shell.page}
         capabilities={shell.capabilities}
