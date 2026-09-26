@@ -86,6 +86,7 @@ export default async function FormPage({
             formId={form.id}
             formStatus={form.status}
             revision={form.revision}
+            linkable={form.linkable}
             links={links}
             canSend={permissions.has('forms.send')}
             canReadResponses={permissions.has('forms.responses.read')}

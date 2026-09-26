@@ -79,6 +79,7 @@ const form = (over: Partial<FormDetail> = {}): FormDetail => ({
     ]
   },
   currentRevisionId: null,
+  linkable: null,
   revisions: [],
   ...over
 });
@@ -464,6 +465,19 @@ describe('Forms release gate', () => {
     // The model is told they are planned, not available.
     expect(off.planned().map((t) => t.name)).toContain('create_form');
   });
+  it('refuses a link to a form a recipient could never complete, before asking anyone to confirm', async () => {
+    // The programme installer visit form carries photo questions. A recipient
+    // has no account, so they can own no upload: the command refuses the link
+    // outright. Refusing at proposal time is the point - a confirmation card
+    // whose only possible outcome is that refusal spends a decision on nothing.
+    service.getForm.mockResolvedValue(
+      form({ status: 'published', revision: 2, linkable: false })
+    );
+    const { out } = await propose('create_form_link', { form_id: FORM_ID });
+    expect(out.ofType('tool_result')[0].error?.code).toBe('FORMS_NOT_LINKABLE');
+    expect(service.createInvitation).not.toHaveBeenCalled();
+  });
+
   it('makes a link without asking who it is for', async () => {
     // "publish it and give me a link" should produce a link, not a question.
     // The table requires an "other" invitation to carry a label, so an

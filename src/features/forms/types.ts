@@ -41,6 +41,19 @@ export interface FormSummary {
 export interface FormDetail extends FormSummary {
   definition: FormDefinition;
   currentRevisionId: string | null;
+  /**
+   * Whether the PUBLISHED version could be sent as a recipient link.
+   *
+   * A recipient has no account, so they can own no upload and search no
+   * table: a form carrying a photo or lookup question can only be completed
+   * by somebody signed in. The database refuses such a link, and this is the
+   * same fact read ahead of time so the screen can say so before you try.
+   *
+   * Judged on the CURRENT REVISION, never the draft: an unpublished edit that
+   * removes the photo question does not make the live version sendable.
+   * null when nothing is published, so there is no link to create anyway.
+   */
+  linkable: boolean | null;
   revisions: {
     id: string;
     number: number;

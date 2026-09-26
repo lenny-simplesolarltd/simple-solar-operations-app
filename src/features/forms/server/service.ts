@@ -8,6 +8,7 @@ import { createDataClient } from '@/lib/supabase/data';
 import { createClient } from '@/lib/supabase/server';
 import {
   applyOperations,
+  hasStaffOnlyField,
   questionCount,
   type DraftOperation,
   type FormDefinition
@@ -205,10 +206,27 @@ export async function getForm(id: string): Promise<FormDetail | null> {
     .eq('form_id', id)
     .order('revision_number', { ascending: false });
   if (revError) throw new Error(`form revisions: ${revError.message}`);
+  // Only the published version's definition, so the screen can tell somebody a
+  // link is impossible before they ask for one. One row, by id, rather than
+  // every revision's definition: a long-lived form has a lot of them.
+  let linkable: boolean | null = null;
+  if (row.current_revision_id) {
+    const { data: current, error: currentError } = await client
+      .from('form_revisions')
+      .select('definition')
+      .eq('id', row.current_revision_id)
+      .maybeSingle();
+    if (currentError) throw new Error(`form revision: ${currentError.message}`);
+    if (current)
+      linkable = !hasStaffOnlyField(
+        (current as unknown as { definition: FormDefinition }).definition
+      );
+  }
   return {
     ...toSummary(row),
     definition: row.definition,
     currentRevisionId: row.current_revision_id,
+    linkable,
     revisions: (
       revisions as unknown as {
         id: string;

@@ -36,6 +36,7 @@ import {
   invitationLinkAction,
   revokeInvitationAction
 } from '../server/actions';
+import { formsMessage } from '../errors';
 import { RECIPIENT_LABEL, type InvitationSummary } from '../types';
 import { LinkStatusBadge } from './badges';
 
@@ -48,6 +49,7 @@ export function ShareLinks({
   formId,
   formStatus,
   revision,
+  linkable,
   links,
   canSend,
   canReadResponses,
@@ -56,6 +58,13 @@ export function ShareLinks({
   formId: string;
   formStatus: string;
   revision: number;
+  /**
+   * Whether the published version could be a recipient link at all. The
+   * database refuses one for a form with photo or lookup questions, because a
+   * recipient owns no account; knowing that here is what stops the screen
+   * offering a dialog whose only possible outcome is that refusal.
+   */
+  linkable: boolean | null;
   links: InvitationSummary[];
   canSend: boolean;
   canReadResponses: boolean;
@@ -85,19 +94,26 @@ export function ShareLinks({
         {canSend && (
           <Button
             onClick={() => setOpen(true)}
-            disabled={formStatus !== 'published'}
+            disabled={formStatus !== 'published' || linkable === false}
           >
             <IconLink aria-hidden />
             Create link{revision > 0 ? ` (v${revision})` : ''}
           </Button>
         )}
       </div>
-      {formStatus !== 'published' && (
+      {formStatus !== 'published' ? (
         <p className='text-muted-foreground text-sm'>
           {formStatus === 'draft'
             ? 'Publish the form to create links.'
             : 'This form is not accepting responses, so new links cannot be created.'}
         </p>
+      ) : (
+        linkable === false && (
+          <p className='text-muted-foreground text-sm'>
+            {formsMessage('FORMS_NOT_LINKABLE')} Send people to it in the app
+            instead.
+          </p>
+        )
       )}
       {error && (
         <p role='alert' className='text-destructive text-sm'>
