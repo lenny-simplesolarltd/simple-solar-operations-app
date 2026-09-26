@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { runEmailWorker, type RpcClient } from '../server/email-worker';
-import type { EmailTransport, SendOutcome } from '../server/transport';
+import type {
+  EmailToSend,
+  EmailTransport,
+  SendOutcome
+} from '../server/transport';
 
 // A fake database that records what the worker called, and a fake transport
 // whose answer each test chooses. Nothing here touches Resend or Postgres.
@@ -212,5 +216,46 @@ describe('the claim request', () => {
       'EmailOrder',
       'EmailScaffold'
     ]);
+  });
+});
+
+describe('reply-to', () => {
+  /** A transport that keeps the last email, so a test can read what was sent. */
+  const capturing = () => {
+    const seen: EmailToSend[] = [];
+    const t: EmailTransport = {
+      name: 'capturing',
+      canReconcile: false,
+      async send(email) {
+        seen.push(email);
+        return { kind: 'sent', externalId: 'x' };
+      }
+    };
+    return { transport: t, seen };
+  };
+
+  it('is carried to the transport when the database supplies one', async () => {
+    // Production sends from a subdomain with no inbound mail, so without this
+    // a reply would go nowhere - and a reply is the only evidence this system
+    // ever has that somebody received anything.
+    const { transport, seen } = capturing();
+    const { client } = fakeClient([
+      row({
+        from: 'reports@send.example.com',
+        reply_to: 'operations@example.com'
+      })
+    ]);
+    await runEmailWorker({ client, transport });
+
+    expect(seen[0]?.from).toBe('reports@send.example.com');
+    expect(seen[0]?.replyTo).toBe('operations@example.com');
+  });
+
+  it('is absent on a row queued before it existed, rather than invented', async () => {
+    const { transport, seen } = capturing();
+    const { client } = fakeClient([row()]);
+    await runEmailWorker({ client, transport });
+
+    expect(seen[0]?.replyTo).toBeUndefined();
   });
 });

@@ -184,8 +184,12 @@ function toEmail(work: Json): EmailToSend | null {
   const to = strings(work.to);
   const subject = str(work.subject);
   if (!from || to.length === 0 || !subject) return null;
+  // Absent on rows queued before reply-to existed; the transport then sends
+  // none and a reply goes to the from address, exactly as it used to.
+  const replyTo = str(work.reply_to);
   return {
     from,
+    ...(replyTo ? { replyTo } : {}),
     to,
     subject,
     body: str(work.body) ?? '',

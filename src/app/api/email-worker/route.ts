@@ -10,10 +10,19 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Drives one pass of the email worker. Meant for a scheduler (cron, Vercel
- * Cron, an external monitor) - nothing in this repo calls it.
+ * Drives one pass of the email worker.
  *
  *   POST /api/email-worker   Authorization: Bearer <EMAIL_WORKER_SECRET>
+ *   GET  /api/email-worker   Authorization: Bearer <CRON_SECRET>
+ *
+ * Two doors because they have different callers. POST is for a person or an
+ * external monitor. GET exists for Vercel Cron, which only issues GET and only
+ * sends the CRON_SECRET it is given - it cannot be taught another verb or
+ * another header, and an unscheduled worker means a queued email is never
+ * sent, which is indistinguishable from the feature not working.
+ *
+ * Each door needs its own secret to be set, and neither falls back to the
+ * other: an unset secret closes that door rather than opening it.
  *
  * The outbox RPCs are granted to service_role only, so this runs with the
  * service key and therefore has to be shut to everyone else: without the
@@ -24,11 +33,23 @@ export const dynamic = 'force-dynamic';
  * `refused: FN-03 must be Automated` - which is the system working.
  */
 export async function POST(request: Request) {
-  const secret = process.env.EMAIL_WORKER_SECRET;
+  return run(request, process.env.EMAIL_WORKER_SECRET, 'EMAIL_WORKER_SECRET');
+}
+
+/** Vercel Cron: GET, with the project's CRON_SECRET as a bearer token. */
+export async function GET(request: Request) {
+  return run(request, process.env.CRON_SECRET, 'CRON_SECRET');
+}
+
+async function run(
+  request: Request,
+  secret: string | undefined,
+  secretName: string
+) {
   if (!secret)
     return Response.json(
       {
-        error: 'EMAIL_WORKER_SECRET is not set; the worker endpoint is closed'
+        error: `${secretName} is not set; this worker endpoint is closed`
       },
       { status: 503 }
     );

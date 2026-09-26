@@ -21,6 +21,14 @@
 
 export interface EmailToSend {
   from: string;
+  /**
+   * Where a reply goes, which is not always where it was sent from.
+   *
+   * Production sends from a subdomain that has no inbound mail, so without
+   * this a reply would vanish - and a reply is the only evidence this system
+   * ever has that somebody received anything.
+   */
+  replyTo?: string;
   to: string[];
   subject: string;
   body: string;

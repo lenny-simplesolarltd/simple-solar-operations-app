@@ -36,6 +36,7 @@ export function createResendTransport(apiKey: string): EmailTransport {
           },
           body: JSON.stringify({
             from: email.from,
+            ...(email.replyTo ? { reply_to: email.replyTo } : {}),
             to: email.to,
             subject: email.subject,
             text: body
