@@ -696,6 +696,15 @@ export async function setReportSubscriptionAction(
         : {})
     }
   });
+  // Send now means now. The command queued it; this drives the worker for that
+  // one type immediately rather than leaving it for a scheduler that, on the
+  // current plan, runs once a day. Every gate still decides whether it leaves.
+  if (response.ok) {
+    const { sendQueuedNow } = await import(
+      '@/features/communications/server/send-now'
+    );
+    await sendQueuedNow('EmailReport');
+  }
   if (response.ok && d.sourceKind === 'Programme') refresh(d.sourceId);
   return response;
 }

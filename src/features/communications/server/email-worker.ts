@@ -77,11 +77,19 @@ const strings = (v: unknown): string[] =>
 export async function runEmailWorker({
   client,
   transport,
-  limit = 20
+  limit = 20,
+  actionTypes
 }: {
   client: RpcClient;
   transport: EmailTransport;
   limit?: number;
+  /**
+   * Narrow the claim to particular types. Used by "Send now", which must drive
+   * only the report it was pressed for: draining the whole email outbox as a
+   * side effect of one button would send merchant and scaffolder mail nobody
+   * asked to send. Defaults to every type this worker owns.
+   */
+  actionTypes?: readonly string[];
 }): Promise<WorkerReport> {
   const report: WorkerReport = {
     claimed: 0,
@@ -93,7 +101,7 @@ export async function runEmailWorker({
   };
 
   const claim = await client.rpc('outbox_claim', {
-    p_action_types: [...EMAIL_ACTION_TYPES],
+    p_action_types: [...(actionTypes ?? EMAIL_ACTION_TYPES)],
     p_limit: limit
   });
 

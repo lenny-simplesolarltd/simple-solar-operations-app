@@ -718,4 +718,53 @@ assert.deepEqual(
   'every EmailService action type is claimed by the email worker'
 );
 
+// ---------------------------------------------------------------------------
+// The allow-list guards DERIVED recipients, not chosen ones
+//
+// A merchant address comes out of job data, so a bug there could write to a
+// stranger and the allow-list is what stops it. A report's recipients were
+// typed into a screen by somebody with the permission to choose them - asking
+// for the same names again in a settings row only means the report silently
+// does not arrive.
+// ---------------------------------------------------------------------------
+const stranger = 'nobody-allow-listed@example.test';
+await db.query(
+  `insert into public.settings (key, typed_value, scope, version, effective_from, reason)
+   select 'outbound.allowed_recipients', '["someone.else@example.test"]'::jsonb, 'Global',
+          coalesce(max(version),0)+1, current_date, 'test: the stranger is deliberately absent'
+   from public.settings where key='outbound.allowed_recipients' and scope='Global'`
+);
+
+const decisionFor = async (type, actionType) => {
+  const c = (
+    await one(
+      `insert into public.communications (type, subject, body_snapshot, recipients_snapshot, revision, status)
+       values ($1,'Subject','Body',$2,1,'Queued') returning id`,
+      [type, JSON.stringify([{ name: null, email: stranger }])]
+    )
+  ).id;
+  const o = (
+    await one(
+      `insert into public.outbox (idempotency_key, action_type, target, payload_hash, job_revision, status)
+       select $1, $2, app.setting('email.from_mailbox') #>> '{}',
+              app.comm_payload_hash(c), 1, 'Pending'
+       from public.communications c where c.id = $3 returning id`,
+      [`TEST-${actionType}-${c}`, actionType, c]
+    )
+  ).id;
+  await db.query(`update public.communications set outbox_id=$1 where id=$2`, [o, c]);
+  return one(`select app.email_claim_decision(o) d from public.outbox o where o.id=$1`, [o]);
+};
+
+assert.equal(
+  (await decisionFor('MerchantOrder', 'EmailOrder')).d.code,
+  'RECIPIENT_NOT_ALLOWLISTED',
+  'a DERIVED recipient still has to be allow-listed'
+);
+assert.equal(
+  (await decisionFor('ScheduledReport', 'EmailReport')).d.decision,
+  'send',
+  'a CHOSEN recipient does not: picking them was the authorisation'
+);
+
 console.log('t_communications ok');

@@ -26,7 +26,7 @@ import {
   IconX
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   deleteReportSubscriptionAction,
@@ -48,6 +48,13 @@ import type { ReportRun, ReportSourceKind, ReportSubscription } from '../types';
  * Adding an address to this list is a standing instruction, not permission:
  * outbound.allowed_recipients still decides, and every schedule starts off.
  */
+
+/** A colleague the directory can name, offered under the address box. */
+interface Person {
+  name: string;
+  email: string;
+  roles: string[];
+}
 
 const DAYS = [
   'Monday',
@@ -422,18 +429,43 @@ function ScheduleDialog({
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // Colleagues whose address the directory already knows. Typing one from
+  // memory is how a report goes to nobody: one wrong character is accepted,
+  // sent, and never arrives.
+  const [staff, setStaff] = useState<Person[]>([]);
 
-  const addRecipient = () => {
-    const email = draft.trim().toLowerCase();
-    if (!email) return;
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
-      return setProblem(`"${draft.trim()}" is not an email address.`);
-    if (recipients.some((r) => r.email === email))
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      void fetch(`/api/reports/people?q=${encodeURIComponent(draft.trim())}`)
+        .then((r) => r.json())
+        .then((body) => live && setStaff(body?.people ?? []))
+        // No suggestions is a perfectly good state: the box still takes any
+        // address, so a failed lookup must not block adding one.
+        .catch(() => live && setStaff([]));
+    }, 200);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [draft]);
+
+  const add = (email: string, name: string | null = null) => {
+    const clean = email.trim().toLowerCase();
+    if (!clean) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean))
+      return setProblem(`"${email.trim()}" is not an email address.`);
+    if (recipients.some((r) => r.email === clean))
       return setProblem('That address is already on the list.');
     setProblem(null);
-    setRecipients((current) => [...current, { name: null, email }]);
+    setRecipients((current) => [...current, { name, email: clean }]);
     setDraft('');
   };
+
+  const addRecipient = () => add(draft);
+
+  const chosen = new Set(recipients.map((r) => r.email));
+  const suggestions = staff.filter((p) => !chosen.has(p.email)).slice(0, 6);
 
   const save = async () => {
     setProblem(null);
@@ -538,6 +570,23 @@ function ScheduleDialog({
                 Add
               </Button>
             </div>
+            {suggestions.length > 0 && (
+              <ul className='flex flex-wrap gap-1.5'>
+                {suggestions.map((p) => (
+                  <li key={p.email}>
+                    <button
+                      type='button'
+                      onClick={() => add(p.email, p.name)}
+                      className='hover:bg-accent flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs'
+                    >
+                      <IconPlus aria-hidden className='size-3' />
+                      <span className='font-medium'>{p.name}</span>
+                      <span className='text-muted-foreground'>{p.email}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             {recipients.length > 0 && (
               <ul className='flex flex-wrap gap-1.5'>
                 {recipients.map((r) => (
