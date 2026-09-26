@@ -390,16 +390,38 @@ function SendNow({
         );
         setBusy(false);
         if (!result.ok) return toast.error(result.outcome.message);
-        const status = (result.result as { status?: string }).status;
-        const already = (result.result as { already_reported?: boolean })
-          .already_reported;
-        toast.success(
-          already
-            ? 'That period has already been reported. Nothing was sent again.'
-            : status === 'Refused'
-              ? 'The report was built, but there are no recipients, so nothing was queued.'
-              : 'The report was built and queued. Delivery depends on the email gates.'
-        );
+        const r = result.result as {
+          status?: string;
+          already_reported?: boolean;
+          delivered?: boolean;
+          detail?: string;
+          delivery?: { sent: number; failed: number; reason?: string };
+        };
+
+        if (r.already_reported) {
+          // Only a period that actually went is refused now, so say which.
+          toast.success(
+            r.delivered
+              ? 'That period has already been sent. Nothing was sent again.'
+              : 'That period is already on its way. Nothing was sent again.'
+          );
+        } else if (r.status === 'Refused') {
+          // The gate, or the missing recipients, in the words the database used.
+          toast.error(
+            r.detail
+              ? `Not sent: ${r.detail}`
+              : 'The report was built, but nothing was queued.'
+          );
+        } else if (r.delivery?.sent) {
+          toast.success('Sent.');
+        } else {
+          // Queued but not away: say why, rather than leaving it looking sent.
+          toast.warning(
+            r.delivery?.reason
+              ? `Queued, not sent: ${r.delivery.reason}`
+              : 'Queued. It will go with the next scheduled send.'
+          );
+        }
         onDone();
       }}
     >

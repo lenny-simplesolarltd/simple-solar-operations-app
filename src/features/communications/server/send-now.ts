@@ -43,16 +43,35 @@ export async function sendQueuedNow(
       actionTypes: [actionType],
       limit: 5
     });
-    return {
-      sent: report.sent,
-      failed: report.failed,
+    if (report.refused)
       // A shut gate reads as a refusal rather than a fault: the report is
       // queued and truthfully says so.
-      ...(report.refused ? { reason: report.refused } : {})
-    };
-  } catch {
+      return {
+        sent: report.sent,
+        failed: report.failed,
+        reason: report.refused
+      };
+    if (report.sent === 0 && report.claimed === 0)
+      return {
+        sent: 0,
+        failed: report.failed,
+        reason: 'nothing was waiting to be sent'
+      };
+    return { sent: report.sent, failed: report.failed };
+  } catch (err) {
     // The report is queued; the scheduled worker will try again. Never let a
     // transport problem turn a successful queue into a failed command.
-    return { sent: 0, failed: 0, reason: 'the send could not be attempted' };
+    //
+    // The real message travels with it. A generic "could not be attempted"
+    // leaves the only evidence in a log nobody reads, and this is staff-facing
+    // - the person who pressed the button is the person who can act on it.
+    return {
+      sent: 0,
+      failed: 0,
+      reason:
+        err instanceof Error && err.message
+          ? err.message
+          : 'the send could not be attempted'
+    };
   }
 }

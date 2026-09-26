@@ -699,13 +699,18 @@ export async function setReportSubscriptionAction(
   // Send now means now. The command queued it; this drives the worker for that
   // one type immediately rather than leaving it for a scheduler that, on the
   // current plan, runs once a day. Every gate still decides whether it leaves.
+  //
+  // The outcome is returned rather than discarded. Swallowing it made a failed
+  // send look exactly like a successful one: the button said "queued", the
+  // report sat there, and the reason existed only in a variable nobody read.
   if (response.ok) {
     const { sendQueuedNow } = await import(
       '@/features/communications/server/send-now'
     );
-    await sendQueuedNow('EmailReport');
+    const delivery = await sendQueuedNow('EmailReport');
+    if (d.sourceKind === 'Programme') refresh(d.sourceId);
+    return { ...response, result: { ...response.result, delivery } };
   }
-  if (response.ok && d.sourceKind === 'Programme') refresh(d.sourceId);
   return response;
 }
 
